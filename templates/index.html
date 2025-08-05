@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<main>
+    <section class="hero-section">
+        <div class="container">
+            <h1 class="display-4 fw-bold mb-3">
+            Ваша новая работа — в любой точке <span class="highlight-animated">мира</span>
+        </h1>
+                    <p class="lead">
+                Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
+            </p>
+            <a href="#search-form-section" class="btn btn-primary btn-lg">
+                <i class="bi bi-search me-2"></i>Начать поиск
+            </a>
+        </div>
+    </section>
+
+    <section id="search-form-section">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10 col-xl-8">
+                    <form id="job-search-form" novalidate>
+                        
+                        <div class="form-step-card">
+                            <div class="form-step-header">
+                                <span class="step-number">1</span>
+                                <h4>Ваш статус</h4>
+                            </div>
+                            <p class="text-muted">Это поможет нам найти для вас специальные программы и вакансии.</p>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check p-3 border rounded">
+                                        <input class="form-check-input" type="radio" name="is_refugee" value="true" id="refugee_yes" required>
+                                        <label class="form-check-label" for="refugee_yes">
+                                            <strong class="d-block">Да, я украинский беженец</strong>
+                                            (например, по параграфу 24)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check p-3 border rounded">
+                                        <input class="form-check-input" type="radio" name="is_refugee" value="false" id="refugee_no" required>
+                                        <label class="form-check-label" for="refugee_no">
+                                            <strong class="d-block">Нет, обычный поиск</strong>
+                                            (другое основание для работы)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-step-card">
+                            <div class="form-step-header">
+                                <span class="step-number">2</span>
+                                <h4>Выберите профессии</h4>
+                            </div>
+                             <div class="mb-4">
+                                <p class="text-muted mb-2">Быстрый выбор по категориям:</p>
+                                <div id="quick-select-buttons" class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('transport', this)">🚗 Транспорт</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('restaurant', this)">🍽️ Общепит</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('construction', this)">🏗️ Стройка</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('care', this)">👥 Уход</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('it', this)">💻 IT</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('refugee', this)">🇺🇦 Для украинцев</button>
+                                </div>
+                            </div>
+
+                            {% for category, jobs in job_categories.items() %}
+                            <div class="mb-3" data-category="{{ category }}">
+                                <h6 class="fw-bold text-secondary mb-3 pt-2 border-top">{{ category }}</h6>
+                                <div class="row">
+                                    {% set outer_loop_index = loop.index0 %}
+                                    {% for job in jobs %}
+                                    <div class="col-md-6 col-lg-4 mb-2">
+                                        <div class="form-check">
+                                            {# ИСПРАВЛЕНИЕ: Убран фильтр 'slugify', используется комбинация индексов циклов для уникальности #}
+                                            <input class="form-check-input job-checkbox" type="checkbox" name="selected_jobs" value="{{ job }}" id="job-{{ outer_loop_index }}-{{ loop.index0 }}">
+                                            <label class="form-check-label" for="job-{{ outer_loop_index }}-{{ loop.index0 }}">{{ job }}</label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-step-card">
+                            <div class="form-step-header">
+                                <span class="step-number">3</span>
+                                <h4>Страны поиска</h4>
+                            </div>
+                            <div class="row">
+                                {% for code, info in countries.items() %}
+                                <div class="col-md-6 col-lg-4 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="countries" value="{{ code }}" id="country_{{ code }}" {% if code in ['de', 'pl'] %}checked{% endif %}>
+                                        <label class="form-check-label" for="country_{{ code }}">{{ info.name }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="form-step-card">
+                             <div class="form-step-header">
+                                <span class="step-number">4</span>
+                                <h4>Город (опционально)</h4>
+                            </div>
+                            <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Warsaw, Prague">
+                            <small class="form-text text-muted mt-2 d-block">Оставьте пустым, чтобы искать по всей стране.</small>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg px-5 py-3">
+                                🚀 Найти работу
+                            </button>
+
+                            <!-- ДОБАВИТЬ ЭТОТ БЛОК после кнопки "Найти работу" -->
+                            <!-- ДОБАВИТЬ ЭТОТ БЛОК после кнопки "Найти работу" -->
+                            <div class="text-center mt-4 pt-4 border-top">
+                                <h5 class="mb-3">📧 Получать новые вакансии на email</h5>
+                                <p class="text-muted mb-3">⚠️ Сначала выберите профессии и страны выше, нажмите "Найти работу", затем подписывайтесь</p>
+                                <div class="row justify-content-center">
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <input type="email" class="form-control" id="subscribe-email" placeholder="Ваш email для уведомлений">
+                                            <button class="btn btn-outline-primary" type="button" onclick="subscribeToEmails()">
+                                                <i class="bi bi-envelope me-1"></i>Подписаться
+                                            </button>
+                                        </div>
+                                        <small class="text-muted mt-2 d-block">Еженедельные уведомления о подходящих вакансиях</small>
+                                        <small class="text-muted">
+                                            <a href="javascript:void(0)" onclick="showManageSubscriptionInfo(); return false;">⚙️ Управление подпиской</a>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-muted mt-3"><i class="bi bi-shield-check"></i> Бесплатно, безопасно и без регистрации</p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}

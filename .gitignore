@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data files
+data/
+*.json
+*.csv
+
+# Railway
+.railway/
+
+# ========== ДОБАВИТЬ ЭТИ СТРОКИ ==========
+
+# GlobalJobHunter специфичные файлы
+*.db
+*.sqlite
+*.sqlite3
+globaljobhunter.db
+
+# Кеш файлы вашего приложения
+cache_*.json
+shared_jobicy_cache.json
+rate_limits.json
+*_cache.json
+
+# Временные файлы поиска
+search_cache/
+temp_jobs/
+
+# Email логи (если есть)
+email_logs/
+*.eml
+
+# Backup файлы
+*.backup
+*.bak
+
+# Тестовые файлы
+test_data/
+testing/

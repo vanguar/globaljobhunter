@@ -1,0 +1,598 @@
+{% extends "layout.html" %}
+
+{% block title %}Результаты поиска - GlobalJobHunter{% endblock %}
+
+{% block content %}
+<main>
+    <section class="results-header">
+        <div class="container">
+            <h1 class="display-5 fw-bold mb-2">🏆 Результаты поиска</h1>
+            <p class="lead text-muted">
+                Найдено {{ stats.total }} вакансий за {{ search_time }}с.
+            </p>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary mt-3">
+                <i class="bi bi-arrow-left me-2"></i>Изменить параметры поиска
+            </a>
+        </div>
+    </section>
+    
+    <section class="stats-container">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card h-100">
+                        <div class="stat-icon" style="color: var(--primary-blue);"><i class="bi bi-briefcase-fill"></i></div>
+                        <div class="stat-number">{{ stats.total }}</div>
+                        <div class="stat-label">Всего вакансий</div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card h-100">
+                        <div class="stat-icon" style="color: var(--success);"><i class="bi bi-house-heart-fill"></i></div>
+                        <div class="stat-number">{{ stats.refugee_friendly }}</div>
+                        <div class="stat-label">Для беженцев</div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card h-100">
+                        <div class="stat-icon" style="color: var(--info);"><i class="bi bi-volume-mute-fill"></i></div>
+                        <div class="stat-number">{{ stats.no_language }}</div>
+                        <div class="stat-label">Без знания языка</div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card h-100">
+                        <div class="stat-icon" style="color: var(--warning);"><i class="bi bi-cash-coin"></i></div>
+                        <div class="stat-number">{{ stats.with_salary }}</div>
+                        <div class="stat-label">С указанием зарплаты</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pb-5">
+        <div class="container">
+            <div class="filter-bar sticky-top mb-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                             <input type="text" class="form-control" id="job-filter" placeholder="Фильтр по названию, компании...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="filter-type" id="all" value="all" checked>
+                            <label class="btn btn-outline-primary" for="all"><i class="bi bi-list-ul me-1"></i>Все</label>
+                            
+                            <input type="radio" class="btn-check" name="filter-type" id="refugees" value="refugees">
+                            <label class="btn btn-outline-primary" for="refugees"><i class="bi bi-house-heart me-1"></i>Только для беженцев</label>
+                            
+                            <input type="radio" class="btn-check" name="filter-type" id="no-lang" value="no-lang">
+                            <label class="btn btn-outline-primary" for="no-lang"><i class="bi bi-volume-mute me-1"></i>Только без языка</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jobs-container">
+                {% if jobs_by_country %}
+                    {% for country_name, country_jobs in jobs_by_country.items() %}
+                        <!-- НОВЫЙ КРАСИВЫЙ РАЗДЕЛИТЕЛЬ СТРАНЫ -->
+                        <div class="country-divider" data-country="{{ country_name }}">
+                            <div class="country-header">
+                                <div class="country-flag">
+                                    {% if country_name == 'Германия' %}🇩🇪
+                                    {% elif country_name == 'Польша' %}🇵🇱
+                                    {% elif country_name == 'Великобритания' %}🇬🇧
+                                    {% elif country_name == 'Нидерланды' %}🇳🇱
+                                    {% elif country_name == 'Франция' %}🇫🇷
+                                    {% elif country_name == 'Австрия' %}🇦🇹
+                                    {% elif country_name == 'США' %}🇺🇸
+                                    {% elif country_name == 'Канада' %}🇨🇦
+                                    {% elif country_name == 'Австралия' %}🇦🇺
+                                    {% elif country_name == 'Италия' %}🇮🇹
+                                    {% elif country_name == 'Испания' %}🇪🇸
+                                    {% elif country_name == 'Швейцария' %}🇨🇭
+                                    {% elif country_name == 'Бельгия' %}🇧🇪
+                                    {% elif country_name == 'Швеция' %}🇸🇪
+                                    {% elif country_name == 'Норвегия' %}🇳🇴
+                                    {% elif country_name == 'Дания' %}🇩🇰
+                                    {% elif country_name == 'Чехия' %}🇨🇿
+                                    {% elif country_name == 'Словакия' %}🇸🇰
+                                    {% else %}🌍{% endif %}
+                                </div>
+                                <div class="country-info">
+                                    <h3 class="country-name">{{ country_name }}</h3>
+                                    <p class="country-stats">{{ country_jobs|length }} вакансий</p>
+                                </div>
+                                <div class="country-line"></div>
+                            </div>
+                        </div>
+
+                        <!-- Вакансии этой страны -->
+                        {% for job in country_jobs %}
+                        <div class="job-card" 
+                             data-refugee="{{ job.refugee_friendly|lower }}" 
+                             data-no-language="{{ (job.language_requirement == 'no_language_required')|lower }}"
+                             data-country="{{ country_name }}">
+                            <div class="row g-3">
+                                <div class="col-lg-8">
+                                    <div class="d-flex align-items-start mb-3">
+                                        <div>
+                                            <h5 class="job-title mb-1">{{ job.title }}</h5>
+                                            <p class="company-name mb-2">{{ job.company }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="job-meta mb-3">
+                                        <span><i class="bi bi-geo-alt-fill me-2"></i>{{ job.location }}</span>
+                                        <span><i class="bi bi-calendar3 me-2"></i>{{ job.posted_date.split('T')[0] }}</span>
+                                        <!-- ДОБАВЛЯЕМ отображение источника -->
+                                        <span class="source-badge">
+                                            <i class="bi bi-database me-1"></i>{{ job.source }}
+                                        </span>
+                                    </div>
+                                    {% if job.description %}
+                                        <p class="job-description">{{ job.description | striptags }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-lg-4 d-flex flex-column justify-content-between align-items-lg-end">
+                                    <div class="w-100">
+                                        {% if job.refugee_friendly %}
+                                            <span class="badge-custom bg-success mb-2"><i class="bi bi-house-heart"></i> Для беженцев</span>
+                                        {% endif %}
+                                        {% if job.language_requirement == 'no_language_required' %}
+                                            <span class="badge-custom bg-info mb-2"><i class="bi bi-volume-mute"></i> Без языка</span>
+                                        {% endif %}
+
+                                        {% if job.salary %}
+                                            <div class="salary-badge mt-2">{{ job.salary }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="mt-3 w-100 d-grid gap-2">
+                                         <a href="{{ job.apply_url }}" target="_blank" class="btn btn-primary">
+                                            Откликнуться <i class="bi bi-box-arrow-up-right ms-2"></i>
+                                        </a>
+                                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('{{ job.apply_url }}')">
+                                            <i class="bi bi-clipboard me-1"></i>Копировать ссылку
+                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-binoculars-fill text-muted" style="font-size: 5rem;"></i>
+                        <h3 class="mt-4">По вашему запросу ничего не найдено</h3>
+                        <p class="text-muted">Попробуйте изменить профессии или расширить географию поиска.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+<!-- БЛОК ПОДДЕРЖКИ ПРОЕКТА -->
+<section class="support-promo-section py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="support-promo-card text-center" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-radius: 20px; padding: 40px; border: 2px solid #e1f5fe;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">💙</div>
+                    <h3 style="color: #1976d2; font-weight: 600; margin-bottom: 15px;">Понравился проект?</h3>
+                    <p class="text-muted mb-4">Ваша поддержка помогает сайту развиваться. Узнайте, как можно помочь и связаться с автором.</p>
+                    <a href="/support" class="btn btn-primary btn-lg" style="border-radius: 12px; padding: 12px 30px; font-weight: 600;">
+                        Перейти на страницу поддержки
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>    
+
+    <!-- ДОБАВИТЬ ЭТОТ БЛОК ПЕРЕД ЗАКРЫВАЮЩИМ </main> -->
+<section class="subscription-section py-5 border-top">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="text-center">
+                    <h4 class="mb-3">📧 Получать новые вакансии на email</h4>
+                    <p class="text-muted mb-4">Еженедельные уведомления о подходящих вакансиях на основе вашего поиска</p>
+                    
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="input-group input-group-lg">
+                                <input type="email" class="form-control" id="subscribe-email" placeholder="Ваш email для уведомлений">
+                                <button class="btn btn-primary" type="button" onclick="subscribeToEmails()">
+                                    <i class="bi bi-envelope me-1"></i>Подписаться
+                                </button>
+                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="bi bi-shield-check me-1"></i>Безопасно и без спама
+                            </small>
+                            <small class="text-muted">
+                                <a href="javascript:void(0)" onclick="showManageSubscriptionInfo()" class="text-decoration-none">
+                                    ⚙️ Управление подпиской
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="feature-item">
+                                <i class="bi bi-bell text-primary mb-2 d-block" style="font-size: 1.5rem;"></i>
+                                <small class="text-muted">Новые вакансии первыми</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-item">
+                                <i class="bi bi-gear text-primary mb-2 d-block" style="font-size: 1.5rem;"></i>
+                                <small class="text-muted">Гибкие настройки</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-item">
+                                <i class="bi bi-x-circle text-primary mb-2 d-block" style="font-size: 1.5rem;"></i>
+                                <small class="text-muted">Легкая отписка</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('job-filter').addEventListener('input', filterJobs);
+document.querySelectorAll('input[name="filter-type"]').forEach(radio => {
+    radio.addEventListener('change', filterJobs);
+});
+
+function filterJobs() {
+    const searchTerm = document.getElementById('job-filter').value.toLowerCase();
+    const filterType = document.querySelector('input[name="filter-type"]:checked').value;
+    const jobCards = document.querySelectorAll('.job-card');
+    const countryDividers = document.querySelectorAll('.country-divider');
+    
+    let visibleCount = 0;
+    const visibleCountries = new Set();
+    
+    jobCards.forEach(card => {
+        const title = card.querySelector('.job-title').textContent.toLowerCase();
+        const company = card.querySelector('.company-name').textContent.toLowerCase();
+        const country = card.dataset.country;
+        const matchesSearch = title.includes(searchTerm) || company.includes(searchTerm);
+        
+        let matchesFilter = true;
+        if (filterType === 'refugees') {
+            matchesFilter = card.dataset.refugee === 'true';
+        } else if (filterType === 'no-lang') {
+            matchesFilter = card.dataset.noLanguage === 'true';
+        }
+        
+        if (matchesSearch && matchesFilter) {
+           card.style.display = 'block';
+           visibleCount++;
+           visibleCountries.add(country);
+       } else {
+           card.style.display = 'none';
+       }
+   });
+   
+   // Показываем/скрываем разделители стран
+   countryDividers.forEach(divider => {
+       const country = divider.dataset.country;
+       if (visibleCountries.has(country)) {
+           divider.style.display = 'block';
+       } else {
+           divider.style.display = 'none';
+       }
+   });
+   
+   updateResultsCount(visibleCount, jobCards.length);
+}
+
+function updateResultsCount(count, total) {
+   let counterElement = document.getElementById('results-counter');
+   const jobsContainer = document.getElementById('jobs-container');
+   
+   if (!counterElement) {
+       counterElement = document.createElement('div');
+       counterElement.id = 'results-counter';
+       jobsContainer.insertBefore(counterElement, jobsContainer.firstChild);
+   }
+   
+   if (count === total) {
+       if (counterElement) counterElement.remove();
+       return;
+   }
+   
+   counterElement.className = 'alert alert-info mt-3';
+   counterElement.innerHTML = `<i class="bi bi-info-circle me-2"></i>Показано отфильтрованных вакансий: <strong>${count} из ${total}</strong>`;
+   
+   if (count === 0) {
+       counterElement.className = 'alert alert-warning mt-3';
+       counterElement.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>Нет вакансий, соответствующих фильтрам`;
+   }
+}
+
+function copyToClipboard(text) {
+   navigator.clipboard.writeText(text).then(() => {
+       showToast('✅ Ссылка скопирована!', 'success');
+   }).catch(() => {
+       showToast('❌ Не удалось скопировать', 'danger');
+   });
+}
+
+function showToast(message, type = 'info') {
+   const toastContainer = document.getElementById('toast-container') || createToastContainer();
+   const toast = document.createElement('div');
+   toast.className = `alert alert-${type} alert-dismissible fade show m-0`;
+   toast.setAttribute('role', 'alert');
+   toast.style.minWidth = '250px';
+   toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+   
+   toastContainer.appendChild(toast);
+   
+   const bsAlert = new bootstrap.Alert(toast);
+   setTimeout(() => bsAlert.close(), 3000);
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1056;';
+    document.body.appendChild(container);
+    return container;
+}
+
+function subscribeToEmails() {
+    const emailInput = document.getElementById('subscribe-email');
+    const email = emailInput.value.trim();
+    
+    if (!email || !email.includes('@')) {
+        showToast('❌ Введите корректный email адрес', 'warning');
+        return;
+    }
+    
+    fetch('/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+    })
+    .then(response => {
+        if (response.status === 409) {
+            return response.json().then(data => {
+                showSubscriptionChoiceModal(email, data);
+                throw new Error('HANDLED_409');
+            });
+        } else if (response.ok) {
+            return response.json();
+        } else {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Ошибка подписки');
+            });
+        }
+    })
+    .then(data => {
+        showToast('✅ ' + data.message, 'success');
+        emailInput.value = '';
+    })
+    .catch(error => {
+        if (error.message === 'HANDLED_409') {
+            return;
+        }
+        console.error('Ошибка подписки:', error);
+        showToast('❌ ' + error.message, 'danger');
+    });
+}
+
+function showManageSubscriptionInfo() {
+    alert('📧 Ссылка на управление подпиской будет в каждом email уведомлении!\n\nВы сможете:\n• Изменить профессии\n• Изменить страны\n• Изменить частоту уведомлений\n• Отписаться');
+}
+
+function checkSystemStatus() {
+    fetch('/health')
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            }
+            throw new Error('Сервис недоступен');
+        })
+        .then(html => {
+            // Создаем модальное окно с содержимым статуса
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'status-modal';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Статус системы</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <iframe srcdoc="${html.replace(/"/g, '&quot;')}" style="width: 100%; height: 400px; border: none;"></iframe>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            const bootstrapModal = new bootstrap.Modal(modal);
+            bootstrapModal.show();
+            
+            // Удаляем модальное окно после закрытия
+            modal.addEventListener('hidden.bs.modal', () => {
+                modal.remove();
+            });
+        })
+        .catch(error => {
+            alert('❌ Ошибка загрузки статуса: ' + error.message);
+        });
+        }
+
+function showSubscriptionChoiceModal(email, data) {
+    if (!data || !data.current_subscription || !data.new_subscription) {
+        showToast('❌ Ошибка данных подписки', 'danger');
+        return;
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'subscription-choice-modal';
+    
+    const currentJobs = data.current_subscription.jobs.slice(0, 3).join(', ') + 
+                       (data.current_subscription.jobs.length > 3 ? ` (+${data.current_subscription.jobs.length - 3})` : '');
+    const newJobs = data.new_subscription.jobs.slice(0, 3).join(', ') + 
+                   (data.new_subscription.jobs.length > 3 ? ` (+${data.new_subscription.jobs.length - 3})` : '');
+    
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="border: none; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
+                <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 20px 20px 0 0; padding: 25px;">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3" style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-envelope-heart" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h4 class="modal-title mb-1" style="font-weight: 600;">Управление подпиской</h4>
+                            <small style="opacity: 0.9;">Настройте ваши уведомления</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="filter: brightness(0) invert(1);"></button>
+                </div>
+                
+                <div class="modal-body" style="padding: 30px;">
+                    <div class="alert alert-info" style="border: none; background: linear-gradient(45deg, #e3f2fd, #f3e5f5); border-radius: 15px; border-left: 4px solid #2196F3;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>У вас уже есть подписка на этот email!</strong>
+                        <br><small class="text-muted">Выберите, как поступить с новыми параметрами поиска</small>
+                    </div>
+                    
+                    <div class="row g-4 mt-2">
+                        <div class="col-md-6">
+                            <div class="subscription-card current" style="background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%); border: 2px solid #e3f2fd; border-radius: 15px; padding: 20px; height: 100%; position: relative;">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="subscription-icon" style="background: #2196F3; color: white; border-radius: 10px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                        <i class="bi bi-bookmark-check"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0" style="color: #2196F3; font-weight: 600;">Текущая подписка</h6>
+                                        <small class="text-muted">Действующие настройки</small>
+                                    </div>
+                                </div>
+                                <div class="subscription-details">
+                                    <div class="detail-item mb-2">
+                                        <i class="bi bi-briefcase text-primary me-2"></i>
+                                        <small><strong>Профессии:</strong></small>
+                                        <div class="ms-4"><small class="text-muted">${currentJobs}</small></div>
+                                    </div>
+                                    <div class="detail-item mb-2">
+                                        <i class="bi bi-globe text-primary me-2"></i>
+                                        <small><strong>Страны:</strong></small>
+                                        <div class="ms-4"><small class="text-muted">${data.current_subscription.countries.join(', ')}</small></div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="bi bi-geo-alt text-primary me-2"></i>
+                                        <small><strong>Город:</strong></small>
+                                        <div class="ms-4"><small class="text-muted">${data.current_subscription.city || 'Не указан'}</small></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="subscription-card new" style="background: linear-gradient(135deg, #f0fff4 0%, #e8f5e8 100%); border: 2px solid #e8f5e8; border-radius: 15px; padding: 20px; height: 100%; position: relative;">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="subscription-icon" style="background: #4CAF50; color: white; border-radius: 10px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                        <i class="bi bi-bookmark-plus"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0" style="color: #4CAF50; font-weight: 600;">Новая подписка</h6>
+                                        <small class="text-muted">Параметры из поиска</small>
+                                    </div>
+                                </div>
+                                <div class="subscription-details">
+                                    <div class="detail-item mb-2">
+                                        <i class="bi bi-briefcase text-success me-2"></i>
+                                        <small><strong>Профессии:</strong></small>
+                                        <div class="ms-4"><small class="text-muted">${newJobs}</small></div>
+                                    </div>
+                                    <div class="detail-item mb-2">
+                                        <i class="bi bi-globe text-success me-2"></i>
+                                        <small><strong>Страны:</strong></small>
+                                        <div class="ms-4"><small class="text-muted">${data.new_subscription.countries.join(', ')}</small></div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="bi bi-geo-alt text-success me-2"></i>
+                                        <small><strong>Город:</strong></small>
+                                        <div class="ms-4"><small class="text-muted">${data.new_subscription.city || 'Не указан'}</small></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <h6 class="mb-3" style="color: #666;">Выберите действие:</h6>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="border: none; padding: 20px 30px 30px; gap: 15px;">
+                    <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal" style="border-radius: 12px; padding: 12px; font-weight: 500;">
+                        <i class="bi bi-x-circle me-2"></i>Отмена
+                    </button>
+                    <button type="button" class="btn btn-warning flex-fill" onclick="updateSubscription('${email}', 'replace')" style="border-radius: 12px; padding: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);">
+                        <i class="bi bi-arrow-repeat me-2"></i>Заменить подписку
+                    </button>
+                    <button type="button" class="btn btn-success flex-fill" onclick="updateSubscription('${email}', 'merge')" style="border-radius: 12px; padding: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
+                        <i class="bi bi-plus-circle me-2"></i>Объединить подписки
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    modal.addEventListener('hidden.bs.modal', () => modal.remove());
+}
+
+function updateSubscription(email, action) {
+    fetch('/subscribe/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, action: action })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ ' + data.message, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('subscription-choice-modal'));
+            if (modal) modal.hide();
+            const emailInput = document.getElementById('subscribe-email');
+            if (emailInput) emailInput.value = '';
+        } else {
+            showToast('❌ ' + data.error, 'warning');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка обновления подписки:', error);
+        showToast('❌ Ошибка обновления подписки', 'danger');
+    });
+}        
+
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+
+{% block title %}Поддержка проекта - GlobalJobHunter{% endblock %}
+
+{% block content %}
+<main>
+    <section class="support-header py-5">
+        <div class="container">
+            <div class="text-center">
+                <div style="font-size: 4rem; color: #007bff; margin-bottom: 20px;">💙</div>
+                <h1 class="display-4 fw-bold mb-3">Поддержка проекта</h1>
+                <p class="lead text-muted">Ваш интерес и поддержка помогают этому проекту расти и становиться лучше. Спасибо, что вы с нами!</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <!-- Блок с криптокошельками -->
+                    <div class="card mb-4" style="border: none; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                        <div class="card-body p-4">
+                            <div class="text-center mb-4">
+                                <div style="font-size: 3rem; color: #f0b90b; margin-bottom: 15px;">💰</div>
+                                <h3 class="fw-bold mb-3">Помочь развитию</h3>
+                                <p class="text-muted">Если вам нравится то, что я делаю, вы можете поддержать проект, отправив любую сумму на один из кошельков ниже.</p>
+                            </div>
+                            
+                            <div class="wallet-list">
+                                <div class="wallet-item mb-3 p-3" style="background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                    <div class="wallet-info">
+                                        <div class="fw-semibold mb-1">🟡 Bitcoin (BTC)</div>
+                                        <div class="wallet-address text-muted" style="font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; word-break: break-all;">bc1qq0rs5j43yh09tyvdynregg56c68d2yaz6ek8dx</div>
+                                    </div>
+                                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-address="bc1qq0rs5j43yh09tyvdynregg56c68d2yaz6ek8dx">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="wallet-item mb-3 p-3" style="background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                    <div class="wallet-info">
+                                        <div class="fw-semibold mb-1">💎 USDT (ERC-20)</div>
+                                        <div class="wallet-address text-muted" style="font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; word-break: break-all;">0xf0e70cb55f38ad3Ca7ABCDD276A997092ecb7346</div>
+                                    </div>
+                                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-address="0xf0e70cb55f38ad3Ca7ABCDD276A997092ecb7346">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="wallet-item mb-3 p-3" style="background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                    <div class="wallet-info">
+                                        <div class="fw-semibold mb-1">🔴 USDT (TRC-20)</div>
+                                        <div class="wallet-address text-muted" style="font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; word-break: break-all;">TJJ63iThrWz4mLRNob5C5GezYsRwQtwmeg</div>
+                                    </div>
+                                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-address="TJJ63iThrWz4mLRNob5C5GezYsRwQtwmeg">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="wallet-item mb-3 p-3" style="background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                    <div class="wallet-info">
+                                        <div class="fw-semibold mb-1">💎 Ethereum (ETH)</div>
+                                        <div class="wallet-address text-muted" style="font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; word-break: break-all;">0xf0e70cb55f38ad3Ca7ABCDD276A997092ecb7346</div>
+                                    </div>
+                                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-address="0xf0e70cb55f38ad3Ca7ABCDD276A997092ecb7346">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="wallet-item mb-4 p-3" style="background: #f8f9fa; border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                    <div class="wallet-info">
+                                        <div class="fw-semibold mb-1">🟣 Solana (SOL)</div>
+                                        <div class="wallet-address text-muted" style="font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; word-break: break-all;">6u31e9B6RMMqWaU6JHX2GTskdsmcNLAKdyqKaUjPq9xk</div>
+                                    </div>
+                                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-address="6u31e9B6RMMqWaU6JHX2GTskdsmcNLAKdyqKaUjPq9xk">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Реферальный блок Binance -->
+                            <div class="referral-promo text-center p-4" style="background: linear-gradient(135deg, #fff9e6 0%, #ffeaa7 100%); border: 2px solid #f0b90b; border-radius: 15px;">
+                                <h5 class="fw-bold mb-2">🎁 Нужна криптовалюта?</h5>
+                                <p class="mb-3" style="font-size: 0.95rem;">Вы можете легко купить любую из этих монет на бирже Binance. При регистрации по нашей ссылке вы получите приветственный бонус!</p>
+                                <a href="https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00UPKQJOPT" target="_blank" rel="noopener noreferrer" class="btn fw-bold" style="background: #f0b90b; color: #1e2026; border-radius: 12px; padding: 12px 25px;">
+                                    Регистрация на Binance + Бонус
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Блок с контактом -->
+                    <div class="card" style="border: none; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                        <div class="card-body p-4 text-center">
+                            <div style="font-size: 3rem; color: #28a745; margin-bottom: 20px;">📧</div>
+                            <h3 class="fw-bold mb-3">Есть вопросы или идеи?</h3>
+                            <p class="text-muted mb-4">Я всегда открыт для предложений, вопросов по сотрудничеству или просто дружеской беседы. Не стесняйтесь написать!</p>
+                            <a href="mailto:tzvanguardia@gmail.com" class="btn btn-success btn-lg" style="border-radius: 12px; font-weight: 600;">
+                                <i class="bi bi-envelope me-2"></i>Написать на Email
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const copyButtons = document.querySelectorAll('.copy-btn');
+
+    copyButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const address = this.getAttribute('data-address');
+            
+            navigator.clipboard.writeText(address).then(() => {
+                const originalIcon = this.innerHTML;
+                this.innerHTML = '<i class="bi bi-check-circle text-success"></i>';
+                
+                showToast('✅ Адрес скопирован!', 'success');
+                
+                setTimeout(() => {
+                    this.innerHTML = originalIcon;
+                }, 2000);
+            }).catch(err => {
+                console.error('Не удалось скопировать адрес: ', err);
+                showToast('❌ Не удалось скопировать', 'danger');
+            });
+        });
+    });
+});
+
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show m-0`;
+    toast.setAttribute('role', 'alert');
+    toast.style.minWidth = '250px';
+    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+    
+    toastContainer.appendChild(toast);
+    
+    const bsAlert = new bootstrap.Alert(toast);
+    setTimeout(() => bsAlert.close(), 3000);
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1056;';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

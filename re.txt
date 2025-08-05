@@ -1,0 +1,59 @@
+ Регистрация в бесплатных API
+ https://developer.adzuna.com/
+
+ID - 1c4dfdde
+Api - e3e606e08b03d56b8a215327cc448ab8
+
+
+python -m venv venv  -  создание виртуалки
+venv\Scripts\Activate  - активация виртуалки
+ 
+git status   -   проверить статус
+
+git add .   -   добавить файлы в индекс
+
+git commit -m "Краткое описание изменений"   -   зафиксировать изменения
+
+http://127.0.0.1:5000
+http://localhost:5000
+http://10.177.145.98:5000
+
+АДМИНКА ДОСТУПНА:
+http://localhost:5000/admin/subscribers?key=VsemSosat
+
+http://localhost:5000/admin
+Логин: admin
+Пароль: VsemSosat
+
+
+СТАТИСТИКА:
+http://localhost:5000/health
+
+
+Сброс лимитов
+del rate_limits.json
+
+Проверка отправки подписки
+http://localhost:5000/send-notifications
+
+
+# 1. Инициализируем Git (если еще не сделали)
+git init
+
+# 2. Добавляем все файлы
+git add .
+
+# 3. Проверяем что добавилось (опционально)
+git status
+
+# 4. Делаем первый коммит
+git commit -m "🚀 Initial commit: GlobalJobHunter with email scheduler"
+
+# 5. Переименовываем ветку в main
+git branch -M main
+
+# 6. Подключаем к GitHub (берем команду со скриншота)
+git remote add origin https://github.com/vanguar/globaljobhunter.git
+
+# 7. Пушим на GitHub
+git push -u origin main

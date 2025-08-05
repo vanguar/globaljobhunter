@@ -1,0 +1,624 @@
+/* GlobalJobHunter - Modern Redesign by Gemini */
+:root {
+    --primary-blue: #0057B7; /* Ukrainian Blue */
+    --primary-yellow: #FFD700; /* Ukrainian Yellow */
+    --primary-dark: #2c3e50;
+    --secondary-gray: #7f8c8d;
+    --light-gray: #ecf0f1;
+    --background-color: #f8f9fa;
+    --white: #ffffff;
+    --success: #27ae60;
+    --info: #2980b9;
+    --warning: #f39c12;
+
+    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 10px 15px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 20px 25px rgba(0, 0, 0, 0.1);
+    
+    --border-radius: 12px;
+    --transition: all 0.3s ease-in-out;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--primary-dark);
+    line-height: 1.7;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* === NAVIGATION === */
+.navbar {
+    background-color: var(--white);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--primary-dark) !important;
+}
+
+.navbar-brand .brand-icon {
+    color: var(--primary-blue);
+}
+
+.nav-link {
+    color: var(--secondary-gray) !important;
+    font-weight: 500;
+    transition: var(--transition);
+    border-bottom: 2px solid transparent;
+    padding-bottom: 5px;
+    margin: 0 0.5rem;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--primary-blue) !important;
+    border-bottom-color: var(--primary-blue);
+}
+
+
+/* === HERO SECTION (INDEX) === */
+.hero-section {
+    background-color: var(--white);
+    padding: 6rem 0;
+    text-align: center;
+}
+
+.hero-section h1 {
+    font-weight: 800;
+    font-size: 3.5rem;
+    line-height: 1.2;
+}
+
+.hero-section .highlight {
+    color: var(--primary-blue);
+}
+
+.hero-section p.lead {
+    max-width: 600px;
+    margin: 1.5rem auto 2.5rem;
+    color: var(--secondary-gray);
+}
+
+
+/* === SEARCH FORM (INDEX) === */
+#search-form-section {
+    padding: 3rem 0;
+}
+
+.form-step-card {
+    background-color: var(--white);
+    padding: 2rem 2.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    margin-bottom: 2rem;
+    transition: var(--transition);
+}
+
+.form-step-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.form-step-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--light-gray);
+    padding-bottom: 1rem;
+}
+
+.form-step-header .step-number {
+    background-color: var(--primary-blue);
+    color: var(--white);
+    font-weight: 700;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+}
+
+.form-step-header h4 {
+    margin-bottom: 0;
+    font-weight: 600;
+}
+
+.form-check-label {
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+
+.quick-select-btn {
+    border-radius: 20px;
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.quick-select-btn.active {
+    background-color: var(--primary-blue) !important;
+    color: var(--white) !important;
+}
+
+.form-control-lg {
+    padding: 0.9rem 1.2rem;
+    border-radius: var(--border-radius);
+    border: 1px solid #ced4da;
+    transition: var(--transition);
+}
+
+.form-control-lg:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(0, 87, 183, 0.15);
+}
+
+
+/* === BUTTONS === */
+.btn {
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    padding: 0.8rem 1.8rem;
+    transition: var(--transition);
+    border: none;
+    letter-spacing: 0.5px;
+}
+
+.btn-primary {
+    background-color: var(--primary-blue);
+    color: var(--white);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background-color: #004a9a;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-outline-primary {
+    color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+.btn-outline-primary:hover {
+    background-color: var(--primary-blue);
+    color: var(--white);
+}
+
+
+/* === RESULTS PAGE === */
+.results-header {
+    background-color: var(--white);
+    padding: 4rem 0;
+    text-align: center;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.stats-container {
+    padding: 3rem 0;
+}
+
+.stat-card {
+    background-color: var(--white);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+}
+.stat-card .stat-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+.stat-card .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+}
+.stat-card .stat-label {
+    color: var(--secondary-gray);
+}
+
+.filter-bar {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    z-index: 100;
+}
+
+#jobs-container {
+    padding-top: 2rem;
+}
+
+.job-card {
+    background-color: var(--white);
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.job-card:hover {
+    border-left: 5px solid var(--primary-blue);
+    transform: translateX(5px);
+    box-shadow: var(--shadow-md);
+}
+
+.job-card .job-title {
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.job-card .company-name {
+    font-weight: 500;
+    color: var(--secondary-gray);
+}
+
+.job-card .job-meta {
+    color: var(--secondary-gray);
+    font-size: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+}
+
+.job-card .job-meta i {
+    color: var(--primary-blue);
+}
+
+.job-card .job-description {
+    font-size: 0.95rem;
+    color: #555;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.job-card .badge-custom {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-weight: 500;
+    color: var(--white);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.badge-custom.bg-success { background-color: var(--success) !important; }
+.badge-custom.bg-info { background-color: var(--info) !important; }
+.badge-custom.bg-secondary { background-color: var(--secondary-gray) !important; }
+
+.job-card .salary-badge {
+    background-color: rgba(255, 215, 0, 0.2);
+    color: #8b6d00;
+    border-radius: var(--border-radius);
+    padding: 0.8rem 1rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* === FOOTER === */
+footer {
+    background-color: var(--primary-dark);
+    color: var(--light-gray);
+    padding: 3rem 0;
+}
+footer a {
+    color: var(--light-gray);
+    text-decoration: none;
+    transition: var(--transition);
+}
+footer a:hover {
+    color: var(--primary-yellow);
+}
+
+
+/* === UTILITIES & ANIMATIONS === */
+.ukraine-flag .blue { color: var(--primary-blue); }
+.ukraine-flag .yellow { color: var(--primary-yellow); }
+
+.progress-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background-color: transparent;
+    z-index: 9999;
+    display: none;
+}
+.progress-bar-custom {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-blue), var(--primary-yellow));
+    transition: width 0.4s ease;
+}
+
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 3px solid var(--light-gray);
+    border-top-color: var(--primary-blue);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.modal-content {
+    border-radius: var(--border-radius);
+    border: none;
+}
+
+/* Стили для автозаполнения городов */
+.city-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+}
+
+.city-suggestion-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f8f9fa;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+}
+
+.city-suggestion-item:hover,
+.city-suggestion-item.selected {
+    background-color: var(--light-gray);
+    color: var(--primary-blue);
+}
+
+.city-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.city-name {
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.city-country {
+    font-size: 0.85rem;
+    color: var(--secondary-gray);
+    margin-top: 0.2rem;
+}
+
+.city-alias {
+    font-size: 0.75rem;
+    color: var(--info);
+    margin-top: 0.2rem;
+    font-style: italic;
+}
+
+.city-suggestion-item:hover .city-name {
+    color: var(--primary-blue);
+}
+
+/* --- Стили для логотипа в шапке --- */
+.navbar .navbar-brand {
+    padding-top: 0;      /* Убираем лишние отступы */
+    padding-bottom: 0;   /* Убираем лишние отступы */
+}
+
+.navbar .navbar-brand img {
+    height: 80px !important;  /* Задаем нужную высоту и делаем правило самым важным */
+    width: auto;              /* Ширина подстроится автоматически */
+}
+.highlight-animated {
+    position: relative;
+    color: var(--bs-primary); /* Используем основной синий цвет Bootstrap */
+    display: inline-block;
+    padding-bottom: 5px; /* Небольшой отступ для линии */
+}
+
+/* Сама линия, изначально невидимая (масштаб по X равен 0) */
+.highlight-animated::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background-color: var(--bs-primary);
+    transform: scaleX(0);
+    transform-origin: left; /* Анимация будет идти слева направо */
+    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1); /* Плавный переход */
+}
+
+/* При наведении на всю секцию "героя", линия появляется */
+.hero-section:hover .highlight-animated::after {
+    transform: scaleX(1); /* Увеличиваем масштаб до 100% */
+}
+
+/* === РАЗДЕЛИТЕЛИ СТРАН === */
+.country-divider {
+    margin: 3rem 0 2rem 0;
+    position: relative;
+}
+
+.country-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: linear-gradient(135deg, var(--white) 0%, #f8f9fa 100%);
+    padding: 1.5rem 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    border-left: 5px solid var(--primary-blue);
+    position: relative;
+    overflow: hidden;
+}
+
+.country-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100%;
+    background: linear-gradient(45deg, transparent, rgba(0, 87, 183, 0.05));
+    pointer-events: none;
+}
+
+.country-flag {
+    font-size: 3rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.country-info {
+    flex: 1;
+}
+
+.country-name {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 0 0 0.3rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.country-stats {
+    color: var(--secondary-gray);
+    margin: 0;
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.country-line {
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-blue), var(--primary-yellow));
+    border-radius: 2px;
+    opacity: 0.8;
+}
+
+/* Анимация при появлении */
+.country-divider {
+    animation: slideInFromLeft 0.6s ease-out;
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Ховер эффект */
+.country-header:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    transition: var(--transition);
+}
+
+.country-header:hover .country-flag {
+    transform: scale(1.1);
+    transition: var(--transition);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .country-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+        padding: 1.5rem 1rem;
+    }
+    
+    .country-flag {
+        font-size: 2.5rem;
+    }
+    
+    .country-name {
+        font-size: 1.5rem;
+        justify-content: center;
+    }
+    
+    .country-line {
+        width: 60px;
+    }
+}
+
+/* Обновляем стили job-card для лучшего визуального разделения */
+.job-card {
+    background-color: var(--white);
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 1rem; /* Уменьшили отступ между карточками */
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    position: relative;
+}
+
+.job-card:hover {
+    border-left: 5px solid var(--primary-blue);
+    transform: translateX(5px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Первая карточка после разделителя страны */
+.country-divider + .job-card {
+    margin-top: 1.5rem;
+}
+
+/* Стиль для отображения источника вакансии */
+.source-badge {
+    background-color: rgba(0, 87, 183, 0.1);
+    color: var(--primary-blue);
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(0, 87, 183, 0.2);
+}
+
+.source-badge i {
+    opacity: 0.7;
+}
