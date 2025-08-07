@@ -349,12 +349,18 @@ def subscribe():
                     'city': preferences.get('city'),
                     'is_refugee': preferences.get('is_refugee', True)
                 },
-                'message': 'У вас уже есть подписка. Выберите действие:'
+                'message': 'У вас уже есть подписку. Выберите действие:'
             }), 409  # 409 Conflict
         
         # Создаем новую подписку (стандартная логика)
         if existing:
             existing.is_active = True
+            if preferences.get('selected_jobs'):
+                existing.set_selected_jobs(preferences['selected_jobs'])
+            if preferences.get('countries'):
+                existing.set_countries(preferences['countries'])
+            existing.city = preferences.get('city')
+            existing.is_refugee = preferences.get('is_refugee', True)
         else:
             existing = Subscriber(
                 email=email,
@@ -369,11 +375,19 @@ def subscribe():
             db.session.add(existing)
         
         db.session.commit()
-        send_welcome_email(app, email)
         
-        return jsonify({'success': True, 'message': 'Подписка оформлена! Проверьте email.'})
+        # Отправляем welcome email с обработкой ошибок
+        try:
+            send_welcome_email(app, email)
+            return jsonify({'success': True, 'message': 'Подписка оформлена! Проверьте email.'})
+        except Exception as email_error:
+            print(f"❌ Ошибка отправки welcome email: {email_error}")
+            return jsonify({'success': True, 'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'})
         
     except Exception as e:
+        print(f"❌ Ошибка подписки: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Ошибка при оформлении подписки'}), 500
 
 @app.route('/unsubscribe')

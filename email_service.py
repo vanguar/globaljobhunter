@@ -3,6 +3,7 @@ from database import db, Subscriber, EmailLog
 from datetime import datetime, timedelta
 import os
 from threading import Thread
+import time
 
 mail = Mail()
 
