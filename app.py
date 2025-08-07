@@ -305,23 +305,31 @@ def results():
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
+    print("🔍 НАЧАЛО ФУНКЦИИ SUBSCRIBE")
     try:
         data = request.json or request.form.to_dict()
         email = data.get('email', '').strip().lower()
+        print(f"📧 Получен email: {email}")
         
         if not email or '@' not in email:
+            print("❌ Неверный email")
             return jsonify({'error': 'Неверный email адрес'}), 400
         
         preferences = session.get('last_search_preferences', {})
+        print(f"⚙️ Предпочтения из сессии: {preferences}")
 
         # ПРОВЕРКА: Есть ли выбранные профессии?
         if not preferences.get('selected_jobs') or not preferences.get('countries'):
+            print("❌ Нет профессий или стран в сессии")
             return jsonify({'error': 'Сначала выберите профессии и страны, затем нажмите "Найти работу", а потом подписывайтесь'}), 400
         
+        print("🔍 Ищем существующего подписчика...")
         existing = Subscriber.query.filter_by(email=email).first()
+        print(f"👤 Существующий подписчик: {existing}")
         
         # НОВАЯ ЛОГИКА: Если подписка существует
         if existing and existing.is_active:
+            print("✅ Найден активный подписчик, проверяем отличия...")
             # Получаем текущие предпочтения пользователя
             current_jobs = set(existing.get_selected_jobs() or [])
             current_countries = set(existing.get_countries() or [])
@@ -330,11 +338,18 @@ def subscribe():
             new_jobs = set(preferences.get('selected_jobs', []))
             new_countries = set(preferences.get('countries', []))
             
+            print(f"🔄 Текущие профессии: {current_jobs}")
+            print(f"🔄 Новые профессии: {new_jobs}")
+            print(f"🔄 Текущие страны: {current_countries}")
+            print(f"🔄 Новые страны: {new_countries}")
+            
             # Проверяем есть ли отличия
             if current_jobs == new_jobs and current_countries == new_countries:
+                print("❌ Подписка с такими же параметрами уже существует")
                 return jsonify({'error': 'Вы уже подписаны на уведомления с такими же параметрами'}), 400
             
             # Есть отличия - предлагаем варианты
+            print("🔄 Есть отличия, отправляем конфликт...")
             return jsonify({
                 'subscription_exists': True,
                 'current_subscription': {
@@ -349,11 +364,13 @@ def subscribe():
                     'city': preferences.get('city'),
                     'is_refugee': preferences.get('is_refugee', True)
                 },
-                'message': 'У вас уже есть подписку. Выберите действие:'
+                'message': 'У вас уже есть подписка. Выберите действие:'
             }), 409  # 409 Conflict
         
         # Создаем новую подписку (стандартная логика)
+        print("🆕 Создаем новую подписку или активируем существующую...")
         if existing:
+            print("🔄 Обновляем существующего подписчика...")
             existing.is_active = True
             if preferences.get('selected_jobs'):
                 existing.set_selected_jobs(preferences['selected_jobs'])
@@ -362,6 +379,7 @@ def subscribe():
             existing.city = preferences.get('city')
             existing.is_refugee = preferences.get('is_refugee', True)
         else:
+            print("➕ Создаем нового подписчика...")
             existing = Subscriber(
                 email=email,
                 is_refugee=preferences.get('is_refugee', True),
@@ -374,18 +392,24 @@ def subscribe():
                 existing.set_countries(preferences['countries'])
             db.session.add(existing)
         
+        print("💾 Сохраняем в базу данных...")
         db.session.commit()
+        print("✅ Подписчик сохранен в БД")
         
         # Отправляем welcome email с обработкой ошибок
+        print("📧 Отправляем welcome email...")
         try:
             send_welcome_email(app, email)
+            print("✅ Welcome email отправлен успешно")
             return jsonify({'success': True, 'message': 'Подписка оформлена! Проверьте email.'})
         except Exception as email_error:
             print(f"❌ Ошибка отправки welcome email: {email_error}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'success': True, 'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'})
         
     except Exception as e:
-        print(f"❌ Ошибка подписки: {e}")
+        print(f"❌ ИСКЛЮЧЕНИЕ В SUBSCRIBE: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Ошибка при оформлении подписки'}), 500
