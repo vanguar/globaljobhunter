@@ -67,7 +67,7 @@ class EmailLog(db.Model):
     jobs_count = db.Column(db.Integer, default=0)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='sent')  # sent, failed
-    error_message = db.Column(db.Text)  # ДОБАВЛЕНО: для хранения ошибок
+    error_message = db.Column(db.Text)  # ДОБАВЛЕНО: для хранения ошибок!
     
     # Используем backref с lazy='select' для избежания проблем с загрузкой
     subscriber = db.relationship('Subscriber', backref=db.backref('email_logs', lazy='select'), lazy='select')
