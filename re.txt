@@ -57,3 +57,7 @@ git remote add origin https://github.com/vanguar/globaljobhunter.git
 
 # 7. Пушим на GitHub
 git push -u origin main
+
+
+Тестовый домен
+https://web-production-2928e.up.railway.app/

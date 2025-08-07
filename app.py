@@ -34,16 +34,20 @@ RATE_LIMIT_FILE = "rate_limits.json"
 MAX_SEARCHES_PER_DAY = 5
 
 def load_rate_limits():
-   """Загрузка ограничений по IP"""
-   try:
-       with open(RATE_LIMIT_FILE, 'r') as f:
-           data = json.load(f)
-           # Конвертируем строки обратно в datetime
-           for ip, searches in data.items():
-               data[ip] = [datetime.fromisoformat(dt) for dt in searches]
-           return data
-   except FileNotFoundError:
-       return defaultdict(list)
+    """Загрузка ограничений по IP"""
+    try:
+        with open(RATE_LIMIT_FILE, 'r') as f:
+            data = json.load(f)
+            # Конвертируем строки обратно в datetime
+            for ip, searches in data.items():
+                data[ip] = [datetime.fromisoformat(dt) for dt in searches]
+            # 🔧 ИСПРАВЛЕНИЕ: всегда возвращаем defaultdict!
+            return defaultdict(list, data)
+    except FileNotFoundError:
+        return defaultdict(list)
+    except Exception as e:
+        print(f"❌ Ошибка загрузки rate limits: {e}")
+        return defaultdict(list)
 
 def save_rate_limits(limits):
    """Сохранение ограничений по IP"""
@@ -56,34 +60,38 @@ def save_rate_limits(limits):
        json.dump(serializable_data, f)
 
 def check_rate_limit(ip_address):
-   """Проверка лимита поисков для IP"""
-   limits = load_rate_limits()
-   now = datetime.now()
-   day_ago = now - timedelta(days=1)
-   
-   # Очищаем старые записи (старше суток)
-   recent_searches = [dt for dt in limits[ip_address] if dt > day_ago]
-   limits[ip_address] = recent_searches
-   
-   # Проверяем лимит
-   if len(recent_searches) >= MAX_SEARCHES_PER_DAY:
-       return False, MAX_SEARCHES_PER_DAY - len(recent_searches)
-   
-   # Добавляем текущий поиск
-   limits[ip_address].append(now)
-   save_rate_limits(limits)
-   
-   return True, MAX_SEARCHES_PER_DAY - len(limits[ip_address])
+    """Проверка лимита поисков для IP"""
+    limits = load_rate_limits()
+    now = datetime.now()
+    day_ago = now - timedelta(days=1)
+    
+    # 🔧 ДОБАВЛЕНА ТОЛЬКО ЭТА ПРОВЕРКА:
+    if ip_address not in limits:
+        limits[ip_address] = []
+    
+    # Очищаем старые записи (старше суток)
+    recent_searches = [dt for dt in limits[ip_address] if dt > day_ago]
+    limits[ip_address] = recent_searches
+    
+    # Проверяем лимит
+    if len(recent_searches) >= MAX_SEARCHES_PER_DAY:
+        return False, MAX_SEARCHES_PER_DAY - len(recent_searches)
+    
+    # Добавляем текущий поиск
+    limits[ip_address].append(now)
+    save_rate_limits(limits)
+    
+    return True, MAX_SEARCHES_PER_DAY - len(limits[ip_address])
 
 # Импортируем дополнительные источники (опционально)
 try:
-   from jobicy_aggregator import JobicyAggregator
-   from usajobs_aggregator import USAJobsAggregator
-   ADDITIONAL_SOURCES_AVAILABLE = True
-   print("✅ Дополнительные источники доступны")
+    from jobicy_aggregator import JobicyAggregator
+    from usajobs_aggregator import USAJobsAggregator
+    ADDITIONAL_SOURCES_AVAILABLE = True
+    print("✅ Дополнительные источники доступны")
 except ImportError as e:
-   ADDITIONAL_SOURCES_AVAILABLE = False
-   print(f"ℹ️ Дополнительные источники недоступны: {e}")
+    ADDITIONAL_SOURCES_AVAILABLE = False
+    print(f"ℹ️ Дополнительные источники недоступны: {e}")
 
 load_dotenv()
 
@@ -94,7 +102,7 @@ app.secret_key = secrets.token_hex(16)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///globaljobhunter.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Настройки email  
+# Настройки email 
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = True
@@ -108,26 +116,26 @@ mail.init_app(app)
 
 # Инициализация основного агрегатора (БЕЗ ИЗМЕНЕНИЙ)
 try:
-   aggregator = GlobalJobAggregator(cache_duration_hours=12)  # Увеличили до 12 часов
-   aggregator.search_cache = {}
-   app.logger.info("✅ GlobalJobAggregator с кешированием инициализирован")
+    aggregator = GlobalJobAggregator(cache_duration_hours=12)  # Увеличили до 12 часов
+    aggregator.search_cache = {}
+    app.logger.info("✅ GlobalJobAggregator с кешированием инициализирован")
 except Exception as e:
-   app.logger.error(f"❌ Ошибка инициализации: {e}")
-   aggregator = None
+    app.logger.error(f"❌ Ошибка инициализации: {e}")
+    aggregator = None
 
 # Создание таблиц
 with app.app_context():
-   db.create_all()
+    db.create_all()
 
 # ДОБАВЛЕНИЕ: инициализация дополнительных источников
 additional_aggregators = {}
 if ADDITIONAL_SOURCES_AVAILABLE:
-   try:
-       additional_aggregators['jobicy'] = JobicyAggregator()
-       # additional_aggregators['usajobs'] = USAJobsAggregator()  # Нужен API ключ
-       app.logger.info(f"✅ Дополнительные источники: {list(additional_aggregators.keys())}")
-   except Exception as e:
-       app.logger.warning(f"⚠️ Дополнительные источники недоступны: {e}")
+    try:
+        additional_aggregators['jobicy'] = JobicyAggregator()
+        # additional_aggregators['usajobs'] = USAJobsAggregator()  # Нужен API ключ
+        app.logger.info(f"✅ Дополнительные источники: {list(additional_aggregators.keys())}")
+    except Exception as e:
+        app.logger.warning(f"⚠️ Дополнительные источники недоступны: {e}")
 
 # ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ
 @app.route('/')

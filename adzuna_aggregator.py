@@ -1355,6 +1355,181 @@ class GlobalJobAggregator:
         print(f"     ✅ Итого уникальных: {len(unique_jobs)} вакансий")
         return unique_jobs
     
+    def normalize_city_name(self, city, country_code):
+        """
+        Умная нормализация названий городов
+        Покрывает ТОП-15 городов по каждой стране + fallback
+        """
+        if not city or not isinstance(city, str):
+            return None
+        
+        city_clean = city.strip().lower()
+        if not city_clean:
+            return None
+        
+        # ТОП популярные города по странам (русский → английский)
+        POPULAR_CITIES = {
+            'de': {  # Германия
+                'берлин': 'Berlin',
+                'мюнхен': 'Munich', 
+                'гамбург': 'Hamburg',
+                'кельн': 'Cologne',
+                'франкфурт': 'Frankfurt',
+                'дюссельдорф': 'Düsseldorf',
+                'дортмунд': 'Dortmund',
+                'эссен': 'Essen',
+                'лейпциг': 'Leipzig',
+                'бремен': 'Bremen',
+                'дрезден': 'Dresden',
+                'ганновер': 'Hannover',
+                'нюрнберг': 'Nuremberg',
+                'штутгарт': 'Stuttgart'
+            },
+            'pl': {  # Польша
+                'варшава': 'Warsaw',
+                'краков': 'Krakow',
+                'гданьск': 'Gdansk',
+                'вроцлав': 'Wroclaw',
+                'познань': 'Poznan',
+                'лодзь': 'Lodz',
+                'катовице': 'Katowice',
+                'белостоко': 'Bialystok',
+                'гдыня': 'Gdynia',
+                'ченстохова': 'Czestochowa',
+                'радом': 'Radom',
+                'сосновец': 'Sosnowiec',
+                'торунь': 'Torun'
+            },
+            'gb': {  # Великобритания
+                'лондон': 'London',
+                'манчестер': 'Manchester',
+                'бирмингем': 'Birmingham',
+                'ливерпуль': 'Liverpool',
+                'лидс': 'Leeds',
+                'шеффилд': 'Sheffield',
+                'бристоль': 'Bristol',
+                'эдинбург': 'Edinburgh',
+                'глазго': 'Glasgow',
+                'кардифф': 'Cardiff',
+                'белфаст': 'Belfast',
+                'ньюкасл': 'Newcastle',
+                'ноттингем': 'Nottingham'
+            },
+            'nl': {  # Нидерланды
+                'амстердам': 'Amsterdam',
+                'роттердам': 'Rotterdam', 
+                'гаага': 'The Hague',
+                'утрехт': 'Utrecht',
+                'эйндховен': 'Eindhoven',
+                'тилбург': 'Tilburg',
+                'гронинген': 'Groningen',
+                'алмере': 'Almere',
+                'бреда': 'Breda',
+                'неймеген': 'Nijmegen'
+            },
+            'fr': {  # Франция
+                'париж': 'Paris',
+                'марсель': 'Marseille',
+                'лион': 'Lyon',
+                'тулуза': 'Toulouse',
+                'ницца': 'Nice',
+                'нант': 'Nantes',
+                'монпелье': 'Montpellier',
+                'страсбург': 'Strasbourg',
+                'бордо': 'Bordeaux',
+                'лилль': 'Lille',
+                'ренн': 'Rennes',
+                'реймс': 'Reims',
+                'тур': 'Tours'
+            },
+            'at': {  # Австрия
+                'вена': 'Vienna',
+                'грац': 'Graz',
+                'линц': 'Linz',
+                'зальцбург': 'Salzburg',
+                'инсбрук': 'Innsbruck',
+                'клагенфурт': 'Klagenfurt'
+            },
+            'us': {  # США
+                'нью-йорк': 'New York',
+                'лос-анджелес': 'Los Angeles',
+                'чикаго': 'Chicago',
+                'хьюстон': 'Houston',
+                'финикс': 'Phoenix',
+                'филадельфия': 'Philadelphia',
+                'сан-антонио': 'San Antonio',
+                'сан-диего': 'San Diego',
+                'даллас': 'Dallas',
+                'сан-хосе': 'San Jose',
+                'остин': 'Austin',
+                'майами': 'Miami',
+                'сиэтл': 'Seattle',
+                'бостон': 'Boston'
+            },
+            'ca': {  # Канада
+                'торонто': 'Toronto',
+                'монреаль': 'Montreal',
+                'ванкувер': 'Vancouver',
+                'калгари': 'Calgary',
+                'эдмонтон': 'Edmonton',
+                'оттава': 'Ottawa',
+                'виннипег': 'Winnipeg',
+                'квебек': 'Quebec City'
+            },
+            'au': {  # Австралия
+                'сидней': 'Sydney',
+                'мельбурн': 'Melbourne',
+                'брисбен': 'Brisbane',
+                'перт': 'Perth',
+                'аделаида': 'Adelaide',
+                'канберра': 'Canberra'
+            },
+            'it': {  # Италия
+                'рим': 'Rome',
+                'милан': 'Milan',
+                'неаполь': 'Naples',
+                'турин': 'Turin',
+                'палермо': 'Palermo',
+                'генуя': 'Genoa',
+                'болонья': 'Bologna',
+                'флоренция': 'Florence',
+                'венеция': 'Venice'
+            },
+            'es': {  # Испания
+                'мадрид': 'Madrid',
+                'барселона': 'Barcelona',
+                'валенсия': 'Valencia',
+                'севилья': 'Seville',
+                'сарагоса': 'Zaragoza',
+                'малага': 'Malaga',
+                'мурсия': 'Murcia',
+                'пальма': 'Palma',
+                'бильбао': 'Bilbao'
+            }
+        }
+        
+        # 1. Проверяем точное совпадение в нашем словаре
+        country_cities = POPULAR_CITIES.get(country_code, {})
+        if city_clean in country_cities:
+            normalized = country_cities[city_clean]
+            print(f"🌍 Город нормализован: '{city}' → '{normalized}' для {country_code}")
+            return normalized
+        
+        # 2. Проверяем частичные совпадения (для опечаток)
+        for ru_name, en_name in country_cities.items():
+            if city_clean in ru_name or ru_name in city_clean:
+                print(f"🌍 Город найден частично: '{city}' → '{en_name}' для {country_code}")
+                return en_name
+        
+        # 3. Если уже на английском - возвращаем как есть
+        if city.encode('ascii', errors='ignore').decode('ascii') == city:
+            print(f"🌍 Город уже на латинице: '{city}' для {country_code}")
+            return city
+        
+        # 4. Fallback - возвращаем оригинал (пусть API попробует)
+        print(f"⚠️ Город не найден в словаре: '{city}' для {country_code}, передаем как есть")
+        return city
+        
     def _search_single_term(self, keywords: str, country: str, location: str = '', max_results: int = 25, filter_term: str = None) -> List[JobVacancy]:
         """Поиск по одному термину с rate limiting"""
         url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
@@ -1368,7 +1543,9 @@ class GlobalJobAggregator:
         }
         
         if location:
-            params['where'] = location
+            # Нормализуем название города
+            normalized_location = self.normalize_city_name(location, country)
+            params['where'] = normalized_location
         
         print(f"     🌐 API URL: {url}")  # ДОБАВЛЕНО
         print(f"     📝 Параметры: what='{keywords}', where='{location}'")  # ДОБАВЛЕНО
