@@ -123,7 +123,7 @@ except Exception as e:
     app.logger.error(f"❌ Ошибка инициализации: {e}")
     aggregator = None
 
-# Создание таблиц (только если их нет)
+# Создание таблиц (только если их нет!)
 with app.app_context():
     try:
         if not db.engine.has_table('subscriber'):
