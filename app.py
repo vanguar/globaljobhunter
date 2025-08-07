@@ -1455,6 +1455,20 @@ def send_job_notifications_for_subscriber(app, aggregator, subscriber):
     except Exception as e:
         print(f"❌ Ошибка отправки для {subscriber.email}: {e}")
         return False   
+    
+# Автоматическая инициализация БД для Railway
+if os.getenv('RAILWAY_ENVIRONMENT'):
+    with app.app_context():
+        try:
+            # Пытаемся применить миграции
+            from flask_migrate import upgrade
+            upgrade()
+            print("✅ Миграции применены")
+        except Exception as e:
+            # Если миграций нет - создаем таблицы напрямую
+            print(f"⚠️ Миграции недоступны, создаем таблицы: {e}")
+            db.create_all()
+            print("✅ Таблицы созданы")    
 
 if __name__ == '__main__':
     # Запускаем планировщик в отдельном потоке
