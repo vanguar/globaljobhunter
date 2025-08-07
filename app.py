@@ -305,31 +305,53 @@ def results():
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
+    """Подписка на email уведомления с детальным логированием"""
+    print("="*60)
     print("🔍 НАЧАЛО ФУНКЦИИ SUBSCRIBE")
+    print(f"📧 Method: {request.method}")
+    print(f"📧 Content-Type: {request.content_type}")
+    print(f"📧 Request data: {request.data}")
+    print("="*60)
+    
     try:
-        data = request.json or request.form.to_dict()
+        # Получаем данные из запроса
+        if request.is_json:
+            data = request.get_json()
+            print(f"📧 JSON данные получены: {data}")
+        else:
+            data = request.form.to_dict()
+            print(f"📧 Form данные получены: {data}")
+        
+        if not data:
+            print("❌ Нет данных в запросе")
+            return jsonify({'error': 'Нет данных в запросе'}), 400
+        
         email = data.get('email', '').strip().lower()
-        print(f"📧 Получен email: {email}")
+        print(f"📧 Email из запроса: '{email}'")
         
         if not email or '@' not in email:
             print("❌ Неверный email")
             return jsonify({'error': 'Неверный email адрес'}), 400
         
+        # Получаем предпочтения из сессии
         preferences = session.get('last_search_preferences', {})
         print(f"⚙️ Предпочтения из сессии: {preferences}")
 
         # ПРОВЕРКА: Есть ли выбранные профессии?
         if not preferences.get('selected_jobs') or not preferences.get('countries'):
             print("❌ Нет профессий или стран в сессии")
-            return jsonify({'error': 'Сначала выберите профессии и страны, затем нажмите "Найти работу", а потом подписывайтесь'}), 400
+            return jsonify({
+                'error': 'Сначала выберите профессии и страны, затем нажмите "Найти работу", а потом подписывайтесь'
+            }), 400
         
-        print("🔍 Ищем существующего подписчика...")
+        print("🔍 Ищем существующего подписчика в БД...")
         existing = Subscriber.query.filter_by(email=email).first()
-        print(f"👤 Существующий подписчик: {existing}")
+        print(f"👤 Результат поиска: {existing}")
         
-        # НОВАЯ ЛОГИКА: Если подписка существует
+        # ЛОГИКА: Если подписка существует и активна
         if existing and existing.is_active:
             print("✅ Найден активный подписчик, проверяем отличия...")
+            
             # Получаем текущие предпочтения пользователя
             current_jobs = set(existing.get_selected_jobs() or [])
             current_countries = set(existing.get_countries() or [])
@@ -346,10 +368,12 @@ def subscribe():
             # Проверяем есть ли отличия
             if current_jobs == new_jobs and current_countries == new_countries:
                 print("❌ Подписка с такими же параметрами уже существует")
-                return jsonify({'error': 'Вы уже подписаны на уведомления с такими же параметрами'}), 400
+                return jsonify({
+                    'error': 'Вы уже подписаны на уведомления с такими же параметрами'
+                }), 400
             
-            # Есть отличия - предлагаем варианты
-            print("🔄 Есть отличия, отправляем конфликт...")
+            # Есть отличия - отправляем информацию о конфликте
+            print("🔄 Есть отличия, отправляем конфликт (409)...")
             return jsonify({
                 'subscription_exists': True,
                 'current_subscription': {
@@ -367,8 +391,9 @@ def subscribe():
                 'message': 'У вас уже есть подписка. Выберите действие:'
             }), 409  # 409 Conflict
         
-        # Создаем новую подписку (стандартная логика)
+        # Создаем новую подписку или активируем существующую
         print("🆕 Создаем новую подписку или активируем существующую...")
+        
         if existing:
             print("🔄 Обновляем существующего подписчика...")
             existing.is_active = True
@@ -378,19 +403,20 @@ def subscribe():
                 existing.set_countries(preferences['countries'])
             existing.city = preferences.get('city')
             existing.is_refugee = preferences.get('is_refugee', True)
+            subscriber = existing
         else:
             print("➕ Создаем нового подписчика...")
-            existing = Subscriber(
+            subscriber = Subscriber(
                 email=email,
                 is_refugee=preferences.get('is_refugee', True),
                 city=preferences.get('city'),
                 frequency='weekly'
             )
             if preferences.get('selected_jobs'):
-                existing.set_selected_jobs(preferences['selected_jobs'])
+                subscriber.set_selected_jobs(preferences['selected_jobs'])
             if preferences.get('countries'):
-                existing.set_countries(preferences['countries'])
-            db.session.add(existing)
+                subscriber.set_countries(preferences['countries'])
+            db.session.add(subscriber)
         
         print("💾 Сохраняем в базу данных...")
         db.session.commit()
@@ -398,21 +424,91 @@ def subscribe():
         
         # Отправляем welcome email с обработкой ошибок
         print("📧 Отправляем welcome email...")
+        email_success = False
         try:
-            send_welcome_email(app, email)
-            print("✅ Welcome email отправлен успешно")
-            return jsonify({'success': True, 'message': 'Подписка оформлена! Проверьте email.'})
+            from email_service import send_welcome_email
+            email_success = send_welcome_email(app, email)
+            print(f"📧 Результат отправки email: {email_success}")
+            
+            if email_success:
+                print("✅ Welcome email отправлен успешно")
+                
+                # Логируем успешную отправку
+                log = EmailLog(
+                    subscriber_id=subscriber.id,
+                    email=email,
+                    subject="Добро пожаловать в GlobalJobHunter!",
+                    jobs_count=0,
+                    status='sent',
+                    sent_at=datetime.now()
+                )
+                db.session.add(log)
+                db.session.commit()
+                print("📝 Лог успешной отправки записан")
+                
+                return jsonify({
+                    'success': True, 
+                    'message': 'Подписка оформлена! Проверьте email.'
+                })
+            else:
+                print("❌ Ошибка отправки welcome email")
+                
+                # Логируем ошибку отправки
+                log = EmailLog(
+                    subscriber_id=subscriber.id,
+                    email=email,
+                    subject="Добро пожаловать в GlobalJobHunter!",
+                    jobs_count=0,
+                    status='failed',
+                    error_message='Failed to send welcome email',
+                    sent_at=datetime.now()
+                )
+                db.session.add(log)
+                db.session.commit()
+                print("📝 Лог ошибки записан")
+                
+                return jsonify({
+                    'success': True, 
+                    'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'
+                })
+                
         except Exception as email_error:
-            print(f"❌ Ошибка отправки welcome email: {email_error}")
+            print(f"❌ ИСКЛЮЧЕНИЕ при отправке welcome email: {email_error}")
             import traceback
             traceback.print_exc()
-            return jsonify({'success': True, 'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'})
+            
+            # Логируем исключение
+            try:
+                log = EmailLog(
+                    subscriber_id=subscriber.id,
+                    email=email,
+                    subject="Добро пожаловать в GlobalJobHunter!",
+                    jobs_count=0,
+                    status='failed',
+                    error_message=str(email_error),
+                    sent_at=datetime.now()
+                )
+                db.session.add(log)
+                db.session.commit()
+                print("📝 Лог исключения записан")
+            except Exception as log_error:
+                print(f"❌ Ошибка записи лога: {log_error}")
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'
+            })
         
     except Exception as e:
-        print(f"❌ ИСКЛЮЧЕНИЕ В SUBSCRIBE: {e}")
+        print(f"❌ КРИТИЧЕСКОЕ ИСКЛЮЧЕНИЕ В SUBSCRIBE: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': 'Ошибка при оформлении подписки'}), 500
+        return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+    
+    finally:
+        print("="*60)
+        print("🏁 КОНЕЦ ФУНКЦИИ SUBSCRIBE")
+        print("="*60)
 
 @app.route('/unsubscribe')
 def unsubscribe():
@@ -1084,137 +1180,196 @@ def admin_subscribers_secure():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login_page'))
     
-    subscribers = Subscriber.query.order_by(Subscriber.created_at.desc()).all()
-    email_logs = EmailLog.query.order_by(EmailLog.sent_at.desc()).limit(10).all()
-    
-    stats = {
-        'total': Subscriber.query.count(),
-        'active': Subscriber.query.filter_by(is_active=True).count(),
-        'inactive': Subscriber.query.filter_by(is_active=False).count(),
-        'emails_sent': EmailLog.query.filter_by(status='sent').count(),
-        'emails_failed': EmailLog.query.filter_by(status='failed').count()
-    }
-    
-    # Создаем строки подписчиков
-    subscribers_rows = ""
-    for sub in subscribers:
-        status = "✅ Активен" if sub.is_active else "❌ Неактивен"
-        refugee = "✅ Да" if sub.is_refugee else "❌ Нет"
-        created = sub.created_at.strftime('%Y-%m-%d %H:%M')
+    try:
+        subscribers = Subscriber.query.order_by(Subscriber.created_at.desc()).all()
+        email_logs = EmailLog.query.order_by(EmailLog.sent_at.desc()).limit(10).all()
         
-        # Получаем профессии и страны
-        jobs = ', '.join(sub.get_selected_jobs()[:3]) if sub.get_selected_jobs() else 'Не указано'
-        if len(sub.get_selected_jobs()) > 3:
-            jobs += f' (+{len(sub.get_selected_jobs())-3})'
-            
-        countries = ', '.join(sub.get_countries()) if sub.get_countries() else 'Не указано'
-        city = sub.city or 'Не указан'
+        stats = {
+            'total': Subscriber.query.count(),
+            'active': Subscriber.query.filter_by(is_active=True).count(),
+            'inactive': Subscriber.query.filter_by(is_active=False).count(),
+            'emails_sent': EmailLog.query.filter_by(status='sent').count(),
+            'emails_failed': EmailLog.query.filter_by(status='failed').count()
+        }
         
-        subscribers_rows += f"""
-            <tr>
-                <td>{sub.email}</td>
-                <td>{status}</td>
-                <td>{refugee}</td>
-                <td class="job-list">{jobs}</td>
-                <td>{countries}</td>
-                <td>{city}</td>
-                <td>{created}</td>
-            </tr>"""
-    
-    # Создаем строки email логов
-    email_logs_rows = ""
-    for log in email_logs:
-        status_icon = "✅" if log.status == 'sent' else "❌"
-        sent_time = log.sent_at.strftime('%Y-%m-%d %H:%M')
-        email_logs_rows += f"""
-            <tr>
-                <td>{log.subscriber.email if log.subscriber else 'Удален'}</td>
-                <td>{status_icon} {log.status}</td>
-                <td>{sent_time}</td>
-            </tr>"""
-            
-    # Теперь создаем полный HTML
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Подписчики - Админка</title>
-        <meta charset="utf-8">
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; background: white; }}
-            th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-            th {{ background-color: #007bff; color: white; }}
-            .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
-            .stat-card {{ background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-            .stat-number {{ font-size: 2em; font-weight: bold; color: #007bff; }}
-            .nav {{ display: flex; gap: 20px; margin: 20px 0; }}
-            .nav a {{ background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; }}
-            .job-list {{ font-size: 0.9em; color: #666; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>📧 Подписчики GlobalJobHunter</h1>
-            
-            <div class="nav">
-                <a href="/admin/dashboard">🏠 Главная админки</a>
-                <a href="/admin/stats_secure">📊 Статистика</a>
-                <a href="/admin/logout">🚪 Выйти</a>
+        # Создаем строки подписчиков
+        subscribers_rows = ""
+        for sub in subscribers:
+            try:
+                status = "✅ Активен" if sub.is_active else "❌ Неактивен"
+                refugee = "✅ Да" if sub.is_refugee else "❌ Нет"
+                created = sub.created_at.strftime('%Y-%m-%d %H:%M')
+                
+                # Получаем профессии и страны БЕЗОПАСНО
+                try:
+                    jobs_list = sub.get_selected_jobs()
+                    jobs = ', '.join(jobs_list[:3]) if jobs_list else 'Не указано'
+                    if len(jobs_list) > 3:
+                        jobs += f' (+{len(jobs_list)-3})'
+                except Exception as e:
+                    jobs = 'Ошибка загрузки'
+                    print(f"❌ Ошибка получения профессий для {sub.email}: {e}")
+                
+                try:
+                    countries_list = sub.get_countries()
+                    countries = ', '.join(countries_list) if countries_list else 'Не указано'
+                except Exception as e:
+                    countries = 'Ошибка загрузки'
+                    print(f"❌ Ошибка получения стран для {sub.email}: {e}")
+                
+                city = sub.city or 'Не указан'
+                
+                subscribers_rows += f"""
+                    <tr>
+                        <td>{sub.email}</td>
+                        <td>{status}</td>
+                        <td>{refugee}</td>
+                        <td class="job-list">{jobs}</td>
+                        <td>{countries}</td>
+                        <td>{city}</td>
+                        <td>{created}</td>
+                    </tr>"""
+                    
+            except Exception as e:
+                print(f"❌ Ошибка обработки подписчика {sub.id}: {e}")
+                subscribers_rows += f"""
+                    <tr>
+                        <td>{sub.email}</td>
+                        <td>❌ Ошибка</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>"""
+        
+        # Создаем строки email логов БЕЗОПАСНО
+        email_logs_rows = ""
+        for log in email_logs:
+            try:
+                status_icon = "✅" if log.status == 'sent' else "❌"
+                sent_time = log.sent_at.strftime('%Y-%m-%d %H:%M')
+                
+                # ИСПРАВЛЕНИЕ: Безопасное получение email
+                if log.subscriber:
+                    email = log.subscriber.email
+                else:
+                    # Если subscriber удален, показываем ID или email из лога
+                    email = f"Удаленный подписчик (ID: {log.subscriber_id})"
+                
+                email_logs_rows += f"""
+                    <tr>
+                        <td>{email}</td>
+                        <td>{status_icon} {log.status}</td>
+                        <td>{sent_time}</td>
+                    </tr>"""
+                    
+            except Exception as e:
+                print(f"❌ Ошибка обработки лога {log.id}: {e}")
+                email_logs_rows += f"""
+                    <tr>
+                        <td>Ошибка загрузки</td>
+                        <td>❌ Ошибка</td>
+                        <td>-</td>
+                    </tr>"""
+                
+        # Теперь создаем полный HTML
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Подписчики - Админка</title>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
+                .container {{ max-width: 1200px; margin: 0 auto; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 20px 0; background: white; }}
+                th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+                th {{ background-color: #007bff; color: white; }}
+                .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
+                .stat-card {{ background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                .stat-number {{ font-size: 2em; font-weight: bold; color: #007bff; }}
+                .nav {{ display: flex; gap: 20px; margin: 20px 0; }}
+                .nav a {{ background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; }}
+                .job-list {{ font-size: 0.9em; color: #666; }}
+                .error {{ color: #dc3545; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📧 Подписчики GlobalJobHunter</h1>
+                
+                <div class="nav">
+                    <a href="/admin/dashboard">🏠 Главная админки</a>
+                    <a href="/admin/stats_secure">📊 Статистика</a>
+                    <a href="/admin/logout">🚪 Выйти</a>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number">{stats['total']}</div>
+                        <p>Всего подписчиков</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{stats['active']}</div>
+                        <p>Активных</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{stats['inactive']}</div>
+                        <p>Неактивных</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{stats['emails_sent']}</div>
+                        <p>Email отправлено</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{stats['emails_failed']}</div>
+                        <p>Email ошибок</p>
+                    </div>
+                </div>
+                
+                <h2>📋 Подписчики</h2>
+                <table>
+                    <tr>
+                        <th>Email</th>
+                        <th>Статус</th>
+                        <th>Беженец</th>
+                        <th>Профессии</th>
+                        <th>Страны</th>
+                        <th>Город</th>
+                        <th>Дата регистрации</th>
+                    </tr>
+                    {subscribers_rows}
+                </table>
+                
+                <h2>📨 Последние email логи</h2>
+                <table>
+                    <tr>
+                        <th>Email</th>
+                        <th>Статус</th>
+                        <th>Дата</th>
+                    </tr>
+                    {email_logs_rows}
+                </table>
             </div>
-            
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-number">{stats['total']}</div>
-                    <p>Всего подписчиков</p>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['active']}</div>
-                    <p>Активных</p>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['inactive']}</div>
-                    <p>Неактивных</p>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['emails_sent']}</div>
-                    <p>Email отправлено</p>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['emails_failed']}</div>
-                    <p>Email ошибок</p>
-                </div>
-            </div>
-            
-            <h2>📋 Подписчики</h2>
-            <table>
-                <tr>
-                    <th>Email</th>
-                    <th>Статус</th>
-                    <th>Беженец</th>
-                    <th>Профессии</th>
-                    <th>Страны</th>
-                    <th>Город</th>
-                    <th>Дата регистрации</th>
-                </tr>
-                {subscribers_rows}
-            </table>
-            
-            <h2>📨 Последние email логи</h2>
-            <table>
-                <tr>
-                    <th>Email</th>
-                    <th>Статус</th>
-                    <th>Дата</th>
-                </tr>
-                {email_logs_rows}
-            </table>
-        </div>
-    </body>
-    </html>"""
-    
-    return html
+        </body>
+        </html>"""
+        
+        return html
+        
+    except Exception as e:
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА в admin_subscribers_secure: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"""
+        <html>
+        <body style="font-family: Arial; padding: 40px;">
+            <h1 class="error">❌ Ошибка загрузки админки</h1>
+            <p>Ошибка: {str(e)}</p>
+            <a href="/admin/dashboard">🏠 Вернуться в админку</a>
+        </body>
+        </html>
+        """, 500
 
 @app.route('/admin/stats_secure')
 def admin_stats_secure():

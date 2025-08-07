@@ -2333,14 +2333,22 @@ window.addEventListener('load', function() {
     }, 100);
 });
 // ДОБАВИТЬ ЭТУ ФУНКЦИЮ
+// ИСПРАВЛЕННАЯ функция subscribeToEmails в app.js
 function subscribeToEmails() {
+    console.log('🚀 subscribeToEmails() вызвана'); // Добавляем лог
+    
     const emailInput = document.getElementById('subscribe-email');
     const email = emailInput.value.trim();
     
+    console.log('📧 Email из поля:', email); // Лог email
+    
     if (!email || !email.includes('@')) {
+        console.log('❌ Некорректный email'); // Лог ошибки
         showAlert('❌ Введите корректный email адрес', 'warning');
         return;
     }
+    
+    console.log('🔄 Отправляем запрос на /subscribe'); // Лог запроса
     
     fetch('/subscribe', {
         method: 'POST',
@@ -2348,34 +2356,32 @@ function subscribeToEmails() {
         body: JSON.stringify({ email: email })
     })
     .then(response => {
-        // ИСПРАВЛЕНИЕ: Правильная обработка статуса 409
+        console.log('📡 Ответ получен, status:', response.status); // Лог ответа
+        
         if (response.status === 409) {
-            // Код 409 = существующая подписка, обрабатываем JSON
             return response.json().then(data => {
-                showSubscriptionChoiceModal(email, data); // ← ВАЖНО: передаем email
-                throw new Error('HANDLED_409'); // Прерываем дальнейшую обработку
+                console.log('⚠️ Конфликт подписки:', data);
+                showSubscriptionChoiceModal(email, data);
+                throw new Error('HANDLED_409');
             });
         } else if (response.ok) {
-            // Код 200 = успешная подписка
             return response.json();
         } else {
-            // Другие ошибки
             return response.json().then(data => {
                 throw new Error(data.error || 'Ошибка подписки');
             });
         }
     })
     .then(data => {
-        // Это выполнится только для успешных подписок (200)
+        console.log('✅ Успешная подписка:', data);
         showAlert('✅ ' + data.message, 'success');
         emailInput.value = '';
     })
     .catch(error => {
-        // Игнорируем обработанную ошибку 409
         if (error.message === 'HANDLED_409') {
             return;
         }
-        console.error('Ошибка подписки:', error);
+        console.error('❌ Ошибка подписки:', error);
         showAlert('❌ ' + error.message, 'danger');
     });
 }
