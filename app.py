@@ -1856,15 +1856,21 @@ def send_job_notifications_for_subscriber(app, aggregator, subscriber):
 if os.getenv('RAILWAY_ENVIRONMENT'):
     with app.app_context():
         try:
-            # Пытаемся применить миграции
-            from flask_migrate import upgrade
-            upgrade()
-            print("✅ Миграции применены")
+            # Проверяем существование таблиц
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            
+            if not existing_tables:
+                print("🔄 Таблицы не найдены, создаем новые...")
+                db.create_all()
+                print("✅ Таблицы созданы")
+            else:
+                print(f"✅ БД уже существует с таблицами: {existing_tables}")
+                
         except Exception as e:
-            # Если миграций нет - создаем таблицы напрямую
-            print(f"⚠️ Миграции недоступны, создаем таблицы: {e}")
-            db.create_all()
-            print("✅ Таблицы созданы")    
+            print(f"⚠️ Ошибка инициализации БД: {e}")
+            # НЕ вызываем db.create_all() здесь!   
 
 if __name__ == '__main__':
     # Запускаем планировщик в отдельном потоке
