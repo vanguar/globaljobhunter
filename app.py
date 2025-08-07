@@ -1852,25 +1852,6 @@ def send_job_notifications_for_subscriber(app, aggregator, subscriber):
         print(f"❌ Ошибка отправки для {subscriber.email}: {e}")
         return False   
     
-# Автоматическая инициализация БД для Railway
-if os.getenv('RAILWAY_ENVIRONMENT'):
-    with app.app_context():
-        try:
-            # Проверяем существование таблиц
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            existing_tables = inspector.get_table_names()
-            
-            if not existing_tables:
-                print("🔄 Таблицы не найдены, создаем новые...")
-                db.create_all()
-                print("✅ Таблицы созданы")
-            else:
-                print(f"✅ БД уже существует с таблицами: {existing_tables}")
-                
-        except Exception as e:
-            print(f"⚠️ Ошибка инициализации БД: {e}")
-            # НЕ вызываем db.create_all() здесь!   
 
 if __name__ == '__main__':
     # Запускаем планировщик в отдельном потоке
