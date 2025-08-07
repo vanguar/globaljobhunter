@@ -22,6 +22,7 @@ from email_service import mail, send_welcome_email, send_preferences_update_emai
 from flask_mail import Mail
 from database import db, Subscriber, EmailLog  
 from email_service import mail, send_welcome_email, send_preferences_update_email
+from flask_migrate import Migrate
 
 from threading import Thread
 import schedule
@@ -113,6 +114,7 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('
 # Инициализация расширений
 db.init_app(app)
 mail.init_app(app)
+migrate = Migrate(app, db)
 
 # Инициализация основного агрегатора (БЕЗ ИЗМЕНЕНИЙ)
 try:
@@ -122,18 +124,6 @@ try:
 except Exception as e:
     app.logger.error(f"❌ Ошибка инициализации: {e}")
     aggregator = None
-
-# Создание таблиц (только если их нет!)
-with app.app_context():
-    try:
-        if not db.engine.has_table('subscriber'):
-            print("🆕 Создаем таблицы БД (первый запуск)")
-            db.create_all()
-        else:
-            print("✅ Таблицы БД уже существуют, подписчики сохранены")
-    except Exception as e:
-        print(f"⚠️ Ошибка проверки БД: {e}, пересоздаем таблицы")
-        db.create_all()
 
 # ДОБАВЛЕНИЕ: инициализация дополнительных источников
 additional_aggregators = {}
