@@ -512,13 +512,216 @@ def subscribe():
 
 @app.route('/unsubscribe')
 def unsubscribe():
-   email = request.args.get('email')
-   if email:
-       subscriber = Subscriber.query.filter_by(email=email).first()
-       if subscriber:
-           subscriber.is_active = False
-           db.session.commit()
-   return redirect(url_for('index'))
+    """Улучшенная отписка с уведомлением пользователя"""
+    email = request.args.get('email')
+    
+    if not email:
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Ошибка отписки</title>
+            <style>
+                body { font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa; }
+                .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
+                .error { color: #dc3545; font-size: 3rem; margin-bottom: 20px; }
+                h1 { color: #343a40; margin-bottom: 15px; }
+                .btn { background: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; display: inline-block; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="error">❌</div>
+                <h1>Неверная ссылка</h1>
+                <p>Email адрес не указан в ссылке для отписки.</p>
+                <a href="/" class="btn">Вернуться на главную</a>
+            </div>
+        </body>
+        </html>
+        """)
+    
+    # Ищем подписчика
+    subscriber = Subscriber.query.filter_by(email=email).first()
+    
+    if subscriber and subscriber.is_active:
+        # Деактивируем подписку
+        subscriber.is_active = False
+        db.session.commit()
+        
+        print(f"✅ Пользователь {email} успешно отписался")
+        
+        # Показываем страницу успешной отписки
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Отписка выполнена</title>
+            <style>
+                body { 
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+                    padding: 40px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0;
+                }
+                .card { 
+                    background: white; padding: 50px; border-radius: 20px; 
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-width: 600px; width: 100%;
+                }
+                .success { color: #28a745; font-size: 4rem; margin-bottom: 20px; }
+                h1 { color: #343a40; margin-bottom: 20px; font-weight: 600; }
+                p { color: #6c757d; line-height: 1.6; margin-bottom: 15px; }
+                .email-highlight { 
+                    background: #e3f2fd; color: #1976d2; padding: 8px 15px; 
+                    border-radius: 20px; font-weight: 600; display: inline-block; margin: 10px 0;
+                }
+                .btn { 
+                    background: #007bff; color: white; padding: 15px 30px; text-decoration: none; 
+                    border-radius: 10px; display: inline-block; margin: 25px 10px 0; font-weight: 600;
+                    transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+                }
+                .btn:hover { 
+                    background: #0056b3; transform: translateY(-2px); text-decoration: none; color: white;
+                    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.4);
+                }
+                .btn-secondary { 
+                    background: #6c757d; box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+                }
+                .btn-secondary:hover { 
+                    background: #545b62; box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+                }
+                .info-box {
+                    background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; 
+                    padding: 20px; margin: 25px 0; text-align: left;
+                }
+                .info-box h4 { color: #495057; margin-bottom: 10px; }
+                .info-box ul { margin: 10px 0; padding-left: 20px; }
+                .info-box li { margin: 5px 0; color: #6c757d; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="success">✅</div>
+                <h1>Вы успешно отписались!</h1>
+                <p>Подписка на email-уведомления для адреса</p>
+                <div class="email-highlight">{{ email }}</div>
+                <p>была деактивирована.</p>
+                
+                <div class="info-box">
+                    <h4>📧 Что это означает:</h4>
+                    <ul>
+                        <li>Вы больше не будете получать уведомления о новых вакансиях</li>
+                        <li>Ваши данные остаются в системе (на случай повторной подписки)</li>
+                        <li>Вы можете в любое время подписаться снова через главную страницу</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <a href="/" class="btn">🏠 Вернуться на главную</a>
+                    <a href="mailto:tzvanguardia@gmail.com?subject=Вопрос по GlobalJobHunter" class="btn btn-secondary">📧 Связаться с нами</a>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+                    <small style="color: #6c757d;">
+                        <strong>Передумали?</strong> Вы всегда можете подписаться снова на 
+                        <a href="/" style="color: #007bff;">главной странице</a>
+                    </small>
+                </div>
+            </div>
+        </body>
+        </html>
+        """, email=email)
+    
+    elif subscriber and not subscriber.is_active:
+        # Пользователь уже отписан
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Уже отписан</title>
+            <style>
+                body { 
+                    font-family: 'Inter', Arial, sans-serif; padding: 40px; text-align: center; 
+                    background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%); 
+                    min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0;
+                }
+                .card { 
+                    background: white; padding: 50px; border-radius: 20px; 
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-width: 500px; width: 100%;
+                }
+                .info { color: #f39c12; font-size: 4rem; margin-bottom: 20px; }
+                h1 { color: #343a40; margin-bottom: 20px; font-weight: 600; }
+                .email-highlight { 
+                    background: #fff3cd; color: #856404; padding: 8px 15px; 
+                    border-radius: 20px; font-weight: 600; display: inline-block; margin: 10px 0;
+                }
+                .btn { 
+                    background: #007bff; color: white; padding: 15px 30px; text-decoration: none; 
+                    border-radius: 10px; display: inline-block; margin: 25px 10px 0; font-weight: 600;
+                    transition: all 0.3s ease;
+                }
+                .btn:hover { background: #0056b3; transform: translateY(-2px); text-decoration: none; color: white; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="info">ℹ️</div>
+                <h1>Вы уже отписаны</h1>
+                <p>Подписка для адреса</p>
+                <div class="email-highlight">{{ email }}</div>
+                <p>уже была деактивирована ранее.</p>
+                <p style="color: #6c757d; margin-top: 25px;">
+                    Хотите снова получать уведомления о вакансиях? 
+                    Подпишитесь на главной странице!
+                </p>
+                <a href="/" class="btn">🏠 Вернуться на главную</a>
+            </div>
+        </body>
+        </html>
+        """, email=email)
+    
+    else:
+        # Подписчик не найден
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Подписка не найдена</title>
+            <style>
+                body { 
+                    font-family: 'Inter', Arial, sans-serif; padding: 40px; text-align: center; 
+                    background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%); 
+                    min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0;
+                }
+                .card { 
+                    background: white; padding: 50px; border-radius: 20px; 
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-width: 500px; width: 100%;
+                }
+                .warning { color: #e17055; font-size: 4rem; margin-bottom: 20px; }
+                h1 { color: #343a40; margin-bottom: 20px; font-weight: 600; }
+                .btn { 
+                    background: #007bff; color: white; padding: 15px 30px; text-decoration: none; 
+                    border-radius: 10px; display: inline-block; margin: 25px 10px 0; font-weight: 600;
+                    transition: all 0.3s ease;
+                }
+                .btn:hover { background: #0056b3; transform: translateY(-2px); text-decoration: none; color: white; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="warning">⚠️</div>
+                <h1>Подписка не найдена</h1>
+                <p>Подписка для адреса <strong>{{ email }}</strong> не существует в нашей системе.</p>
+                <p style="color: #6c757d; margin-top: 25px;">
+                    Возможно, вы уже были отписаны ранее, или email адрес указан неверно.
+                </p>
+                <a href="/" class="btn">🏠 Вернуться на главную</a>
+            </div>
+        </body>
+        </html>
+        """, email=email)
 
 @app.route('/api/cache/stats')
 def cache_stats():
