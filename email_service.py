@@ -20,18 +20,24 @@ def send_async_email(app, msg):
             return False
 
 def send_job_notifications(app, aggregator):
-    """Отправка уведомлений всем подписчикам"""
+    """Отправка уведомлений всем подписчикам - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
     with app.app_context():
-        print("📧 Начинаем отправку уведомлений...")
+        print("=" * 60)
+        print("📧 НАЧИНАЕМ ОТПРАВКУ УВЕДОМЛЕНИЙ...")
+        print("=" * 60)
         
         subscribers = Subscriber.query.filter_by(is_active=True).all()
         print(f"👥 Найдено {len(subscribers)} активных подписчиков")
         
+        if not subscribers:
+            print("ℹ️ Нет активных подписчиков для рассылки")
+            return 0
+        
         sent_count = 0
         
-        for subscriber in subscribers:
+        for i, subscriber in enumerate(subscribers, 1):
             try:
-                print(f"📧 Обрабатываем {subscriber.email}...")
+                print(f"\n🔄 ({i}/{len(subscribers)}) Обрабатываем {subscriber.email}...")
                 
                 preferences = {
                     'is_refugee': subscriber.is_refugee,
@@ -40,43 +46,38 @@ def send_job_notifications(app, aggregator):
                     'city': subscriber.city
                 }
                 
+                print(f"   ⚙️ Предпочтения: профессии={len(preferences['selected_jobs'])}, страны={len(preferences['countries'])}")
+                
                 if not preferences['selected_jobs'] or not preferences['countries']:
-                    print(f"⚠️ У {subscriber.email} нет профессий или стран")
+                    print(f"   ⚠️ У {subscriber.email} отсутствуют профессии или страны - пропускаем")
                     continue
                 
-                # 🔧 ИЗМЕНЕНИЕ: ИСПОЛЬЗУЕМ РЕАЛЬНЫЙ ПОИСК ВМЕСТО ТЕСТОВЫХ ВАКАНСИЙ
-                if aggregator:
-                    real_jobs = aggregator.search_specific_jobs(preferences)
-                    print(f"🎯 Найдено {len(real_jobs)} реальных вакансий для {subscriber.email}")
-                else:
-                    print(f"⚠️ Агрегатор недоступен, создаем тестовые вакансии для {subscriber.email}")
-                    # Fallback на тестовые вакансии если агрегатор не работает
-                    real_jobs = []
-                    for i, job in enumerate(preferences['selected_jobs'][:3]):
-                        for j, country_code in enumerate(preferences['countries'][:2]):
-                            country_names = {'de': 'Германия', 'pl': 'Польша', 'us': 'США', 'ca': 'Канада'}
-                            country_name = country_names.get(country_code, country_code)
-                            
-                            fake_job = type('Job', (), {
-                                'title': f"{job}",
-                                'company': f'Европейская компания #{i+1}',
-                                'location': f"Главный офис, {country_name}",
-                                'country': country_name,
-                                'salary': '€2000-3000' if country_code in ['de', 'pl'] else '$3000-4000',
-                                'description': f'Отличная возможность для работы в должности {job}. Мы рассматриваем украинских беженцев и предоставляем поддержку.',
-                                'apply_url': f'https://example.com/apply/{i}{j}',
-                                'refugee_friendly': True,
-                                'language_requirement': 'no_language_required' if subscriber.is_refugee else 'basic_required'
-                            })()
-                            real_jobs.append(fake_job)
+                # 🔧 ИСПРАВЛЕНИЕ: ПОИСК РЕАЛЬНЫХ ВАКАНСИЙ
+                print(f"   🔍 Ищем вакансии через агрегатор...")
                 
+                if aggregator:
+                    # Используем РЕАЛЬНЫЙ поиск вакансий
+                    real_jobs = aggregator.search_specific_jobs(preferences)
+                    print(f"   ✅ Найдено {len(real_jobs)} реальных вакансий")
+                    
+                    if len(real_jobs) == 0:
+                        print(f"   ℹ️ Нет новых вакансий для {subscriber.email} - пропускаем отправку")
+                        continue
+                        
+                else:
+                    print(f"   ⚠️ Агрегатор недоступен - создаем тестовые вакансии")
+                    real_jobs = create_fallback_jobs(preferences)
+                
+                # Отправляем email с найденными вакансиями
                 if len(real_jobs) > 0:
-                    print(f"📤 Пытаемся отправить email на {subscriber.email}")
-                    success = send_job_email(app, subscriber, real_jobs, preferences)
+                    print(f"   📤 Отправляем email с {len(real_jobs)} вакансиями...")
+                    
+                    success = send_job_email(app, subscriber, real_jobs[:20], preferences)
                     
                     if success:
                         log = EmailLog(
                             subscriber_id=subscriber.id,
+                            email=subscriber.email,
                             subject=f"🎯 ТОП-{min(5, len(real_jobs))} новых вакансий (из {len(real_jobs)} найденных)",
                             jobs_count=len(real_jobs),
                             status='sent',
@@ -85,19 +86,51 @@ def send_job_notifications(app, aggregator):
                         db.session.add(log)
                         subscriber.last_sent = datetime.now()
                         sent_count += 1
-                        print(f"✅ Успешно отправлено на {subscriber.email}")
-                        time.sleep(2)  # 2 секунды между письмами
+                        print(f"   ✅ Email успешно отправлен на {subscriber.email}")
+                        time.sleep(3)
                     else:
-                        print(f"❌ Не удалось отправить на {subscriber.email}")
+                        print(f"   ❌ Не удалось отправить email на {subscriber.email}")
                 
             except Exception as e:
-                print(f"❌ Ошибка для {subscriber.email}: {e}")
+                print(f"   ❌ ОШИБКА для {subscriber.email}: {e}")
                 import traceback
                 traceback.print_exc()
         
         db.session.commit()
-        print(f"✅ Итого отправлено {sent_count} уведомлений")
+        print("=" * 60)
+        print(f"🎉 ОТПРАВКА ЗАВЕРШЕНА: {sent_count}/{len(subscribers)} писем отправлено")
+        print("=" * 60)
         return sent_count
+
+def create_fallback_jobs(preferences):
+    """Создание fallback вакансий только при недоступности агрегатора"""
+    fallback_jobs = []
+    
+    for i, job_title in enumerate(preferences['selected_jobs'][:2]):
+        for j, country_code in enumerate(preferences['countries'][:2]):
+            country_names = {'de': 'Германия', 'pl': 'Польша', 'gb': 'Великобритания', 'us': 'США', 'ca': 'Канада'}
+            country_name = country_names.get(country_code, country_code.upper())
+            
+            fake_job = type('FallbackJob', (), {
+                'id': f'fallback_{i}_{j}',
+                'title': f"{job_title}",
+                'company': f'Компания #{i+j+1}',
+                'location': f"{country_name}",
+                'country': country_name,
+                'salary': '€2500-3500' if country_code in ['de'] else '$3000-4500',
+                'description': f'Вакансия {job_title} в {country_name}. Рассматриваем кандидатов из Украины.',
+                'apply_url': f'https://jobs-example.com/apply/{i}{j}',
+                'source': 'fallback',
+                'posted_date': datetime.now().strftime('%Y-%m-%d'),
+                'job_type': 'full_time',
+                'refugee_friendly': preferences.get('is_refugee', True),
+                'language_requirement': 'no_language_required' if preferences.get('is_refugee') else 'basic'
+            })()
+            
+            fallback_jobs.append(fake_job)
+    
+    print(f"🧪 Создано {len(fallback_jobs)} fallback вакансий")
+    return fallback_jobs
 
 def should_send_notification(subscriber):
     """Проверяем, нужно ли отправлять уведомление"""
