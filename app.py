@@ -1348,6 +1348,13 @@ def admin_dashboard():
             .nav a:hover {{ background: #0056b3; }}
             .logout {{ background: #dc3545; }}
             .logout:hover {{ background: #c82333; }}
+            .backup-section {{ background: white; padding: 30px; border-radius: 8px; margin: 20px 0; }}
+            .backup-btn {{ display: inline-block; padding: 12px 25px; margin: 10px; text-decoration: none; 
+                          border-radius: 5px; font-weight: bold; transition: all 0.3s; }}
+            .btn-download {{ background: #28a745; color: white; }}
+            .btn-download:hover {{ background: #218838; color: white; }}
+            .btn-upload {{ background: #ffc107; color: #000; }}
+            .btn-upload:hover {{ background: #e0a800; color: #000; }}
         </style>
     </head>
     <body>
@@ -1365,6 +1372,15 @@ def admin_dashboard():
             <div style="background: white; padding: 30px; border-radius: 8px; text-align: center;">
                 <h2>Добро пожаловать в админку!</h2>
                 <p>Выберите нужный раздел в меню выше</p>
+            </div>
+            
+            <div class="backup-section">
+                <h3>🗄️ Управление базой данных</h3>
+                <p>Скачайте текущую базу данных или загрузите резервную копию</p>
+                <div style="text-align: center;">
+                    <a href="/admin/download_backup" class="backup-btn btn-download">📦 Скачать базу</a>
+                    <a href="/admin/upload_backup" class="backup-btn btn-upload">📁 Загрузить базу</a>
+                </div>
             </div>
         </div>
     </body>
@@ -1890,7 +1906,210 @@ if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('DATABASE_URL'):
                     
         except Exception as e:
             print(f"⚠️ Ошибка инициализации БД: {e}")
-            # НЕ создаем таблицы при ошибке соединения!   
+            # НЕ создаем таблицы при ошибке соединения!
+
+@app.route('/admin/download_backup')
+def download_backup():
+    """Скачать бекап базы данных в JSON"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+    
+    try:
+        # Собираем всех подписчиков
+        subscribers = Subscriber.query.all()
+        subscribers_data = []
+        
+        for sub in subscribers:
+            subscribers_data.append({
+                'email': sub.email,
+                'is_active': sub.is_active,
+                'created_at': sub.created_at.isoformat() if sub.created_at else None,
+                'is_refugee': sub.is_refugee,
+                'selected_jobs': sub.get_selected_jobs(),
+                'countries': sub.get_countries(),
+                'city': sub.city,
+                'frequency': sub.frequency,
+                'last_sent': sub.last_sent.isoformat() if sub.last_sent else None
+            })
+        
+        # Собираем email логи
+        email_logs = EmailLog.query.order_by(EmailLog.sent_at.desc()).limit(1000).all()
+        logs_data = []
+        
+        for log in email_logs:
+            logs_data.append({
+                'email': log.email,
+                'subject': log.subject,
+                'jobs_count': log.jobs_count,
+                'status': log.status,
+                'sent_at': log.sent_at.isoformat() if log.sent_at else None,
+                'error_message': log.error_message
+            })
+        
+        # Формируем JSON
+        backup_data = {
+            'backup_date': datetime.now().isoformat(),
+            'subscribers': subscribers_data,
+            'email_logs': logs_data,
+            'stats': {
+                'total_subscribers': len(subscribers_data),
+                'active_subscribers': len([s for s in subscribers_data if s['is_active']]),
+                'total_logs': len(logs_data)
+            }
+        }
+        
+        # Возвращаем файл для скачивания
+        filename = f"globaljobhunter_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        from flask import Response
+        return Response(
+            json.dumps(backup_data, indent=2, ensure_ascii=False),
+            mimetype='application/json',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+        
+    except Exception as e:
+        return f"❌ Ошибка создания бекапа: {str(e)}", 500
+
+@app.route('/admin/upload_backup', methods=['GET', 'POST'])
+def upload_backup():
+    """Загрузить бекап базы данных"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+    
+    if request.method == 'GET':
+        # Показываем форму загрузки
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Загрузка бекапа</title>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: Arial; background: #f8f9fa; padding: 20px; }
+                .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+                .btn { background: #007bff; color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin: 10px 5px; }
+                .btn-danger { background: #dc3545; }
+                .alert { padding: 15px; margin: 20px 0; border-radius: 5px; background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+                input[type="file"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 10px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>📁 Загрузка бекапа базы данных</h2>
+                
+                <div class="alert">
+                    <strong>⚠️ ВНИМАНИЕ!</strong><br>
+                    Загрузка заменит ВСЕ текущие данные в базе.<br>
+                    Убедитесь, что загружаете правильный файл!
+                </div>
+                
+                <form method="post" enctype="multipart/form-data">
+                    <label><strong>Выберите JSON файл бекапа:</strong></label>
+                    <input type="file" name="backup_file" accept=".json" required>
+                    
+                    <div style="margin: 20px 0;">
+                        <label>
+                            <input type="checkbox" name="confirm_restore" required>
+                            Я понимаю, что все данные будут заменены
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-danger">🔄 Загрузить бекап</button>
+                    <a href="/admin/dashboard" class="btn">❌ Отмена</a>
+                </form>
+            </div>
+        </body>
+        </html>
+        """
+    
+    else:
+        # Обрабатываем загрузку файла
+        try:
+            if 'backup_file' not in request.files:
+                return "❌ Файл не выбран", 400
+            
+            file = request.files['backup_file']
+            if file.filename == '' or not file.filename.endswith('.json'):
+                return "❌ Выберите JSON файл", 400
+            
+            # Читаем и парсим JSON
+            backup_data = json.loads(file.read().decode('utf-8'))
+            
+            # Очищаем существующие данные
+            db.session.query(EmailLog).delete()
+            db.session.query(Subscriber).delete()
+            
+            # Восстанавливаем подписчиков
+            restored_subscribers = 0
+            for sub_data in backup_data.get('subscribers', []):
+                try:
+                    subscriber = Subscriber(
+                        email=sub_data['email'],
+                        is_active=sub_data.get('is_active', True),
+                        is_refugee=sub_data.get('is_refugee', True),
+                        city=sub_data.get('city'),
+                        frequency=sub_data.get('frequency', 'weekly')
+                    )
+                    
+                    if sub_data.get('created_at'):
+                        subscriber.created_at = datetime.fromisoformat(sub_data['created_at'])
+                    
+                    if sub_data.get('last_sent'):
+                        subscriber.last_sent = datetime.fromisoformat(sub_data['last_sent'])
+                    
+                    if sub_data.get('selected_jobs'):
+                        subscriber.set_selected_jobs(sub_data['selected_jobs'])
+                    
+                    if sub_data.get('countries'):
+                        subscriber.set_countries(sub_data['countries'])
+                    
+                    db.session.add(subscriber)
+                    restored_subscribers += 1
+                    
+                except Exception as e:
+                    print(f"⚠️ Ошибка восстановления подписчика: {e}")
+            
+            # Восстанавливаем email логи
+            restored_logs = 0
+            for log_data in backup_data.get('email_logs', []):
+                try:
+                    email_log = EmailLog(
+                        email=log_data.get('email'),
+                        subject=log_data.get('subject'),
+                        jobs_count=log_data.get('jobs_count', 0),
+                        status=log_data.get('status', 'unknown'),
+                        error_message=log_data.get('error_message')
+                    )
+                    
+                    if log_data.get('sent_at'):
+                        email_log.sent_at = datetime.fromisoformat(log_data['sent_at'])
+                    
+                    db.session.add(email_log)
+                    restored_logs += 1
+                    
+                except Exception as e:
+                    print(f"⚠️ Ошибка восстановления лога: {e}")
+            
+            # Сохраняем изменения
+            db.session.commit()
+            
+            return f"""
+            <html>
+            <head><title>Восстановление завершено</title><meta charset="utf-8"></head>
+            <body style="font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa;">
+                <div style="background: white; padding: 40px; border-radius: 10px; max-width: 500px; margin: 0 auto;">
+                    <h1 style="color: #28a745;">✅ Восстановление завершено!</h1>
+                    <p>Подписчиков восстановлено: <strong>{restored_subscribers}</strong></p>
+                    <p>Email логов восстановлено: <strong>{restored_logs}</strong></p>
+                    <a href="/admin/dashboard" style="background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px;">Вернуться в админку</a>
+                </div>
+            </body>
+            </html>
+            """
+            
+        except Exception as e:
+            return f"❌ Ошибка восстановления: {str(e)}", 500            
 
 if __name__ == '__main__':
     # Запускаем планировщик в отдельном потоке
