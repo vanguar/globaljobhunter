@@ -1852,25 +1852,45 @@ def send_job_notifications_for_subscriber(app, aggregator, subscriber):
         print(f"❌ Ошибка отправки для {subscriber.email}: {e}")
         return False   
     
-# Автоматическая инициализация БД для Railway
-if os.getenv('RAILWAY_ENVIRONMENT'):
+# Автоматическая инициализация БД ТОЛЬКО если таблиц нет
+if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('DATABASE_URL'):
     with app.app_context():
         try:
-            # Проверяем существование таблиц
-            from sqlalchemy import inspect
+            from sqlalchemy import inspect, text
+            
+            # Логируем подключение к БД для отладки
+            print(f"🛠 Подключено к БД: {db.engine.url}")
+            
+            # Проверяем существование таблиц БЕЗ их создания
             inspector = inspect(db.engine)
             existing_tables = inspector.get_table_names()
             
-            if not existing_tables:
+            # Улучшенная проверка на пустые таблицы
+            if not existing_tables or len(existing_tables) == 0:
                 print("🔄 Таблицы не найдены, создаем новые...")
                 db.create_all()
                 print("✅ Таблицы созданы")
             else:
                 print(f"✅ БД уже существует с таблицами: {existing_tables}")
                 
+                # ВАЖНО: Только проверяем данные, НЕ пересоздаем таблицы
+                try:
+                    with db.engine.connect() as conn:
+                        if 'subscriber' in existing_tables:
+                            result = conn.execute(text("SELECT COUNT(*) as count FROM subscriber"))
+                            count = result.fetchone()[0]
+                            print(f"👥 Найдено подписчиков в БД: {count}")
+                        
+                        if 'email_log' in existing_tables:
+                            result = conn.execute(text("SELECT COUNT(*) as count FROM email_log"))
+                            count = result.fetchone()[0]
+                            print(f"📧 Найдено email логов в БД: {count}")
+                except Exception as data_error:
+                    print(f"⚠️ Ошибка проверки данных: {data_error}")
+                    
         except Exception as e:
             print(f"⚠️ Ошибка инициализации БД: {e}")
-            # НЕ вызываем db.create_all() здесь!   
+            # НЕ создаем таблицы при ошибке соединения!   
 
 if __name__ == '__main__':
     # Запускаем планировщик в отдельном потоке
