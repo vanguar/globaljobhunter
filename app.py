@@ -42,7 +42,7 @@ def load_rate_limits():
             # Конвертируем строки обратно в datetime
             for ip, searches in data.items():
                 data[ip] = [datetime.fromisoformat(dt) for dt in searches]
-            # 🔧 ИСПРАВЛЕНИЕ: всегда возвращаем defaultdict!
+            # 🔧 ИСПРАВЛЕНИЕ: всегда возвращаем defaultdict
             return defaultdict(list, data)
     except FileNotFoundError:
         return defaultdict(list)
