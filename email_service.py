@@ -183,29 +183,17 @@ def send_job_email(app, subscriber, jobs, preferences):
         return False
 
 def generate_email_html(subscriber, jobs, preferences):
-    """Генерируем HTML для email - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
+    """Генерируем HTML для email - ВСЕ ВАКАНСИИ СРАЗУ БЕЗ JavaScript"""
     
     total_jobs = len(jobs)
     
-    # Разделяем на первые 5 и остальные
-    main_jobs = jobs[:5]
-    additional_jobs = jobs[5:] if len(jobs) > 5 else []
-    
-    # Группируем основные вакансии по странам
-    main_jobs_by_country = {}
-    for job in main_jobs:
+    # Группируем ВСЕ вакансии по странам
+    jobs_by_country = {}
+    for job in jobs:
         country = job.country
-        if country not in main_jobs_by_country:
-            main_jobs_by_country[country] = []
-        main_jobs_by_country[country].append(job)
-    
-    # Группируем дополнительные вакансии по странам
-    additional_jobs_by_country = {}
-    for job in additional_jobs:
-        country = job.country
-        if country not in additional_jobs_by_country:
-            additional_jobs_by_country[country] = []
-        additional_jobs_by_country[country].append(job)
+        if country not in jobs_by_country:
+            jobs_by_country[country] = []
+        jobs_by_country[country].append(job)
     
     # ИСПРАВЛЕННЫЙ заголовок
     if total_jobs == 1:
@@ -215,7 +203,7 @@ def generate_email_html(subscriber, jobs, preferences):
     else:
         jobs_title = f"Найдено {total_jobs} вакансий"
     
-    # Формируем HTML
+    # Формируем HTML БЕЗ JavaScript
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -232,7 +220,6 @@ def generate_email_html(subscriber, jobs, preferences):
             .job-company {{ color: #6c757d; margin: 5px 0; }}
             .job-location {{ color: #28a745; font-size: 14px; }}
             .country-header {{ background: #e9ecef; padding: 15px; margin: 20px 0 10px 0; border-radius: 5px; font-weight: bold; }}
-            .section-divider {{ background: #f8f9fa; padding: 15px; margin: 30px 0; text-align: center; border-radius: 5px; border: 2px dashed #dee2e6; }}
             .footer {{ background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }}
             .btn {{ background: #0057B7; color: white !important; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }}
         </style>
@@ -251,72 +238,32 @@ def generate_email_html(subscriber, jobs, preferences):
                     <li><strong>Страны:</strong> {', '.join(preferences['countries'])}</li>
                     {f"<li><strong>Город:</strong> {preferences['city']}</li>" if preferences.get('city') else ''}
                 </ul>
+                
+                <h3>🎯 Все найденные вакансии:</h3>
     """
     
-    # Добавляем основные вакансии
-    if main_jobs:
-        if total_jobs <= 5:
-            html += f'<h3>🎯 Все найденные вакансии:</h3>'
-        else:
-            html += f'<h3>🎯 Первые {len(main_jobs)} вакансий:</h3>'
+    # Добавляем ВСЕ вакансии сразу, сгруппированные по странам
+    for country, country_jobs in jobs_by_country.items():
+        html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
         
-        for country, country_jobs in main_jobs_by_country.items():
-            html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
+        for job in country_jobs:
+            salary_text = f"<br><strong>💰 {job.salary}</strong>" if job.salary else ""
+            badges = ""
+            if job.refugee_friendly:
+                badges += '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">🏠 Для беженцев</span>'
+            if job.language_requirement == 'no_language_required':
+                badges += '<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">🔇 Без языка</span>'
             
-            for job in country_jobs:
-                salary_text = f"<br><strong>💰 {job.salary}</strong>" if job.salary else ""
-                badges = ""
-                if job.refugee_friendly:
-                    badges += '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">🏠 Для беженцев</span>'
-                if job.language_requirement == 'no_language_required':
-                    badges += '<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">🔇 Без языка</span>'
-                
-                html += f"""
-                <div class="job-card">
-                    <div class="job-title">{job.title}</div>
-                    <div class="job-company">🏢 {job.company}</div>
-                    <div class="job-location">📍 {job.location}</div>
-                    {salary_text}
-                    <div style="margin: 10px 0;">{badges}</div>
-                    <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
-                </div>
-                """
-    
-    # Добавляем дополнительные вакансии (если есть)
-    if additional_jobs:
-        remaining_count = len(additional_jobs)
-        
-        # Правильная логика для текста разделителя
-        if remaining_count == 1:
-            divider_text = f"📋 Оставшаяся {remaining_count} вакансия:"
-        elif 2 <= remaining_count <= 4:
-            divider_text = f"📋 Оставшиеся {remaining_count} вакансии:"
-        else:
-            divider_text = f"📋 Оставшиеся {remaining_count} вакансий:"
-        
-        html += f'<div class="section-divider"><h3>{divider_text}</h3></div>'
-        
-        for country, country_jobs in additional_jobs_by_country.items():
-            html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
-            
-            for job in country_jobs:
-                salary_text = f"<br><strong>💰 {job.salary}</strong>" if job.salary else ""
-                badges = ""
-                if job.refugee_friendly:
-                    badges += '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">🏠 Для беженцев</span>'
-                if job.language_requirement == 'no_language_required':
-                    badges += '<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">🔇 Без языка</span>'
-                
-                html += f"""
-                <div class="job-card">
-                    <div class="job-title">{job.title}</div>
-                    <div class="job-company">🏢 {job.company}</div>
-                    <div class="job-location">📍 {job.location}</div>
-                    {salary_text}
-                    <div style="margin: 10px 0;">{badges}</div>
-                    <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
-                </div>
-                """
+            html += f"""
+            <div class="job-card">
+                <div class="job-title">{job.title}</div>
+                <div class="job-company">🏢 {job.company}</div>
+                <div class="job-location">📍 {job.location}</div>
+                {salary_text}
+                <div style="margin: 10px 0;">{badges}</div>
+                <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
+            </div>
+            """
     
     html += f"""
             </div>

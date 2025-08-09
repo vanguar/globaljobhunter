@@ -1468,11 +1468,19 @@ def admin_test_email():
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
-    """Главная страница админки"""
+    """Главная страница админки с flash сообщениями"""
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login_page'))
     
-    return f"""
+    # Получаем статистику для отображения
+    try:
+        total_subscribers = Subscriber.query.count()
+        active_subscribers = Subscriber.query.filter_by(is_active=True).count()
+    except:
+        total_subscribers = 0
+        active_subscribers = 0
+    
+    return render_template_string(f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -1491,15 +1499,37 @@ def admin_dashboard():
             .logout:hover {{ background: #c82333; }}
             .backup-section {{ background: white; padding: 30px; border-radius: 8px; margin: 20px 0; }}
             .backup-btn {{ display: inline-block; padding: 12px 25px; margin: 10px; text-decoration: none; 
-                          border-radius: 5px; font-weight: bold; transition: all 0.3s; }}
+                          border-radius: 5px; font-weight: bold; transition: all 0.3s; border: none; cursor: pointer; font-size: 16px; }}
             .btn-download {{ background: #28a745; color: white; }}
             .btn-download:hover {{ background: #218838; color: white; }}
             .btn-upload {{ background: #ffc107; color: #000; }}
             .btn-upload:hover {{ background: #e0a800; color: #000; }}
+            .stats-info {{ background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; 
+                          border-left: 4px solid #2196f3; }}
         </style>
     </head>
     <body>
         <div class="container">
+            <!-- Flash сообщения -->
+            {{% with messages = get_flashed_messages(with_categories=true) %}}
+                {{% if messages %}}
+                    <div style="margin: 20px 0;">
+                        {{% for category, message in messages %}}
+                            <div class="alert alert-{{{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' if category == 'warning' else 'info' }}}}" 
+                                 style="padding: 15px; margin: 10px 0; border-radius: 8px; 
+                                        background: {{{{ '#d4edda' if category == 'success' else '#f8d7da' if category == 'error' else '#fff3cd' if category == 'warning' else '#d1ecf1' }}}}; 
+                                        color: {{{{ '#155724' if category == 'success' else '#721c24' if category == 'error' else '#856404' if category == 'warning' else '#0c5460' }}}}; 
+                                        border: 1px solid {{{{ '#c3e6cb' if category == 'success' else '#f5c6cb' if category == 'error' else '#ffeaa7' if category == 'warning' else '#bee5eb' }}}};">
+                                <strong>
+                                    {{{{ '✅' if category == 'success' else '❌' if category == 'error' else '⚠️' if category == 'warning' else 'ℹ️' }}}}
+                                </strong>
+                                {{{{ message }}}}
+                            </div>
+                        {{% endfor %}}
+                    </div>
+                {{% endif %}}
+            {{% endwith %}}
+            
             <div class="header">
                 <h1>🛠️ Админка GlobalJobHunter</h1>
                 <div class="nav">
@@ -1513,8 +1543,15 @@ def admin_dashboard():
             <div style="background: white; padding: 30px; border-radius: 8px; text-align: center;">
                 <h2>Добро пожаловать в админку!</h2>
                 <p>Выберите нужный раздел в меню выше</p>
+                
+                <div class="stats-info">
+                    <strong>📊 Текущая статистика:</strong><br>
+                    👥 Всего подписчиков: {total_subscribers} | 
+                    ✅ Активных: {active_subscribers} | 
+                    ❌ Неактивных: {total_subscribers - active_subscribers}
+                </div>
             </div>
-
+            
             <!-- Секция Email рассылки -->
             <div class="backup-section">
                 <h3>📧 Email рассылка</h3>
@@ -1522,18 +1559,18 @@ def admin_dashboard():
                 <div style="text-align: center;">
                     <form method="POST" action="/admin/send-emails" style="display: inline;">
                         <button type="submit" class="backup-btn" 
-                                onclick="return confirm('Отправить email всем подписчикам прямо сейчас?')"
-                                style="background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px;">
-                            📧 Отправить рассылку сейчас
+                                onclick="return confirm('Отправить email всем активным подписчикам прямо сейчас?\\n\\nАктивных подписчиков: {active_subscribers}')"
+                                style="background: #007bff; color: white;">
+                            📧 Отправить рассылку сейчас ({active_subscribers} подписчиков)
                         </button>
                     </form>
                     <a href="/admin/test-email" class="backup-btn" 
-                       style="background: #28a745; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; display: inline-block; font-size: 16px; margin: 10px;">
+                       style="background: #28a745; color: white; text-decoration: none;">
                         🧪 Тестовая отправка
                     </a>
                 </div>
             </div>
-                      
+            
             <div class="backup-section">
                 <h3>🗄️ Управление базой данных</h3>
                 <p>Скачайте текущую базу данных или загрузите резервную копию</p>
@@ -1545,7 +1582,7 @@ def admin_dashboard():
         </div>
     </body>
     </html>
-    """
+    """)
 
 @app.route('/admin/logout')
 def admin_logout():
