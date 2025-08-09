@@ -156,10 +156,14 @@ def send_job_email(app, subscriber, jobs, preferences):
         # Формируем HTML контент
         html_content = generate_email_html(subscriber, jobs, preferences)
         
-        # ИЗМЕНИЛИ SUBJECT
-        top_count = min(5, len(jobs))
+        # ИСПРАВЛЕННЫЙ SUBJECT - убираем "ТОП-5"
         total_count = len(jobs)
-        subject = f"🎯 ТОП-{top_count} новых вакансий (из {total_count} найденных)"
+        if total_count == 1:
+            subject = f"🎯 Найдена 1 новая вакансия"
+        elif 2 <= total_count <= 4:
+            subject = f"🎯 Найдено {total_count} новые вакансии"
+        else:
+            subject = f"🎯 Найдено {total_count} новых вакансий"
         
         msg = Message(
             subject=subject,
@@ -179,27 +183,37 @@ def send_job_email(app, subscriber, jobs, preferences):
         return False
 
 def generate_email_html(subscriber, jobs, preferences):
-    """Генерируем HTML для email с кнопкой 'Показать еще'"""
+    """Генерируем HTML для email - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
     
-    # Разделяем на ТОП-5 и остальные
-    top_jobs = jobs[:5]
-    remaining_jobs = jobs[5:] if len(jobs) > 5 else []
+    total_jobs = len(jobs)
     
-    # Группируем ТОП-5 по странам
-    top_jobs_by_country = {}
-    for job in top_jobs:
+    # Разделяем на первые 5 и остальные
+    main_jobs = jobs[:5]
+    additional_jobs = jobs[5:] if len(jobs) > 5 else []
+    
+    # Группируем основные вакансии по странам
+    main_jobs_by_country = {}
+    for job in main_jobs:
         country = job.country
-        if country not in top_jobs_by_country:
-            top_jobs_by_country[country] = []
-        top_jobs_by_country[country].append(job)
+        if country not in main_jobs_by_country:
+            main_jobs_by_country[country] = []
+        main_jobs_by_country[country].append(job)
     
-    # Группируем остальные по странам
-    remaining_jobs_by_country = {}
-    for job in remaining_jobs:
+    # Группируем дополнительные вакансии по странам
+    additional_jobs_by_country = {}
+    for job in additional_jobs:
         country = job.country
-        if country not in remaining_jobs_by_country:
-            remaining_jobs_by_country[country] = []
-        remaining_jobs_by_country[country].append(job)
+        if country not in additional_jobs_by_country:
+            additional_jobs_by_country[country] = []
+        additional_jobs_by_country[country].append(job)
+    
+    # ИСПРАВЛЕННЫЙ заголовок
+    if total_jobs == 1:
+        jobs_title = "Найдена 1 вакансия"
+    elif 2 <= total_jobs <= 4:
+        jobs_title = f"Найдено {total_jobs} вакансии"
+    else:
+        jobs_title = f"Найдено {total_jobs} вакансий"
     
     # Формируем HTML
     html = f"""
@@ -218,89 +232,35 @@ def generate_email_html(subscriber, jobs, preferences):
             .job-company {{ color: #6c757d; margin: 5px 0; }}
             .job-location {{ color: #28a745; font-size: 14px; }}
             .country-header {{ background: #e9ecef; padding: 15px; margin: 20px 0 10px 0; border-radius: 5px; font-weight: bold; }}
+            .section-divider {{ background: #f8f9fa; padding: 15px; margin: 30px 0; text-align: center; border-radius: 5px; border: 2px dashed #dee2e6; }}
             .footer {{ background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }}
             .btn {{ background: #0057B7; color: white !important; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }}
-            .show-more-btn {{ 
-                background: #28a745; color: white; padding: 12px 25px; 
-                border: none; border-radius: 25px; cursor: pointer; margin: 20px 0;
-                font-size: 16px; width: 100%; text-align: center;
-            }}
-            .show-more-btn:hover {{ background: #218838; }}
-            .hidden-jobs {{ display: none; }}
         </style>
-        <script>
-            function toggleHiddenJobs() {{
-                var hiddenJobs = document.getElementById('hidden-jobs');
-                var button = document.getElementById('show-more-btn');
-                
-                if (hiddenJobs.style.display === 'none' || hiddenJobs.style.display === '') {{
-                    hiddenJobs.style.display = 'block';
-                    button.innerHTML = '▲ Скрыть дополнительные вакансии';
-                    button.style.background = '#dc3545';
-                }} else {{
-                    hiddenJobs.style.display = 'none';
-                    button.innerHTML = '▼ Показать остальные {len(remaining_jobs)} вакансий';
-                    button.style.background = '#28a745';
-                }}
-            }}
-        </script>
     </head>
     <body>
         <div class="container">
             <div class="header">
                 <h1>🌍 GlobalJobHunter</h1>
-                <p>🎯 ТОП-{len(top_jobs)} новых вакансий (из {len(jobs)} найденных)</p>
+                <p>📍 {jobs_title}</p>
             </div>
             
             <div class="content">
-                <p>Привет! Мы отобрали для вас лучшие вакансии по вашим предпочтениям:</p>
+                <p>Привет! Мы нашли для вас новые вакансии по вашим предпочтениям:</p>
                 <ul>
                     <li><strong>Профессии:</strong> {', '.join(preferences['selected_jobs'][:3])}{'...' if len(preferences['selected_jobs']) > 3 else ''}</li>
                     <li><strong>Страны:</strong> {', '.join(preferences['countries'])}</li>
                     {f"<li><strong>Город:</strong> {preferences['city']}</li>" if preferences.get('city') else ''}
                 </ul>
-                
-                <h3>🏆 Лучшие {len(top_jobs)} вакансий:</h3>
     """
     
-    # Добавляем ТОП-5 вакансий по странам
-    for country, country_jobs in top_jobs_by_country.items():
-        html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
+    # Добавляем основные вакансии
+    if main_jobs:
+        if total_jobs <= 5:
+            html += f'<h3>🎯 Все найденные вакансии:</h3>'
+        else:
+            html += f'<h3>🎯 Первые {len(main_jobs)} вакансий:</h3>'
         
-        for job in country_jobs:
-            salary_text = f"<br><strong>💰 {job.salary}</strong>" if job.salary else ""
-            badges = ""
-            if job.refugee_friendly:
-                badges += '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">🏠 Для беженцев</span>'
-            if job.language_requirement == 'no_language_required':
-                badges += '<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">🔇 Без языка</span>'
-            
-            html += f"""
-            <div class="job-card">
-                <div class="job-title">{job.title}</div>
-                <div class="job-company">🏢 {job.company}</div>
-                <div class="job-location">📍 {job.location}</div>
-                {salary_text}
-                <div style="margin: 10px 0;">{badges}</div>
-                <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
-            </div>
-            """
-    
-    # Добавляем кнопку "Показать еще" если есть скрытые вакансии
-    if remaining_jobs:
-        html += f"""
-        <div style="text-align: center; margin: 30px 0;">
-            <button class="show-more-btn" id="show-more-btn" onclick="toggleHiddenJobs()">
-                ▼ Показать остальные {len(remaining_jobs)} вакансий
-            </button>
-        </div>
-        """
-        
-        # Добавляем скрытые вакансии
-        html += '<div id="hidden-jobs" class="hidden-jobs">'
-        html += f'<h3>📋 Остальные {len(remaining_jobs)} вакансий:</h3>'
-        
-        for country, country_jobs in remaining_jobs_by_country.items():
+        for country, country_jobs in main_jobs_by_country.items():
             html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
             
             for job in country_jobs:
@@ -321,8 +281,42 @@ def generate_email_html(subscriber, jobs, preferences):
                     <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
                 </div>
                 """
+    
+    # Добавляем дополнительные вакансии (если есть)
+    if additional_jobs:
+        remaining_count = len(additional_jobs)
         
-        html += '</div>'  # Закрываем hidden-jobs
+        # Правильная логика для текста разделителя
+        if remaining_count == 1:
+            divider_text = f"📋 Оставшаяся {remaining_count} вакансия:"
+        elif 2 <= remaining_count <= 4:
+            divider_text = f"📋 Оставшиеся {remaining_count} вакансии:"
+        else:
+            divider_text = f"📋 Оставшиеся {remaining_count} вакансий:"
+        
+        html += f'<div class="section-divider"><h3>{divider_text}</h3></div>'
+        
+        for country, country_jobs in additional_jobs_by_country.items():
+            html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
+            
+            for job in country_jobs:
+                salary_text = f"<br><strong>💰 {job.salary}</strong>" if job.salary else ""
+                badges = ""
+                if job.refugee_friendly:
+                    badges += '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">🏠 Для беженцев</span>'
+                if job.language_requirement == 'no_language_required':
+                    badges += '<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">🔇 Без языка</span>'
+                
+                html += f"""
+                <div class="job-card">
+                    <div class="job-title">{job.title}</div>
+                    <div class="job-company">🏢 {job.company}</div>
+                    <div class="job-location">📍 {job.location}</div>
+                    {salary_text}
+                    <div style="margin: 10px 0;">{badges}</div>
+                    <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
+                </div>
+                """
     
     html += f"""
             </div>
