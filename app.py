@@ -1324,6 +1324,24 @@ def admin_login():
         return redirect(url_for('admin_dashboard'))
     else:
         return redirect(url_for('admin_login_page') + '?error=1')
+    
+@app.route('/admin/send-emails', methods=['POST'])
+def admin_send_emails():
+    """Принудительная отправка email рассылки"""
+    try:
+        print("🔄 Админ запустил принудительную отправку рассылки...")
+        from email_service import send_job_notifications
+        
+        sent_count = send_job_notifications(app, aggregator)
+        
+        flash(f'✅ Рассылка завершена! Отправлено {sent_count} писем', 'success')
+        print(f"✅ Принудительная рассылка завершена: {sent_count} писем")
+        
+    except Exception as e:
+        flash(f'❌ Ошибка отправки рассылки: {str(e)}', 'error')
+        print(f"❌ Ошибка принудительной рассылки: {e}")
+        
+    return redirect('/admin/dashboard')    
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -1372,6 +1390,30 @@ def admin_dashboard():
             <div style="background: white; padding: 30px; border-radius: 8px; text-align: center;">
                 <h2>Добро пожаловать в админку!</h2>
                 <p>Выберите нужный раздел в меню выше</p>
+            </div>
+
+            <!-- Секция Email рассылки -->
+            <div class="backup-section">
+                <h3>📧 Email рассылка</h3>
+                <p>Отправить уведомления всем активным подписчикам прямо сейчас</p>
+                <div style="text-align: center;">
+                    <form method="POST" action="/admin/send-emails" style="display: inline;">
+                        <button type="submit" class="backup-btn" 
+                                onclick="return confirm('Отправить email всем подписчикам прямо сейчас?')"
+                                style="background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px;">
+                            📧 Отправить рассылку сейчас
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="backup-section">
+                <h3>🗄️ Управление базой данных</h3>
+                <p>Скачайте текущую базу данных или загрузите резервную копию</p>
+                <div style="text-align: center;">
+                    <a href="/admin/download_backup" class="backup-btn btn-download">📦 Скачать базу</a>
+                    <a href="/admin/upload_backup" class="backup-btn btn-upload">📁 Загрузить базу</a>
+                </div>
             </div>
             
             <div class="backup-section">
