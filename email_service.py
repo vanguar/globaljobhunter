@@ -270,8 +270,8 @@ def generate_email_html(subscriber, jobs, preferences):
             
             <div class="footer">
                 <p>Это автоматическое уведомление от GlobalJobHunter</p>
-                <p><a href="http://localhost:5000/subscription/manage?email={subscriber.email}">⚙️ Настроить подписку</a> | 
-                <a href="http://localhost:5000/subscription/manage?email={subscriber.email}">Отписаться от рассылки</a></p>
+                <p><a href="{os.getenv('BASE_URL', 'https://web-production-2928e.up.railway.app')}/subscription/manage?email={subscriber.email}">⚙️ Настроить подписку</a> | 
+                <a href="{os.getenv('BASE_URL', 'https://web-production-2928e.up.railway.app')}/unsubscribe?email={subscriber.email}">Отписаться от рассылки</a></p>
                 <p>© 2025 GlobalJobHunter.</p>
             </div>
         </div>
