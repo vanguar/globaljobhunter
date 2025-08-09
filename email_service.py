@@ -202,6 +202,8 @@ def generate_email_html(subscriber, jobs, preferences):
         jobs_title = f"Найдено {total_jobs} вакансии"
     else:
         jobs_title = f"Найдено {total_jobs} вакансий"
+
+    base_url = os.getenv('BASE_URL', 'https://web-production-2928e.up.railway.app')    
     
     # Формируем HTML БЕЗ JavaScript
     html = f"""
