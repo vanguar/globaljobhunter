@@ -1327,21 +1327,144 @@ def admin_login():
     
 @app.route('/admin/send-emails', methods=['POST'])
 def admin_send_emails():
-    """Принудительная отправка email рассылки"""
+    """Принудительная отправка email рассылки с улучшенной диагностикой"""
     try:
         print("🔄 Админ запустил принудительную отправку рассылки...")
-        from email_service import send_job_notifications
         
+        # Проверяем количество активных подписчиков
+        active_subscribers = Subscriber.query.filter_by(is_active=True).all()
+        total_subscribers = Subscriber.query.count()
+        
+        print(f"👥 Найдено подписчиков: всего={total_subscribers}, активных={len(active_subscribers)}")
+        
+        if len(active_subscribers) == 0:
+            if total_subscribers == 0:
+                flash('ℹ️ В базе данных нет ни одного подписчика. Добавьте тестовую подписку через главную страницу.', 'info')
+            else:
+                flash(f'ℹ️ Найдено {total_subscribers} подписчиков, но все неактивны. Рассылка не отправлена.', 'warning')
+            
+            print("ℹ️ Нет активных подписчиков для рассылки")
+            return redirect('/admin/dashboard')
+        
+        # Если есть активные подписчики - отправляем
+        from email_service import send_job_notifications
         sent_count = send_job_notifications(app, aggregator)
         
-        flash(f'✅ Рассылка завершена! Отправлено {sent_count} писем', 'success')
-        print(f"✅ Принудительная рассылка завершена: {sent_count} писем")
+        if sent_count > 0:
+            flash(f'✅ Рассылка завершена! Отправлено {sent_count} из {len(active_subscribers)} писем', 'success')
+            print(f"✅ Принудительная рассылка завершена: {sent_count} писем")
+        else:
+            flash(f'⚠️ Рассылка завершена, но ни одно письмо не отправлено. Проверьте настройки email или предпочтения подписчиков.', 'warning')
+            print(f"⚠️ Принудительная рассылка завершена: 0 писем отправлено")
         
     except Exception as e:
         flash(f'❌ Ошибка отправки рассылки: {str(e)}', 'error')
         print(f"❌ Ошибка принудительной рассылки: {e}")
         
-    return redirect('/admin/dashboard')    
+    return redirect('/admin/dashboard')
+
+@app.route('/admin/test-email', methods=['GET', 'POST'])  
+def admin_test_email():
+    """Отправка тестового email на указанный адрес"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+    
+    if request.method == 'GET':
+        # Показываем форму для ввода email
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Тестовая отправка</title>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: Arial; background: #f8f9fa; padding: 20px; }
+                .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+                .btn { background: #007bff; color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin: 10px 5px; }
+                .btn-secondary { background: #6c757d; }
+                .form-group { margin: 20px 0; }
+                label { display: block; margin-bottom: 5px; font-weight: bold; }
+                input[type="email"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+                .alert { padding: 15px; margin: 20px 0; border-radius: 5px; background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>📧 Тестовая отправка email</h2>
+                
+                <div class="alert">
+                    <strong>ℹ️ Информация:</strong><br>
+                    Эта функция отправит тестовое письмо с несколькими вакансиями на указанный email адрес.
+                    Полезно для проверки работы email системы и внешнего вида писем.
+                </div>
+                
+                <form method="post">
+                    <div class="form-group">
+                        <label for="test_email">Email для тестовой отправки:</label>
+                        <input type="email" id="test_email" name="test_email" required placeholder="test@example.com">
+                    </div>
+                    
+                    <button type="submit" class="btn">📧 Отправить тестовое письмо</button>
+                    <a href="/admin/dashboard" class="btn btn-secondary">❌ Отмена</a>
+                </form>
+            </div>
+        </body>
+        </html>
+        """
+    
+    else:
+        # Обрабатываем отправку тестового email
+        try:
+            test_email = request.form.get('test_email', '').strip()
+            
+            if not test_email or '@' not in test_email:
+                flash('❌ Введите корректный email адрес', 'error')
+                return redirect('/admin/test-email')
+            
+            # Создаем временного тестового подписчика
+            test_preferences = {
+                'is_refugee': True,
+                'selected_jobs': ['Водитель', 'Разнорабочий', 'Официант'],
+                'countries': ['de', 'pl'],
+                'city': 'Berlin'
+            }
+            
+            # Ищем несколько тестовых вакансий
+            if aggregator:
+                test_jobs = aggregator.search_specific_jobs(test_preferences)
+                if not test_jobs:
+                    # Если реальных вакансий нет, создаем тестовые
+                    from email_service import create_fallback_jobs
+                    test_jobs = create_fallback_jobs(test_preferences)
+            else:
+                from email_service import create_fallback_jobs
+                test_jobs = create_fallback_jobs(test_preferences)
+            
+            # Отправляем тестовый email
+            from email_service import send_job_email
+            
+            # Создаем временный объект подписчика для тестирования
+            class TestSubscriber:
+                def __init__(self, email):
+                    self.email = email
+                    self.id = 'test'
+            
+            test_subscriber = TestSubscriber(test_email)
+            
+            success = send_job_email(app, test_subscriber, test_jobs[:10], test_preferences)
+            
+            if success:
+                flash(f'✅ Тестовое письмо успешно отправлено на {test_email}!', 'success')
+                print(f"✅ Тестовое письмо отправлено на {test_email}")
+            else:
+                flash(f'❌ Не удалось отправить тестовое письмо на {test_email}', 'error')
+                print(f"❌ Ошибка отправки тестового письма на {test_email}")
+                
+        except Exception as e:
+            flash(f'❌ Ошибка тестовой отправки: {str(e)}', 'error')
+            print(f"❌ Ошибка тестовой отправки: {e}")
+        
+        return redirect('/admin/dashboard')   
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -1395,7 +1518,7 @@ def admin_dashboard():
             <!-- Секция Email рассылки -->
             <div class="backup-section">
                 <h3>📧 Email рассылка</h3>
-                <p>Отправить уведомления всем активным подписчикам прямо сейчас</p>
+                <p>Отправить уведомления всем активным подписчикам или протестировать систему</p>
                 <div style="text-align: center;">
                     <form method="POST" action="/admin/send-emails" style="display: inline;">
                         <button type="submit" class="backup-btn" 
@@ -1404,6 +1527,10 @@ def admin_dashboard():
                             📧 Отправить рассылку сейчас
                         </button>
                     </form>
+                    <a href="/admin/test-email" class="backup-btn" 
+                       style="background: #28a745; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; display: inline-block; font-size: 16px; margin: 10px;">
+                        🧪 Тестовая отправка
+                    </a>
                 </div>
             </div>
                       
