@@ -1442,7 +1442,27 @@ class GlobalJobAggregator:
             },
         
             '🔍 ДРУГОЕ': {
-                'Другие вакансии': ['search_for_other_jobs']
+                "Другие вакансии": [
+                    # Английский
+                    'general worker', 'manual worker', 'unskilled', 'labourer', 'warehouse worker',
+                    'cleaner', 'janitor', 'kitchen assistant', 'waiter', 'shop assistant', 'packer',
+                    # Немецкий
+                    'helfer', 'aushilfe', 'ungelernt', 'hilfsarbeiter', 'lagerarbeiter', 'reiniger',
+                    'küchenhilfe', 'servicekraft', 'verkaufsmitarbeiter', 'packer',
+                    # Французский
+                    'manutentionnaire', 'ouvrier', 'agent de nettoyage', 'agent d\'entretien', 'magasinier',
+                    # Испанский
+                    'trabajador general', 'peón', 'limpiador', 'mozo de almacén', 'camarero', 'ayudante de cocina',
+                    # Итальянский
+                    'operaio', 'lavoratore generico', 'addetto pulizie', 'magazziniere', 'cameriere',
+                    # Нидерландский
+                    'algemene werknemer', 'magazijnmedewerker', 'schoonmaker', 'keukenhulp',
+                    # Польский
+                    'pracownik fizyczny', 'magazynier', 'sprzątacz', 'pomoc kuchenna', 'kelner',
+                    # Чешский
+                    'dělník', 'skladník', 'uklízeč', 'pomocná síla', 'číšník'
+                ],
+
             }
         }
 
@@ -2982,7 +3002,21 @@ class GlobalJobAggregator:
         """Определение дружелюбности к беженцам"""
         text = f"{title} {description} {search_term}".lower()
         
-        refugee_indicators = ['refugee', 'ukrainian', 'ukraine', 'asylum', 'integration']
+        refugee_indicators = [
+            # Английский
+            'refugee', 'ukrainian', 'ukraine', 'asylum', 'integration',
+            'newcomer', 'immigrant', 'migration', 'no language required',
+            # Немецкий
+            'ukrainisch willkommen', 'flüchtling willkommen', 'ohne deutschkenntnisse', 'arbeit ohne sprache',
+            # Украинский / русский
+            'українським біженцям', 'українці вітаються', 'без знання мови',
+            'для беженцев', 'украинцам рады', 'без знания языка',
+            # Польский
+            'ukraińców mile widziane', 'bez znajomości języka',
+            # Чешский
+            'ukrajinci vítáni', 'bez znalosti jazyka'
+        ]
+
         return any(indicator in text for indicator in refugee_indicators)
     
     def _format_salary(self, job_data: Dict, country: str) -> Optional[str]:
