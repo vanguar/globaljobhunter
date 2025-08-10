@@ -110,6 +110,28 @@
                         <div class="form-step-card">
                             <div class="form-step-header">
                                 <span class="step-number">4</span>
+                                <h4>Название вакансии (опционально)</h4>
+                            </div>
+                            <input type="text" class="form-control form-control-lg mb-3" name="job_title" placeholder="Например: Software Engineer, Водитель, Kellner, Programmer, Fahrer...">
+                            
+                            <!-- Подсказка для названия вакансии -->
+                            <div class="alert alert-info py-2" style="font-size: 0.9rem; border-radius: 8px;">
+                                <div class="d-flex align-items-start">
+                                    <i class="bi bi-lightbulb-fill me-2 text-info" style="margin-top: 2px;"></i>
+                                    <div>
+                                        <strong>💡 Как лучше искать:</strong> 
+                                        <br>• <strong>На английском языке</strong> (Software Engineer, Data Analyst, Driver)
+                                        <br>• <strong>На языке страны поиска</strong> (Fahrer - нем., Chauffeur - фр., Kierowca - пол.)
+                                        <br>• <strong>Попробуйте оба варианта</strong> для максимального охвата вакансий
+                                        <br>• <strong>Оставьте пустым</strong> если выбрали профессии выше
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-step-card">
+                            <div class="form-step-header">
+                                <span class="step-number">5</span>
                                 <h4>Город (опционально)</h4>
                             </div>
                             <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Варшава, Munich, Краков...">
@@ -117,9 +139,9 @@
                             <!-- ✅ ДОБАВЛЕНО: КРАСИВАЯ ПОДСКАЗКА -->
                             <div class="alert alert-info mt-3 py-2" style="font-size: 0.9rem; border-radius: 8px;">
                                 <div class="d-flex align-items-start">
-                                    <i class="bi bi-info-circle-fill me-2 text-info" style="margin-top: 2px;"></i>
+                                    <i class="bi bi-geo-alt-fill me-2 text-info" style="margin-top: 2px;"></i>
                                     <div>
-                                        <strong>💡 Подсказка:</strong> 
+                                        <strong>📍 Подсказка для города:</strong> 
                                         <br>• <strong>Английские названия</strong> (Berlin, Warsaw, Paris) дают самые точные результаты
                                         <br>• <strong>Русские названия</strong> популярных городов тоже поддерживаются  
                                         <br>• <strong>Оставьте пустым</strong> для поиска по всей стране
