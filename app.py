@@ -191,8 +191,14 @@ def search_jobs():
            # оставляем старое поле для обратной совместимости (UI/шаблоны)
            'city': None,
            # НОВОЕ поле — список городов
-           'cities': cities
+           'cities': cities,
+           'job_title': form_data.get('job_title', '').strip() or None
        }
+       # Если есть название вакансии, добавляем его к поиску
+       if preferences['job_title']:
+           if not preferences['selected_jobs']:
+               preferences['selected_jobs'] = []
+           preferences['selected_jobs'].append(preferences['job_title'])
        
        if not preferences['selected_jobs']:
            return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
