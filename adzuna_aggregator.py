@@ -1871,10 +1871,18 @@ class GlobalJobAggregator:
         print(f"⚠️ Город не найден в словаре: '{city}' для {country_code}, передаем как есть")
         return city
         
-    def _search_single_term(self, keywords: str, country: str, location: str = '', max_results: int = 25, filter_term: str = None) -> List[JobVacancy]:
-        """Поиск по одному термину с rate limiting"""
+    def _search_single_term(
+    self,
+    keywords: str,
+    country: str,
+    location: str = '',
+    max_results: int = 25,
+    filter_term: str = None
+) -> List[JobVacancy]:
+        """Поиск по одному термину с rate limiting. Спокойно пропускает неподдерживаемые страны."""
+
         url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
-        
+
         params = {
             'app_id': self.app_id,
             'app_key': self.app_key,
@@ -1882,46 +1890,59 @@ class GlobalJobAggregator:
             'results_per_page': min(max_results, 50),
             'sort_by': 'date'
         }
-        
+
         if location:
             # Нормализуем название города
             normalized_location = self.normalize_city_name(location, country)
             params['where'] = normalized_location
-        
-        print(f"     🌐 API URL: {url}")  # ДОБАВЛЕНО
-        print(f"     📝 Параметры: what='{keywords}', where='{location}'")  # ДОБАВЛЕНО
-        
-        # Применяем rate limiting
+
+        print(f"     🌐 API URL: {url}")
+        print(f"     📝 Параметры: what='{keywords}', where='{location}'")
+
+        # Rate limiting
         self.rate_limiter.wait_if_needed()
-        
+
         try:
             response = requests.get(url, params=params, timeout=15)
             self.stats['api_requests'] += 1
-            
-            print(f"     📡 API ответ: {response.status_code}")  # ДОБАВЛЕНО
-            
+            print(f"     📡 API ответ: {response.status_code}")
+
             if response.status_code == 200:
                 data = response.json()
                 results = data.get('results', [])
-                
-                print(f"     📊 Получено от API: {len(results)} вакансий")  # ДОБАВЛЕНО
-                
-                jobs = []
+                print(f"     📊 Получено от API: {len(results)} вакансий")
+
+                jobs: List[JobVacancy] = []
                 for job_data in results:
                     job = self._normalize_job_data(job_data, country, filter_term or keywords)
                     if job:
                         jobs.append(job)
-                    # else:
-                    #     print(f"       ❌ Отфильтрована: {job_data.get('title', 'No title')}")  # РАСКОММЕНТИРУЙТЕ ДЛЯ ДЕТАЛЬНОЙ ОТЛАДКИ
-                
                 return jobs
+
+            # Обработка 404/прочих кодов с проверкой на неподдерживаемую страну
             else:
+                # Пытаемся разобрать JSON и понять причину
+                try:
+                    data = response.json()
+                except Exception:
+                    data = {}
+
+                exc = (data or {}).get("exception", "")
+                if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
+                    print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем и продолжаем…")
+                    return []  # просто пропускаем страну
+
+                # Любая другая ошибка — логируем и идём дальше
                 print(f"⚠️ API ошибка {response.status_code}: {response.text}")
                 return []
-                
+
+        except requests.Timeout:
+            print("⚠️ Таймаут запроса к Adzuna API")
+            return []
         except Exception as e:
             print(f"⚠️ Ошибка запроса: {e}")
             return []
+
     
     # Остальные методы остаются без изменений...
     def _normalize_job_data(self, raw_job: Dict, country: str, search_term: str) -> Optional[JobVacancy]:
