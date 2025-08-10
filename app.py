@@ -192,10 +192,10 @@ def search_jobs():
            'city': None,
            # НОВОЕ поле — список городов
            'cities': cities,
-           'job_title': form_data.get('job_title', '').strip() or None
+           'job_title': form_data.get('job_title', '') or ''
        }
        # Если есть название вакансии, добавляем его к поиску
-       if preferences['job_title']:
+       if preferences['job_title'] and len(preferences['job_title'].strip()) > 0:
            if not preferences['selected_jobs']:
                preferences['selected_jobs'] = []
            preferences['selected_jobs'].append(preferences['job_title'])
