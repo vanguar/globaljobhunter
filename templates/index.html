@@ -161,4 +161,226 @@
         </div>
     </section>
 </main>
+// Функция для обработки кнопок быстрого выбора профессий
+function selectJobCategory(category, buttonElement) {
+    console.log('Выбрана категория:', category);
+    
+    // Убираем активное состояние у всех кнопок
+    document.querySelectorAll('.quick-select-btn').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+    });
+    
+    // Делаем текущую кнопку активной
+    buttonElement.classList.remove('btn-outline-secondary');
+    buttonElement.classList.add('btn-primary');
+    
+    // Снимаем выделение со всех чекбоксов
+    document.querySelectorAll('.job-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Маппинг категорий на соответствующие профессии в агрегаторе
+    const categoryMap = {
+        'transport': [
+            // 🚗 ТРАНСПОРТ И ДОСТАВКА
+            'Водитель такси',
+            'Водитель категории B', 
+            'Водитель категории C',
+            'Водитель-курьер',
+            'Курьер пешком',
+            'Курьер-доставщик еды',
+            'Водитель автобуса',
+            'Водитель грузовика'
+        ],
+        'restaurant': [
+            // 🍽️ ОБЩЕПИТ И СЕРВИС
+            'Официант',
+            'Бармен',
+            'Повар',
+            'Помощник повара',
+            'Посудомойщик',
+            'Кассир',
+            'Продавец'
+        ],
+        'construction': [
+            // 🏗️ СТРОИТЕЛЬСТВО И ПРОИЗВОДСТВО
+            'Строитель-разнорабочий',
+            'Грузчик',
+            'Складской работник',
+            'Разнорабочий',
+            'Рабочий на производстве'
+        ],
+        'care': [
+            // 👥 УХОД И МЕДИЦИНА + 🏡 СЕРВИС И ОБСЛУЖИВАНИЕ
+            'Медсестра',
+            'Сиделка',
+            'Няня',
+            'Гувернантка',
+            'Уход за пенсионерами',
+            'Уборщик',
+            'Садовник',
+            'Домработница',
+            'Массажист'
+        ],
+        'it': [
+            // 💻 IT И ТЕХНОЛОГИИ
+            'Python разработчик',
+            'Веб-разработчик',
+            'Программист',
+            'Дата-аналитик',
+            'Системный администратор',
+            'Тестировщик'
+        ],
+        'refugee': [
+            // 🇺🇦 ДЛЯ УКРАИНСКИХ БЕЖЕНЦЕВ
+            'Работа для украинцев',
+            'Программы поддержки',
+            'Переводчик украинского',
+            'Поддержка беженцев',
+            'Работа без языка для украинцев'
+        ],
+        'autoservice': [
+            // 🔧 АВТОСЕРВИС И ТЕХОБСЛУЖИВАНИЕ
+            'Автомеханик',
+            'Автослесарь',
+            'Шиномонтажник',
+            'Диагност',
+            'Мастер-приёмщик',
+            'Кузовщик',
+            'Маляр по авто'
+        ],
+        'fuel': [
+            // ⛽ АЗС И ТОПЛИВО
+            'Заправщик на АЗС',
+            'Оператор АЗС',
+            'Кассир на АЗС'
+        ],
+        'oilgas': [
+            // 🛢️ НЕФТЬ И ГАЗ
+            'Оператор добычи',
+            'Помощник бурильщика',
+            'Рабочий нефтебазы'
+        ]
+    };
+    
+    // Получаем список профессий для выбранной категории
+    const jobsToSelect = categoryMap[category] || [];
+    
+    if (jobsToSelect.length === 0) {
+        console.warn('Неизвестная категория или пустой список профессий:', category);
+        return;
+    }
+    
+    console.log('Профессии для выбора:', jobsToSelect);
+    
+    // Отмечаем соответствующие чекбоксы
+    let selectedCount = 0;
+    document.querySelectorAll('.job-checkbox').forEach(checkbox => {
+        const jobTitle = checkbox.value;
+        if (jobsToSelect.includes(jobTitle)) {
+            checkbox.checked = true;
+            selectedCount++;
+            console.log('Выбрана профессия:', jobTitle);
+        }
+    });
+    
+    console.log(`Выбрано профессий: ${selectedCount} из ${jobsToSelect.length}`);
+    
+    // Показываем сообщение пользователю
+    if (selectedCount > 0) {
+        // Создаем временное уведомление
+        showTemporaryMessage(`Выбрано ${selectedCount} профессий в категории "${getReadableCategoryName(category)}"`, 'success');
+    } else {
+        showTemporaryMessage(`Профессии категории "${getReadableCategoryName(category)}" не найдены`, 'warning');
+    }
+}
+
+// Вспомогательная функция для получения читаемого названия категории
+function getReadableCategoryName(category) {
+    const names = {
+        'transport': 'Транспорт',
+        'restaurant': 'Общепит',
+        'construction': 'Стройка',
+        'care': 'Уход',
+        'it': 'IT',
+        'refugee': 'Для украинцев',
+        'autoservice': 'Автосервис и техобслуживание',
+        'fuel': 'АЗС и топливо',
+        'oilgas': 'Нефть и газ'
+    };
+    return names[category] || category;
+}
+
+// Функция для показа временных сообщений
+function showTemporaryMessage(message, type = 'info') {
+    // Удаляем предыдущие сообщения
+    const existingMessages = document.querySelectorAll('.temp-message');
+    existingMessages.forEach(msg => msg.remove());
+    
+    // Создаем новое сообщение
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} temp-message`;
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideInRight 0.3s ease-out;
+        max-width: 400px;
+        font-weight: 500;
+    `;
+    
+    // Добавляем иконку в зависимости от типа
+    const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+    messageDiv.innerHTML = `${icon} ${message}`;
+    
+    // Добавляем CSS анимацию если её ещё нет
+    if (!document.querySelector('#temp-message-styles')) {
+        const style = document.createElement('style');
+        style.id = 'temp-message-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from { 
+                    transform: translateX(100%); 
+                    opacity: 0; 
+                }
+                to { 
+                    transform: translateX(0); 
+                    opacity: 1; 
+                }
+            }
+            @keyframes slideOutRight {
+                from { 
+                    transform: translateX(0); 
+                    opacity: 1; 
+                }
+                to { 
+                    transform: translateX(100%); 
+                    opacity: 0; 
+                }
+            }
+            .temp-message {
+                transition: all 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Добавляем сообщение на страницу
+    document.body.appendChild(messageDiv);
+    
+    // Удаляем сообщение через 3 секунды
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 300);
+    }, 3000);
+}
 {% endblock %}
