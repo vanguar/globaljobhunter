@@ -431,3 +431,54 @@ window.CATEGORY_MAP = {
     'Рабочий нефтебазы'
   ]
 };
+
+const categories = {
+    autoservice: [
+        // Английский
+        "auto repair", "car service", "mechanic", "garage", "automotive technician", "motor mechanic", "garage mechanic", "vehicle repair", "car maintenance", "service technician", "car workshop", "auto technician", "auto service", "automobile mechanic", "auto workshop", "car repair shop", "automobile repair", "auto maintenance", "repair shop",
+        // Немецкий
+        "Autoreparatur", "Kfz-Werkstatt", "Mechaniker", "Garage", "Kfz-Techniker", "Kfz-Mechaniker", "Fahrzeugreparatur", "Autopflege", "Service-Techniker", "Autowerkstatt", "KFZ-Service", "KFZ-Technik", "KFZ-Reparatur", "Werkstatt", "Reparaturwerkstatt", "Fahrzeugwartung", "Kfz-Service", "Autodienst",
+        // Французский
+        "réparation automobile", "mécanicien", "atelier mécanique", "garage", "technicien automobile", "réparation de voiture", "entretien automobile", "atelier de réparation", "service automobile", "mécanique auto",
+        // Испанский
+        "reparación de automóviles", "mecánico", "taller mecánico", "técnico de automóviles", "mecánico de coches", "servicio de coches", "taller de reparación", "reparación de coches", "servicio automotriz",
+        // Итальянский
+        "riparazione auto", "meccanico", "officina", "tecnico automobilistico", "riparazione automobili", "officina meccanica", "riparazione veicoli", "meccanico auto", "officina auto", "manutenzione auto",
+        // Польский
+        "naprawa samochodów", "mechanik", "warsztat", "technik samochodowy", "naprawa pojazdów", "serwis samochodowy", "mechanik pojazdów", "warsztat samochodowy", "serwis aut", "naprawa aut",
+        // Чешский / Словацкий
+        "oprava automobilov", "mechanik", "servis vozidel", "technik vozidel", "oprava vozidel", "automechanik", "dílna", "servis auta", "oprava auta"
+    ],
+    fuel: [
+        // Английский
+        "gas station", "petrol station", "fuel station", "attendant", "pump operator", "filling station", "service station", "fuel attendant", "fuel pump operator", "gas attendant", "petrol pump operator",
+        // Немецкий
+        "Tankstelle", "Kraftstoffstation", "Zapfsäule", "Tankwart", "Benzinstation", "Servicestation", "Autotankstelle", "Kraftstofflager", "Tankstellenmitarbeiter", "Kraftstoffversorgung",
+        // Французский
+        "station-service", "pompe à essence", "employé de station", "station d'essence", "station de carburant", "station essence", "station de service",
+        // Испанский
+        "estación de servicio", "gasolinera", "empleado de gasolinera", "bomba de gasolina", "estación de combustible", "trabajador de estación de servicio",
+        // Итальянский
+        "stazione di servizio", "benzinaio", "distributore di benzina", "stazione carburanti", "operatore di pompa di benzina",
+        // Польский
+        "stacja paliw", "pracownik stacji benzynowej", "stacja benzynowa", "obsługa stacji paliw", "operator dystrybutora paliwa",
+        // Чешский / Словацкий
+        "čerpací stanice", "obsluha čerpací stanice", "benzínka", "obsluha pumpy"
+    ],
+    oilgas: [
+        // Английский
+        "oilfield", "oil rig", "gas plant", "petroleum engineer", "offshore worker", "oil production", "gas production", "oil platform", "oil drilling", "gas drilling", "offshore oil rig", "offshore gas platform",
+        // Немецкий
+        "Ölfeld", "Bohrinsel", "Gaswerk", "Erdölingenieur", "Offshore-Arbeiter", "Ölplattform", "Gasplattform", "Ölförderung", "Gasförderung", "Bohranlage", "Gasbohranlage",
+        // Французский
+        "champ pétrolier", "plateforme pétrolière", "ingénieur pétrolier", "travailleur offshore", "plateforme offshore", "production pétrolière", "production de gaz", "forage pétrolier", "forage de gaz",
+        // Испанский
+        "campo petrolero", "plataforma petrolera", "ingeniero petrolero", "trabajador offshore", "plataforma de gas", "producción de petróleo", "producción de gas", "perforación petrolera", "perforación de gas",
+        // Итальянский
+        "campo petrolifero", "piattaforma petrolifera", "ingegnere petrolifero", "lavoratore offshore", "piattaforma del gas", "produzione di petrolio", "produzione di gas", "trivellazione petrolifera", "trivellazione del gas",
+        // Польский
+        "pole naftowe", "platforma wiertnicza", "inżynier naftowy", "pracownik offshore", "platforma gazowa", "produkcja ropy", "produkcja gazu", "wiercenie ropy", "wiercenie gazu",
+        // Чешский / Словацкий
+        "ropné pole", "ropná plošina", "inžinier ropného priemyslu", "pracovník offshore", "plynová plošina", "ťažba ropy", "ťažba plynu", "vrtná súprava", "vrtná plošina"
+    ]
+};

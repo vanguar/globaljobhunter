@@ -1525,7 +1525,7 @@ class GlobalJobAggregator:
         # Выполняем поиск
         all_jobs = self._perform_search(preferences, progress_callback)
         
-        # Кешируем результат
+        # Кешируем результат!
         if all_jobs:
             self.cache_manager.cache_result(preferences, all_jobs)
             self.stats['total_jobs_found'] += len(all_jobs)
