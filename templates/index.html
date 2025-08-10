@@ -161,6 +161,8 @@
         </div>
     </section>
 </main>
+<!-- ДОБАВИТЬ СЮДА ВЕСЬ JAVASCRIPT КОД -->
+<script>
 // Функция для обработки кнопок быстрого выбора профессий
 function selectJobCategory(category, buttonElement) {
     console.log('Выбрана категория:', category);
@@ -183,7 +185,6 @@ function selectJobCategory(category, buttonElement) {
     // Маппинг категорий на соответствующие профессии в агрегаторе
     const categoryMap = {
         'transport': [
-            // 🚗 ТРАНСПОРТ И ДОСТАВКА
             'Водитель такси',
             'Водитель категории B', 
             'Водитель категории C',
@@ -194,7 +195,6 @@ function selectJobCategory(category, buttonElement) {
             'Водитель грузовика'
         ],
         'restaurant': [
-            // 🍽️ ОБЩЕПИТ И СЕРВИС
             'Официант',
             'Бармен',
             'Повар',
@@ -204,7 +204,6 @@ function selectJobCategory(category, buttonElement) {
             'Продавец'
         ],
         'construction': [
-            // 🏗️ СТРОИТЕЛЬСТВО И ПРОИЗВОДСТВО
             'Строитель-разнорабочий',
             'Грузчик',
             'Складской работник',
@@ -212,7 +211,6 @@ function selectJobCategory(category, buttonElement) {
             'Рабочий на производстве'
         ],
         'care': [
-            // 👥 УХОД И МЕДИЦИНА + 🏡 СЕРВИС И ОБСЛУЖИВАНИЕ
             'Медсестра',
             'Сиделка',
             'Няня',
@@ -224,7 +222,6 @@ function selectJobCategory(category, buttonElement) {
             'Массажист'
         ],
         'it': [
-            // 💻 IT И ТЕХНОЛОГИИ
             'Python разработчик',
             'Веб-разработчик',
             'Программист',
@@ -233,7 +230,6 @@ function selectJobCategory(category, buttonElement) {
             'Тестировщик'
         ],
         'refugee': [
-            // 🇺🇦 ДЛЯ УКРАИНСКИХ БЕЖЕНЦЕВ
             'Работа для украинцев',
             'Программы поддержки',
             'Переводчик украинского',
@@ -241,7 +237,6 @@ function selectJobCategory(category, buttonElement) {
             'Работа без языка для украинцев'
         ],
         'autoservice': [
-            // 🔧 АВТОСЕРВИС И ТЕХОБСЛУЖИВАНИЕ
             'Автомеханик',
             'Автослесарь',
             'Шиномонтажник',
@@ -251,13 +246,11 @@ function selectJobCategory(category, buttonElement) {
             'Маляр по авто'
         ],
         'fuel': [
-            // ⛽ АЗС И ТОПЛИВО
             'Заправщик на АЗС',
             'Оператор АЗС',
             'Кассир на АЗС'
         ],
         'oilgas': [
-            // 🛢️ НЕФТЬ И ГАЗ
             'Оператор добычи',
             'Помощник бурильщика',
             'Рабочий нефтебазы'
@@ -289,14 +282,12 @@ function selectJobCategory(category, buttonElement) {
     
     // Показываем сообщение пользователю
     if (selectedCount > 0) {
-        // Создаем временное уведомление
         showTemporaryMessage(`Выбрано ${selectedCount} профессий в категории "${getReadableCategoryName(category)}"`, 'success');
     } else {
         showTemporaryMessage(`Профессии категории "${getReadableCategoryName(category)}" не найдены`, 'warning');
     }
 }
 
-// Вспомогательная функция для получения читаемого названия категории
 function getReadableCategoryName(category) {
     const names = {
         'transport': 'Транспорт',
@@ -312,13 +303,10 @@ function getReadableCategoryName(category) {
     return names[category] || category;
 }
 
-// Функция для показа временных сообщений
 function showTemporaryMessage(message, type = 'info') {
-    // Удаляем предыдущие сообщения
     const existingMessages = document.querySelectorAll('.temp-message');
     existingMessages.forEach(msg => msg.remove());
     
-    // Создаем новое сообщение
     const messageDiv = document.createElement('div');
     messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} temp-message`;
     messageDiv.style.cssText = `
@@ -334,46 +322,27 @@ function showTemporaryMessage(message, type = 'info') {
         font-weight: 500;
     `;
     
-    // Добавляем иконку в зависимости от типа
     const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
     messageDiv.innerHTML = `${icon} ${message}`;
     
-    // Добавляем CSS анимацию если её ещё нет
     if (!document.querySelector('#temp-message-styles')) {
         const style = document.createElement('style');
         style.id = 'temp-message-styles';
         style.textContent = `
             @keyframes slideInRight {
-                from { 
-                    transform: translateX(100%); 
-                    opacity: 0; 
-                }
-                to { 
-                    transform: translateX(0); 
-                    opacity: 1; 
-                }
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
             }
             @keyframes slideOutRight {
-                from { 
-                    transform: translateX(0); 
-                    opacity: 1; 
-                }
-                to { 
-                    transform: translateX(100%); 
-                    opacity: 0; 
-                }
-            }
-            .temp-message {
-                transition: all 0.3s ease;
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
             }
         `;
         document.head.appendChild(style);
     }
     
-    // Добавляем сообщение на страницу
     document.body.appendChild(messageDiv);
     
-    // Удаляем сообщение через 3 секунды
     setTimeout(() => {
         messageDiv.style.animation = 'slideOutRight 0.3s ease-in';
         setTimeout(() => {
@@ -383,4 +352,5 @@ function showTemporaryMessage(message, type = 'info') {
         }, 300);
     }, 3000);
 }
+</script>
 {% endblock %}
