@@ -67,6 +67,13 @@
                                 </div>
                             </div>
                             
+                            <!-- Кнопка поиска прямо в синем блоке -->
+                            <div class="text-center mb-3">
+                                <button type="submit" class="btn btn-warning btn-lg px-4 py-2 featured-search-btn">
+                                    <i class="bi bi-search me-2"></i>🚀 Найти по названию
+                                </button>
+                            </div>
+                            
                             <!-- Красивая подсказка с новым дизайном -->
                             <div class="featured-tip">
                                 <div class="tip-icon">💡</div>
@@ -403,6 +410,123 @@ function showTemporaryMessage(message, type = 'info') {
             }
         }, 300);
     }, 3000);
+}
+
+// ДОБАВИТЬ В КОНЕЦ СУЩЕСТВУЮЩЕГО JAVASCRIPT В index.html:
+
+// Улучшенная валидация формы
+document.getElementById('job-search-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    console.log('🔍 Отправка формы...');
+    
+    // Получаем данные формы
+    const formData = new FormData(this);
+    const jobTitle = formData.get('job_title')?.trim();
+    const selectedJobs = formData.getAll('selected_jobs');
+    const countries = formData.getAll('countries');
+    const isRefugee = formData.get('is_refugee');
+    
+    console.log('📝 Данные формы:', {
+        jobTitle,
+        selectedJobs: selectedJobs.length,
+        countries: countries.length,
+        isRefugee
+    });
+    
+    // Проверяем статус беженца
+    if (!isRefugee) {
+        showTemporaryMessage('❌ Пожалуйста, выберите ваш статус', 'error');
+        return;
+    }
+    
+    // Проверяем наличие профессий ИЛИ названия вакансии
+    const hasJobTitle = jobTitle && jobTitle.length > 0;
+    const hasSelectedJobs = selectedJobs && selectedJobs.length > 0;
+    
+    if (!hasJobTitle && !hasSelectedJobs) {
+        showTemporaryMessage('❌ Выберите хотя бы одну профессию ИЛИ введите название вакансии', 'error');
+        return;
+    }
+    
+    // Проверяем страны
+    if (!countries || countries.length === 0) {
+        showTemporaryMessage('❌ Выберите хотя бы одну страну для поиска', 'error');
+        return;
+    }
+    
+    console.log('✅ Валидация прошла успешно');
+    
+    // Показываем индикатор загрузки
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Ищем...';
+    submitBtn.disabled = true;
+    
+    // Преобразуем FormData в обычный объект для отправки JSON
+    const searchData = {
+        is_refugee: isRefugee,
+        selected_jobs: selectedJobs,
+        countries: countries,
+        city: formData.get('city')?.trim() || '',
+        job_title: jobTitle || ''
+    };
+    
+    console.log('📤 Отправляем данные:', searchData);
+    
+    // Отправляем запрос
+    fetch('/search', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📥 Ответ сервера:', data);
+        
+        if (data.success) {
+            // Успешный поиск
+            showTemporaryMessage(`✅ Найдено ${data.jobs_count} вакансий за ${data.search_time}с`, 'success');
+            
+            // Перенаправляем на страницу результатов
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 1000);
+        } else {
+            // Ошибка поиска
+            showTemporaryMessage(`❌ ${data.error}`, 'error');
+            
+            // Восстанавливаем кнопку
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('❌ Ошибка запроса:', error);
+        showTemporaryMessage('❌ Ошибка соединения с сервером', 'error');
+        
+        // Восстанавливаем кнопку
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Добавляем CSS для спиннера
+if (!document.querySelector('#spinner-styles')) {
+    const style = document.createElement('style');
+    style.id = 'spinner-styles';
+    style.textContent = `
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
 }
 </script>
 
