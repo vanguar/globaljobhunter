@@ -50,68 +50,10 @@
                             </div>
                         </div>
 
-                        <!-- НОВЫЙ БЛОК: Название вакансии в самом верху -->
-                        <div class="form-step-card featured-search-card">
-                            <div class="form-step-header featured-header">
-                                <span class="step-number featured-number">🎯</span>
-                                <div>
-                                    <h4>Быстрый поиск по названию</h4>
-                                    <small class="text-muted">Введите конкретную вакансию для точного поиска</small>
-                                </div>
-                            </div>
-                            <div class="featured-input-container">
-                                <input type="text" class="form-control form-control-lg featured-input" name="job_title" 
-                                       placeholder="🔍 Например: Software Engineer, Водитель, Kellner, Data Analyst, Fahrer...">
-                                <div class="featured-input-overlay">
-                                    <i class="bi bi-lightning-charge"></i>
-                                </div>
-                            </div>
-                            
-                            <!-- Кнопка поиска прямо в синем блоке -->
-                            <div class="text-center mb-3">
-                                <button type="submit" class="btn btn-warning btn-lg px-4 py-2 featured-search-btn">
-                                    <i class="bi bi-search me-2"></i>🚀 Найти по названию
-                                </button>
-                            </div>
-                            
-                            <!-- Красивая подсказка с новым дизайном -->
-                            <div class="featured-tip">
-                                <div class="tip-icon">💡</div>
-                                <div class="tip-content">
-                                    <div class="tip-title">Секрет эффективного поиска:</div>
-                                    <div class="tip-grid">
-                                        <div class="tip-item">
-                                            <span class="tip-emoji">🌍</span>
-                                            <span><strong>На английском:</strong> Software Engineer, Data Analyst</span>
-                                        </div>
-                                        <div class="tip-item">
-                                            <span class="tip-emoji">🏳️</span>
-                                            <span><strong>На местном языке:</strong> Fahrer, Kellner, Chauffeur</span>
-                                        </div>
-                                        <div class="tip-item">
-                                            <span class="tip-emoji">⚡</span>
-                                            <span><strong>Можно оба варианта</strong> для лучшего результата</span>
-                                        </div>
-                                        <div class="tip-item">
-                                            <span class="tip-emoji">📋</span>
-                                            <span><strong>Не забудьте выбрать страны</strong> внизу ⬇️</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Разделитель "ИЛИ" -->
-                        <div class="divider-section">
-                            <div class="divider-line"></div>
-                            <div class="divider-text">ИЛИ выберите из категорий</div>
-                            <div class="divider-line"></div>
-                        </div>
-
-                        <div class="form-step-card" data-step="categories">
+                        <div class="form-step-card">
                             <div class="form-step-header">
                                 <span class="step-number">2</span>
-                                <h4>Выберите профессии по категориям</h4>
+                                <h4>Выберите профессии</h4>
                             </div>
                              <div class="mb-4">
                                 <p class="text-muted mb-2">Быстрый выбор по категориям:</p>
@@ -148,12 +90,11 @@
                             {% endfor %}
                         </div>
 
-                        <div class="form-step-card" data-step="countries">
+                        <div class="form-step-card">
                             <div class="form-step-header">
                                 <span class="step-number">3</span>
-                                <h4>Страны поиска <span class="required-indicator">*</span></h4>
+                                <h4>Страны поиска</h4>
                             </div>
-                            <p class="text-muted mb-3">⚠️ <strong>Обязательно!</strong> Выберите хотя бы одну страну для поиска вакансий.</p>
                             <div class="row">
                                 {% for code, info in countries.items() %}
                                 <div class="col-md-6 col-lg-4 mb-2">
@@ -173,12 +114,12 @@
                             </div>
                             <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Варшава, Munich, Краков...">
                             
-                            <!-- Подсказка для города -->
+                            <!-- ✅ ДОБАВЛЕНО: КРАСИВАЯ ПОДСКАЗКА -->
                             <div class="alert alert-info mt-3 py-2" style="font-size: 0.9rem; border-radius: 8px;">
                                 <div class="d-flex align-items-start">
-                                    <i class="bi bi-geo-alt-fill me-2 text-info" style="margin-top: 2px;"></i>
+                                    <i class="bi bi-info-circle-fill me-2 text-info" style="margin-top: 2px;"></i>
                                     <div>
-                                        <strong>📍 Подсказка для города:</strong> 
+                                        <strong>💡 Подсказка:</strong> 
                                         <br>• <strong>Английские названия</strong> (Berlin, Warsaw, Paris) дают самые точные результаты
                                         <br>• <strong>Русские названия</strong> популярных городов тоже поддерживаются  
                                         <br>• <strong>Оставьте пустым</strong> для поиска по всей стране
@@ -411,141 +352,6 @@ function showTemporaryMessage(message, type = 'info') {
             }
         }, 300);
     }, 3000);
-}
-
-// ДОБАВИТЬ В КОНЕЦ СУЩЕСТВУЮЩЕГО JAVASCRIPT В index.html:
-
-// Улучшенная валидация формы
-document.getElementById('job-search-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    console.log('🔍 Отправка формы...');
-    
-    // Получаем данные формы
-    const formData = new FormData(this);
-    const jobTitle = formData.get('job_title')?.trim();
-    const selectedJobs = formData.getAll('selected_jobs');
-    const countries = formData.getAll('countries');
-    const isRefugee = formData.get('is_refugee');
-    
-    console.log('📝 Данные формы:', {
-        jobTitle,
-        selectedJobs: selectedJobs.length,
-        countries: countries.length,
-        isRefugee
-    });
-    
-    // Проверяем статус беженца
-    if (!isRefugee) {
-        showTemporaryMessage('❌ Пожалуйста, выберите ваш статус', 'error');
-        return;
-    }
-    
-    // Проверяем наличие профессий ИЛИ названия вакансии
-const hasJobTitle = jobTitle && jobTitle.length > 0;
-const hasSelectedJobs = selectedJobs && selectedJobs.length > 0;
-
-// ✅ ИСПРАВЛЕНИЕ: Разрешаем поиск если есть ЛИБО название, ЛИБО выбранные профессии
-if (!hasJobTitle && !hasSelectedJobs) {
-    showTemporaryMessage('❌ Введите название вакансии выше ИЛИ выберите профессии ниже ⬇️', 'error');
-    return;
-}
-
-// ✅ НОВОЕ: Если есть только название вакансии - это ОК, продолжаем
-console.log(`✅ Валидация: jobTitle="${jobTitle}", selectedJobs=${selectedJobs.length}`);
-    
-    // Проверяем страны
-    // Проверяем страны
-if (!countries || countries.length === 0) {
-    showTemporaryMessage('❌ Выберите хотя бы одну страну для поиска! Прокрутите вниз ⬇️', 'error');
-    
-    // Прокручиваем к разделу стран
-    setTimeout(() => {
-        const countriesSection = document.querySelector('[data-step="countries"]') || 
-                                document.querySelector('input[name="countries"]').closest('.form-step-card');
-        if (countriesSection) {
-            countriesSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
-            });
-            countriesSection.style.animation = 'highlight-pulse 2s ease-in-out';
-        }
-    }, 500);
-    return;
-}
-    
-    console.log('✅ Валидация прошла успешно');
-    
-    // Показываем индикатор загрузки
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Ищем...';
-    submitBtn.disabled = true;
-    
-    // Преобразуем FormData в обычный объект для отправки JSON
-    const searchData = {
-        is_refugee: isRefugee,
-        selected_jobs: selectedJobs,
-        countries: countries,
-        city: formData.get('city')?.trim() || '',
-        job_title: jobTitle || ''
-    };
-    
-    console.log('📤 Отправляем данные:', searchData);
-    
-    // Отправляем запрос
-    fetch('/search', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(searchData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('📥 Ответ сервера:', data);
-        
-        if (data.success) {
-            // Успешный поиск
-            showTemporaryMessage(`✅ Найдено ${data.jobs_count} вакансий за ${data.search_time}с`, 'success');
-            
-            // Перенаправляем на страницу результатов
-            setTimeout(() => {
-                window.location.href = data.redirect_url;
-            }, 1000);
-        } else {
-            // Ошибка поиска
-            showTemporaryMessage(`❌ ${data.error}`, 'error');
-            
-            // Восстанавливаем кнопку
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('❌ Ошибка запроса:', error);
-        showTemporaryMessage('❌ Ошибка соединения с сервером', 'error');
-        
-        // Восстанавливаем кнопку
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    });
-});
-
-// Добавляем CSS для спиннера
-if (!document.querySelector('#spinner-styles')) {
-    const style = document.createElement('style');
-    style.id = 'spinner-styles';
-    style.textContent = `
-        .spin {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
 }
 </script>
 
