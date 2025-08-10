@@ -5,9 +5,9 @@
     <section class="hero-section">
         <div class="container">
             <h1 class="display-4 fw-bold mb-3">
-            Ваша новая работа — в любой точке <span class="highlight-animated">мира</span>
-        </h1>
-                    <p class="lead">
+                Ваша новая работа — в любой точке <span class="highlight-animated">мира</span>
+            </h1>
+            <p class="lead">
                 Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
             </p>
             <a href="#search-form-section" class="btn btn-primary btn-lg">
@@ -55,7 +55,7 @@
                                 <span class="step-number">2</span>
                                 <h4>Выберите профессии</h4>
                             </div>
-                             <div class="mb-4">
+                            <div class="mb-4">
                                 <p class="text-muted mb-2">Быстрый выбор по категориям:</p>
                                 <div id="quick-select-buttons" class="d-flex flex-wrap gap-2">
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('transport', this)">🚗 Транспорт</button>
@@ -67,7 +67,6 @@
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('autoservice', this)">🛠 Автосервис и техобслуживание</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('fuel', this)">⛽ АЗС и топливо</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('oilgas', this)">🛢 Нефть и газ</button>
-
                                 </div>
                             </div>
 
@@ -79,7 +78,6 @@
                                     {% for job in jobs %}
                                     <div class="col-md-6 col-lg-4 mb-2">
                                         <div class="form-check">
-                                            {# ИСПРАВЛЕНИЕ: Убран фильтр 'slugify', используется комбинация индексов циклов для уникальности #}
                                             <input class="form-check-input job-checkbox" type="checkbox" name="selected_jobs" value="{{ job }}" id="job-{{ outer_loop_index }}-{{ loop.index0 }}">
                                             <label class="form-check-label" for="job-{{ outer_loop_index }}-{{ loop.index0 }}">{{ job }}</label>
                                         </div>
@@ -114,7 +112,6 @@
                             </div>
                             <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Варшава, Munich, Краков...">
                             
-                            <!-- ✅ ДОБАВЛЕНО: КРАСИВАЯ ПОДСКАЗКА -->
                             <div class="alert alert-info mt-3 py-2" style="font-size: 0.9rem; border-radius: 8px;">
                                 <div class="d-flex align-items-start">
                                     <i class="bi bi-info-circle-fill me-2 text-info" style="margin-top: 2px;"></i>
@@ -133,8 +130,6 @@
                                 🚀 Найти работу
                             </button>
 
-                            <!-- ДОБАВИТЬ ЭТОТ БЛОК после кнопки "Найти работу" -->
-                            <!-- ДОБАВИТЬ ЭТОТ БЛОК после кнопки "Найти работу" -->
                             <div class="text-center mt-4 pt-4 border-top">
                                 <h5 class="mb-3">📧 Получать новые вакансии на email</h5>
                                 <p class="text-muted mb-3">⚠️ Сначала выберите профессии и страны выше, нажмите "Найти работу", затем подписывайтесь</p>
@@ -162,130 +157,45 @@
     </section>
 </main>
 
-<!-- ВОТ ЗДЕСЬ ПРАВИЛЬНО ДОБАВЛЕН JAVASCRIPT -->
+<!-- Подключаем мульти-языковые категории -->
+<script src="{{ url_for('static', filename='js/categories.js') }}"></script>
+
 <script>
-// Функция для обработки кнопок быстрого выбора профессий
+// Быстрый выбор профессий по категории (берёт данные из window.CATEGORY_MAP)
 function selectJobCategory(category, buttonElement) {
-    console.log('Выбрана категория:', category);
-    
-    // Убираем активное состояние у всех кнопок
+    // сброс активной кнопки
     document.querySelectorAll('.quick-select-btn').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline-secondary');
     });
-    
-    // Делаем текущую кнопку активной
     buttonElement.classList.remove('btn-outline-secondary');
     buttonElement.classList.add('btn-primary');
-    
-    // Снимаем выделение со всех чекбоксов
-    document.querySelectorAll('.job-checkbox').forEach(checkbox => {
-        checkbox.checked = false;
-    });
-    
-    // Маппинг категорий на соответствующие профессии в агрегаторе
-    const categoryMap = {
-        'transport': [
-            'Водитель такси',
-            'Водитель категории B', 
-            'Водитель категории C',
-            'Водитель-курьер',
-            'Курьер пешком',
-            'Курьер-доставщик еды',
-            'Водитель автобуса',
-            'Водитель грузовика'
-        ],
-        'restaurant': [
-            'Официант',
-            'Бармен',
-            'Повар',
-            'Помощник повара',
-            'Посудомойщик',
-            'Кассир',
-            'Продавец'
-        ],
-        'construction': [
-            'Строитель-разнорабочий',
-            'Грузчик',
-            'Складской работник',
-            'Разнорабочий',
-            'Рабочий на производстве'
-        ],
-        'care': [
-            'Медсестра',
-            'Сиделка',
-            'Няня',
-            'Гувернантка',
-            'Уход за пенсионерами',
-            'Уборщик',
-            'Садовник',
-            'Домработница',
-            'Массажист'
-        ],
-        'it': [
-            'Python разработчик',
-            'Веб-разработчик',
-            'Программист',
-            'Дата-аналитик',
-            'Системный администратор',
-            'Тестировщик'
-        ],
-        'refugee': [
-            'Работа для украинцев',
-            'Программы поддержки',
-            'Переводчик украинского',
-            'Поддержка беженцев',
-            'Работа без языка для украинцев'
-        ],
-        'autoservice': [
-            'Автомеханик',
-            'Автослесарь',
-            'Шиномонтажник',
-            'Диагност',
-            'Мастер-приёмщик',
-            'Кузовщик',
-            'Маляр по авто'
-        ],
-        'fuel': [
-            'Заправщик на АЗС',
-            'Оператор АЗС',
-            'Кассир на АЗС'
-        ],
-        'oilgas': [
-            'Оператор добычи',
-            'Помощник бурильщика',
-            'Рабочий нефтебазы'
-        ]
-    };
-    
-    // Получаем список профессий для выбранной категории
-    const jobsToSelect = categoryMap[category] || [];
-    
-    if (jobsToSelect.length === 0) {
-        console.warn('Неизвестная категория или пустой список профессий:', category);
+
+    // снять выделение со всех чекбоксов
+    document.querySelectorAll('.job-checkbox').forEach(cb => cb.checked = false);
+
+    // берём список профессий из categories.js
+    const baseMap = (window.CATEGORY_MAP || {});
+    const jobsToSelect = baseMap[category] || [];
+
+    if (!jobsToSelect.length) {
+        showTemporaryMessage(`Профессии для "${getReadableCategoryName(category)}" не найдены`, 'warning');
         return;
     }
-    
-    console.log('Профессии для выбора:', jobsToSelect);
-    
-    // Отмечаем соответствующие чекбоксы
+
     let selectedCount = 0;
     document.querySelectorAll('.job-checkbox').forEach(checkbox => {
         const jobTitle = checkbox.value;
         if (jobsToSelect.includes(jobTitle)) {
             checkbox.checked = true;
             selectedCount++;
-            console.log('Выбрана профессия:', jobTitle);
         }
     });
-    
-    console.log(`Выбрано профессий: ${selectedCount} из ${jobsToSelect.length}`);
-    
-    // Показываем сообщение пользователю
+
     if (selectedCount > 0) {
         showTemporaryMessage(`Выбрано ${selectedCount} профессий в категории "${getReadableCategoryName(category)}"`, 'success');
     } else {
-        showTemporaryMessage(`Профессии категории "${getReadableCategoryName(category)}" не найдены`, 'warning');
+        showTemporaryMessage(`Совпадений по категории "${getReadableCategoryName(category)}" не найдено среди текущего набора`, 'warning');
     }
 }
 
@@ -305,9 +215,9 @@ function getReadableCategoryName(category) {
 }
 
 function showTemporaryMessage(message, type = 'info') {
-    const existingMessages = document.querySelectorAll('.temp-message');
-    existingMessages.forEach(msg => msg.remove());
-    
+    // удалить предыдущие уведомления
+    document.querySelectorAll('.temp-message').forEach(msg => msg.remove());
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} temp-message`;
     messageDiv.style.cssText = `
@@ -322,10 +232,9 @@ function showTemporaryMessage(message, type = 'info') {
         max-width: 400px;
         font-weight: 500;
     `;
-    
     const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
     messageDiv.innerHTML = `${icon} ${message}`;
-    
+
     if (!document.querySelector('#temp-message-styles')) {
         const style = document.createElement('style');
         style.id = 'temp-message-styles';
@@ -341,16 +250,11 @@ function showTemporaryMessage(message, type = 'info') {
         `;
         document.head.appendChild(style);
     }
-    
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
         messageDiv.style.animation = 'slideOutRight 0.3s ease-in';
-        setTimeout(() => {
-            if (messageDiv.parentNode) {
-                messageDiv.remove();
-            }
-        }, 300);
+        setTimeout(() => { messageDiv.remove(); }, 300);
     }, 3000);
 }
 </script>
