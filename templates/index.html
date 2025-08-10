@@ -94,7 +94,7 @@
                                         </div>
                                         <div class="tip-item">
                                             <span class="tip-emoji">📋</span>
-                                            <span><strong>Или выберите категории</strong> ниже</span>
+                                            <span><strong>Не забудьте выбрать страны</strong> внизу ⬇️</span>
                                         </div>
                                     </div>
                                 </div>
@@ -108,7 +108,7 @@
                             <div class="divider-line"></div>
                         </div>
 
-                        <div class="form-step-card">
+                        <div class="form-step-card" data-step="categories">
                             <div class="form-step-header">
                                 <span class="step-number">2</span>
                                 <h4>Выберите профессии по категориям</h4>
@@ -148,11 +148,12 @@
                             {% endfor %}
                         </div>
 
-                        <div class="form-step-card">
+                        <div class="form-step-card" data-step="countries">
                             <div class="form-step-header">
                                 <span class="step-number">3</span>
-                                <h4>Страны поиска</h4>
+                                <h4>Страны поиска <span class="required-indicator">*</span></h4>
                             </div>
+                            <p class="text-muted mb-3">⚠️ <strong>Обязательно!</strong> Выберите хотя бы одну страну для поиска вакансий.</p>
                             <div class="row">
                                 {% for code, info in countries.items() %}
                                 <div class="col-md-6 col-lg-4 mb-2">
@@ -445,15 +446,41 @@ document.getElementById('job-search-form').addEventListener('submit', function(e
     const hasSelectedJobs = selectedJobs && selectedJobs.length > 0;
     
     if (!hasJobTitle && !hasSelectedJobs) {
-        showTemporaryMessage('❌ Выберите хотя бы одну профессию ИЛИ введите название вакансии', 'error');
-        return;
-    }
+    showTemporaryMessage('❌ Введите название вакансии выше ИЛИ выберите профессии ниже ⬇️', 'error');
+    
+    // Если есть название но нет категорий, прокручиваем к категориям
+    setTimeout(() => {
+        const categoriesSection = document.querySelector('[data-step="categories"]') || 
+                                 document.querySelector('.quick-select-btn').closest('.form-step-card');
+        if (categoriesSection) {
+            categoriesSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }
+    }, 500);
+    return;
+}
     
     // Проверяем страны
-    if (!countries || countries.length === 0) {
-        showTemporaryMessage('❌ Выберите хотя бы одну страну для поиска', 'error');
-        return;
-    }
+    // Проверяем страны
+if (!countries || countries.length === 0) {
+    showTemporaryMessage('❌ Выберите хотя бы одну страну для поиска! Прокрутите вниз ⬇️', 'error');
+    
+    // Прокручиваем к разделу стран
+    setTimeout(() => {
+        const countriesSection = document.querySelector('[data-step="countries"]') || 
+                                document.querySelector('input[name="countries"]').closest('.form-step-card');
+        if (countriesSection) {
+            countriesSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            countriesSection.style.animation = 'highlight-pulse 2s ease-in-out';
+        }
+    }, 500);
+    return;
+}
     
     console.log('✅ Валидация прошла успешно');
     
