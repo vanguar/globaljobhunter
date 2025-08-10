@@ -442,25 +442,17 @@ document.getElementById('job-search-form').addEventListener('submit', function(e
     }
     
     // Проверяем наличие профессий ИЛИ названия вакансии
-    const hasJobTitle = jobTitle && jobTitle.length > 0;
-    const hasSelectedJobs = selectedJobs && selectedJobs.length > 0;
-    
-    if (!hasJobTitle && !hasSelectedJobs) {
+const hasJobTitle = jobTitle && jobTitle.length > 0;
+const hasSelectedJobs = selectedJobs && selectedJobs.length > 0;
+
+// ✅ ИСПРАВЛЕНИЕ: Разрешаем поиск если есть ЛИБО название, ЛИБО выбранные профессии
+if (!hasJobTitle && !hasSelectedJobs) {
     showTemporaryMessage('❌ Введите название вакансии выше ИЛИ выберите профессии ниже ⬇️', 'error');
-    
-    // Если есть название но нет категорий, прокручиваем к категориям
-    setTimeout(() => {
-        const categoriesSection = document.querySelector('[data-step="categories"]') || 
-                                 document.querySelector('.quick-select-btn').closest('.form-step-card');
-        if (categoriesSection) {
-            categoriesSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
-            });
-        }
-    }, 500);
     return;
 }
+
+// ✅ НОВОЕ: Если есть только название вакансии - это ОК, продолжаем
+console.log(`✅ Валидация: jobTitle="${jobTitle}", selectedJobs=${selectedJobs.length}`);
     
     // Проверяем страны
     // Проверяем страны
