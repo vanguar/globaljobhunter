@@ -156,14 +156,13 @@ def index():
 
 @app.route('/search', methods=['POST'])
 def search_jobs():
-   """API для поиска с кешированием"""
+   """API для поиска с кешированием + поддержка нескольких городов через запятую"""
    if not aggregator:
        return jsonify({'error': 'Сервис временно недоступен'}), 500
    
-   # НОВОЕ: Проверка rate limiting
+   # Rate limiting
    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
    allowed, remaining = check_rate_limit(client_ip)
-   
    if not allowed:
        app.logger.warning(f"🚫 Rate limit exceeded for IP: {client_ip}")
        return jsonify({
@@ -177,11 +176,22 @@ def search_jobs():
    try:
        form_data = request.json or request.form.to_dict()
        
+       # === НОВОЕ: корректный разбор нескольких городов через запятую ===
+       raw_city = (form_data.get('city') or '').strip()
+       if raw_city:
+           cities = [c.strip() for c in raw_city.split(',') if c.strip()]
+       else:
+           cities = []
+       # ================================================================
+       
        preferences = {
            'is_refugee': form_data.get('is_refugee') == 'true',
            'selected_jobs': form_data.get('selected_jobs', []),
            'countries': form_data.get('countries', ['de']),
-           'city': form_data.get('city', '').strip() or None
+           # оставляем старое поле для обратной совместимости (UI/шаблоны)
+           'city': None,
+           # НОВОЕ поле — список городов
+           'cities': cities
        }
        
        if not preferences['selected_jobs']:
@@ -193,10 +203,10 @@ def search_jobs():
        app.logger.info(f"🔍 Начинаем поиск: {preferences}")
        start_time = time.time()
        
-       # ОСНОВНОЙ поиск через Adzuna (БЕЗ ИЗМЕНЕНИЙ)
+       # Основной поиск (Adzuna)
        jobs = aggregator.search_specific_jobs(preferences)
        
-       # ДОБАВЛЕНИЕ: поиск через дополнительные источники
+       # Доп. источники (если подключены)
        if additional_aggregators:
            for source_name, source_aggregator in additional_aggregators.items():
                try:
@@ -210,7 +220,6 @@ def search_jobs():
        
        search_time = time.time() - start_time
        
-       # Логируем статистику кеширования (БЕЗ ИЗМЕНЕНИЙ)
        cache_stats = aggregator.get_cache_stats()
        app.logger.info(f"⏱️ Поиск завершен за {search_time:.1f}с, найдено {len(jobs)} вакансий")
        app.logger.info(f"📊 Cache hit rate: {cache_stats['cache_hit_rate']}, API requests: {cache_stats['api_requests']}")
@@ -233,7 +242,7 @@ def search_jobs():
            'jobs_count': len(jobs),
            'search_time': round(search_time, 1),
            'cached': cache_stats['cache_hits'] > 0,
-           'sources_used': ['adzuna'] + list(additional_aggregators.keys()),  # ДОБАВЛЕНИЕ
+           'sources_used': ['adzuna'] + list(additional_aggregators.keys()),
            'remaining_searches': remaining,
            'redirect_url': url_for('results')
        })
@@ -241,6 +250,7 @@ def search_jobs():
    except Exception as e:
        app.logger.error(f"❌ Ошибка поиска: {e}", exc_info=True)
        return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+
 
 # ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ПОЛНОСТЬЮ БЕЗ ИЗМЕНЕНИЙ
 @app.route('/results')

@@ -268,6 +268,7 @@ class GlobalJobAggregator:
             'berlinn': 'Berlin',
             'munhen': 'Munich',
             'мюнхен': 'Munich',
+            'stralsund': 'Stralsund',
             'варшава': 'Warsaw',
             'kiev': 'Kyiv',
             'киев': 'Kyiv',
@@ -316,6 +317,8 @@ class GlobalJobAggregator:
                     # Чешский
                     'řidič', 'šofér', 'osobní řidič'
                 ],
+
+                
                 
                 'Водитель категории C': [
                     # Английский
@@ -431,6 +434,314 @@ class GlobalJobAggregator:
                     'řidič nákladní', 'spedice řidič', 'logistik'
                 ]
             },
+
+            '🔧 АВТОСЕРВИС И ТЕХОБСЛУЖИВАНИЕ': {
+                'Автомеханик': [
+                    # Английский
+                    'auto mechanic', 'car mechanic', 'vehicle technician', 'automotive technician',
+                    'motor mechanic', 'garage mechanic', 'auto repair technician',
+                    # Немецкий
+                    'kfz mechaniker', 'kfz mechatroniker', 'automechaniker', 'fahrzeugmechaniker',
+                    'kraftfahrzeugmechaniker', 'autowerkstatt mechaniker',
+                    # Французский
+                    'mécanicien automobile', 'mécanicien auto', 'technicien automobile',
+                    'réparateur automobile', 'garagiste mécanicien',
+                    # Испанский
+                    'mecánico automotriz', 'mecánico de autos', 'técnico automotriz',
+                    'mecánico de vehículos', 'reparador de autos',
+                    # Итальянский
+                    'meccanico auto', 'meccanico automobilistico', 'tecnico automotive',
+                    'riparatore auto', 'meccanico officina',
+                    # Нидерландский
+                    'automonteur', 'auto mechaniker', 'voertuig technicus',
+                    'garage monteur', 'auto reparateur',
+                    # Польский
+                    'mechanik samochodowy', 'automechanik', 'technik motoryzacyjny',
+                    'mechanik pojazdów', 'serwisant samochodowy',
+                    # Чешский
+                    'automechanik', 'mechanik vozidel', 'technik automotive',
+                    'opravář automobilů', 'servisní technik'
+                ],
+                
+                'Автослесарь': [
+                    # Английский
+                    'automotive fitter', 'car repair specialist', 'mechanical fitter',
+                    'auto service technician', 'vehicle fitter',
+                    # Немецкий
+                    'kfz schlosser', 'fahrzeugschlosser', 'auto schlosser',
+                    'kfz servicetechniker',
+                    # Французский
+                    'ajusteur automobile', 'monteur auto', 'réparateur mécanique',
+                    # Испанский
+                    'ajustador automotriz', 'técnico de reparación', 'montador auto',
+                    # Итальянский
+                    'montatore auto', 'aggiustatore veicoli', 'tecnico riparazioni',
+                    # Нидерландский
+                    'auto fitter', 'voertuig monteur', 'mechanisch monteur',
+                    # Польский
+                    'ślusarz samochodowy', 'monterz samochodowy', 'fitter automotive',
+                    # Чешский
+                    'automontér', 'zámečník automotive', 'montážník vozidel'
+                ],
+                
+                'Шиномонтажник': [
+                    # Английский
+                    'tire fitter', 'tyre fitter', 'tire technician', 'wheel fitter',
+                    'tire service technician', 'tire installer',
+                    # Немецкий
+                    'reifenmonteur', 'reifen service techniker', 'reifenwechsler',
+                    'reifenservice mitarbeiter',
+                    # Французский
+                    'monteur pneus', 'technicien pneumatique', 'spécialiste pneus',
+                    # Испанский
+                    'montador neumáticos', 'técnico de llantas', 'especialista neumáticos',
+                    # Итальянский
+                    'gommista', 'montatore pneumatici', 'tecnico gomme',
+                    # Нидерландский
+                    'bandenmonteur', 'bandenservice monteur', 'banden technicus',
+                    # Польский
+                    'wulkanizator', 'monterz opon', 'serwisant opon',
+                    # Чешский
+                    'pneuservis technik', 'montér pneumatik', 'pneumatikář'
+                ],
+                
+                'Диагност': [
+                    # Английский
+                    'diagnostic technician', 'auto diagnostician', 'vehicle diagnostics',
+                    'automotive diagnostic specialist', 'car diagnostic expert',
+                    # Немецкий
+                    'kfz diagnostiker', 'fahrzeugdiagnostiker', 'diagnose techniker',
+                    # Французский
+                    'technicien diagnostic', 'diagnostiqueur automobile', 'expert diagnostic',
+                    # Испанский
+                    'técnico diagnóstico', 'diagnosticador automotriz', 'especialista diagnóstico',
+                    # Итальянский
+                    'diagnostico auto', 'tecnico diagnosi', 'specialista diagnostica',
+                    # Нидерландский
+                    'diagnose technicus', 'auto diagnose specialist', 'voertuig diagnose',
+                    # Польский
+                    'diagnostyk samochodowy', 'technik diagnostyki', 'specjalista diagnoza',
+                    # Чешский
+                    'diagnostik vozidel', 'technik diagnostiky', 'specialista diagnóza'
+                ],
+                
+                'Мастер-приёмщик': [
+                    # Английский
+                    'service advisor', 'automotive service advisor', 'service reception',
+                    'customer service automotive', 'service consultant',
+                    # Немецкий
+                    'serviceberater', 'kfz serviceberater', 'kundenberater automotive',
+                    'annahme mitarbeiter',
+                    # Французский
+                    'conseiller service', 'réceptionnaire atelier', 'conseiller clientèle auto',
+                    # Испанский
+                    'asesor de servicio', 'recepcionista taller', 'consultor automotriz',
+                    # Итальянский
+                    'consulente servizio', 'addetto accettazione', 'consulente automotive',
+                    # Нидерландский
+                    'service adviseur', 'auto service consultant', 'klanten adviseur',
+                    # Польский
+                    'doradca serwisowy', 'konsultant serwisu', 'przyjmujący zlecenia',
+                    # Чешский
+                    'servisní poradce', 'poradce servisu', 'konzultant automotive'
+                ],
+                
+                'Кузовщик': [
+                    # Английский
+                    'panel beater', 'body repair technician', 'bodyshop technician',
+                    'auto body repairer', 'collision repair specialist',
+                    # Немецкий
+                    'karosseriebauer', 'karosserie und fahrzeugbaumechaniker', 'unfallreparatur',
+                    'karosserie techniker',
+                    # Французский
+                    'carrossier', 'réparateur carrosserie', 'technicien carrosserie',
+                    # Испанский
+                    'chapista', 'técnico carrocería', 'reparador carrocería',
+                    # Итальянский
+                    'carrozziere', 'tecnico carrozzeria', 'riparatore carrozzeria',
+                    # Нидерландский
+                    'carrosserie monteur', 'plaatwerker auto', 'bodywork technicus',
+                    # Польский
+                    'blacharz samochodowy', 'karoser', 'specjalista karoserii',
+                    # Чешский
+                    'karosář', 'technik karoserie', 'opravář karoserie'
+                ],
+                
+                'Маляр по авто': [
+                    # Английский
+                    'car painter', 'automotive painter', 'bodyshop painter',
+                    'vehicle painter', 'auto refinisher',
+                    # Немецкий
+                    'fahrzeuglackierer', 'auto lackierer', 'karosserie lackierer',
+                    # Французский
+                    'peintre automobile', 'peintre carrossier', 'laqueur auto',
+                    # Испанский
+                    'pintor automotriz', 'pintor de autos', 'laqueador automotriz',
+                    # Итальянский
+                    'verniciatore auto', 'pittore carrozzeria', 'laccatore automotive',
+                    # Нидерландский
+                    'autospuiter', 'voertuig schilder', 'carrosserie spuiter',
+                    # Польский
+                    'lakiernik samochodowy', 'malarz samochodowy', 'lakiernik automotive',
+                    # Чешский
+                    'lakýrník vozidel', 'natěrač automotive', 'malíř karoserie'
+                ]
+            },
+            
+            '⛽ АЗС И ТОПЛИВО': {
+                'Заправщик на АЗС': [
+                    # Английский
+                    'gas station attendant', 'fuel attendant', 'pump attendant',
+                    'petrol station worker', 'service station attendant', 'fuel station operator',
+                    # Немецкий
+                    'tankstellenmitarbeiter', 'mitarbeiter tankstelle', 'tankwart',
+                    'tankstellen verkäufer', 'zapfsäulen bediener',
+                    # Французский
+                    'employé station-service', 'pompiste', 'agent station essence',
+                    'vendeur carburant', 'opérateur station',
+                    # Испанский
+                    'empleado gasolinera', 'despachador combustible', 'operador estación',
+                    'vendedor gasolina', 'asistente estación servicio',
+                    # Итальянский
+                    'addetto distributore', 'benzinai', 'operatore stazione servizio',
+                    'addetto carburanti', 'impiegato stazione',
+                    # Нидерландский
+                    'tankstation medewerker', 'pompbediende', 'benzinestation bediende',
+                    'brandstof verkoper', 'service station medewerker',
+                    # Польский
+                    'pracownik stacji paliw', 'dystrybutor paliw', 'obsługa stacji benzynowej',
+                    'sprzedawca paliw', 'operator stacji',
+                    # Чешский
+                    'čerpač pohonných hmot', 'obsluha čerpací stanice', 'prodavač paliv',
+                    'pracovník benzínky', 'operátor čerpací stanice'
+                ],
+                
+                'Оператор АЗС': [
+                    # Английский
+                    'fuel station operator', 'gas station operator', 'fuel station supervisor',
+                    'petrol station manager', 'fuel depot operator',
+                    # Немецкий
+                    'tankstellen operator', 'tankstellenleiter', 'tankstellen supervisor',
+                    # Французский
+                    'opérateur station-service', 'responsable station essence', 'superviseur station',
+                    # Испанский
+                    'operador estación servicio', 'supervisor gasolinera', 'encargado estación',
+                    # Итальянский
+                    'operatore stazione servizio', 'responsabile distributore', 'supervisore stazione',
+                    # Нидерландский
+                    'tankstation operator', 'benzinestation supervisor', 'station manager',
+                    # Польский
+                    'operator stacji paliw', 'kierownik stacji', 'nadzorca stacji',
+                    # Чешский
+                    'operátor čerpací stanice', 'vedoucí benzínky', 'supervizor stanice'
+                ],
+                
+                'Кассир на АЗС': [
+                    # Английский
+                    'gas station cashier', 'fuel station cashier', 'petrol station cashier',
+                    'service station cashier', 'pump cashier',
+                    # Немецкий
+                    'kassierer tankstelle', 'tankstellen kassierer', 'verkäufer tankstelle',
+                    # Французский
+                    'caissier station-service', 'caissière station essence', 'vendeur station',
+                    # Испанский
+                    'cajero gasolinera', 'cajera estación servicio', 'vendedor estación',
+                    # Итальянский
+                    'cassiere stazione servizio', 'cassiera distributore', 'addetto cassa stazione',
+                    # Нидерландский
+                    'kassier tankstation', 'kassa medewerker benzinestation', 'verkoper station',
+                    # Польский
+                    'kasjer stacji paliw', 'sprzedawca stacji', 'obsługa kasy stacji',
+                    # Чешский
+                    'pokladní čerpací stanice', 'prodavač benzínky', 'kassier stanice'
+                ]
+            },
+            
+            '🛢️ НЕФТЬ И ГАЗ': {
+                'Оператор добычи': [
+                    # Английский
+                    'oilfield operator', 'production operator', 'oil & gas operator',
+                    'well operator', 'drilling operator', 'field operator',
+                    'roustabout', 'roughneck', 'derrickhand', 'oil rig worker',
+                    # Немецкий
+                    'öl und gas operator', 'förderanlagenbediener', 'bohrinsel arbeiter',
+                    'erdöl techniker', 'produktions operator',
+                    # Французский
+                    'opérateur pétrolier', 'technicien pétrole gaz', 'foreur pétrolier',
+                    'ouvrier plateforme', 'opérateur production',
+                    # Испанский
+                    'operador petrolífero', 'técnico petróleo gas', 'perforador petrolero',
+                    'operario plataforma', 'operador producción',
+                    # Итальянский
+                    'operatore petrolifero', 'tecnico petrolio gas', 'perforatore petrolifero',
+                    'operaio piattaforma', 'operatore produzione',
+                    # Нидерландский
+                    'olie gas operator', 'booreiland werker', 'productie operator',
+                    'oliefield operator', 'petroleum technicus',
+                    # Польский
+                    'operator wydobycia', 'pracownik ropy naftowej', 'operator wiertniczy',
+                    'technik naftowy', 'operator produkcji',
+                    # Чешский
+                    'operátor těžby', 'pracovník ropy plynu', 'vrtný operátor',
+                    'technik ropný', 'operátor produkce'
+                ],
+                
+                'Помощник бурильщика': [
+                    # Английский
+                    'floorhand', 'derrickman', 'drilling assistant', 'roughneck',
+                    'drilling helper', 'rig worker', 'drilling crew',
+                    # Немецкий
+                    'bohrhelfer', 'helfer bohranlage', 'bohrassistent',
+                    'bohrarbeiter', 'bohrmannschaft',
+                    # Французский
+                    'aide foreur', 'assistant forage', 'ouvrier forage',
+                    'manoeuvre forage', 'équipe forage',
+                    # Испанский
+                    'ayudante perforador', 'asistente perforación', 'obrero perforación',
+                    'auxiliar perforador', 'equipo perforación',
+                    # Итальянский
+                    'assistente perforatore', 'aiuto perforazione', 'operaio perforazione',
+                    'ausiliario perforatore', 'squadra perforazione',
+                    # Нидерландский
+                    'boor assistent', 'boor helper', 'boring medewerker',
+                    'boorploeg werker', 'drilling assistent',
+                    # Польский
+                    'pomocnik wiertacza', 'asystent wiercenia', 'robotnik wiertniczy',
+                    'pomocniczy wiertacz', 'ekipa wiertnicza',
+                    # Чешский
+                    'pomocník vrtače', 'asistent vrtání', 'pracovník vrtání',
+                    'pomocný vrtač', 'vrtná četa'
+                ],
+                
+                'Рабочий нефтебазы': [
+                    # Английский
+                    'oil depot worker', 'petroleum terminal operator', 'tank farm operator',
+                    'fuel terminal worker', 'oil storage worker', 'refinery worker',
+                    # Немецкий
+                    'erdöllager arbeiter', 'terminalmitarbeiter', 'tanklager operator',
+                    'raffinerie arbeiter', 'kraftstofflager mitarbeiter',
+                    # Французский
+                    'ouvrier dépôt pétrolier', 'employé terminal', 'opérateur terminal',
+                    'agent dépôt carburant', 'travailleur raffinerie',
+                    # Испанский
+                    'trabajador depósito petróleo', 'operario terminal', 'operador terminal',
+                    'empleado depósito combustible', 'obrero refinería',
+                    # Итальянский
+                    'operaio deposito petrolio', 'addetto terminal', 'operatore terminal',
+                    'lavoratore deposito carburante', 'operaio raffineria',
+                    # Нидерландский
+                    'olie depot werker', 'terminal operator', 'brandstof depot medewerker',
+                    'raffinaderij werker', 'tank park operator',
+                    # Польский
+                    'pracownik bazy paliwowej', 'operator terminalu', 'robotnik rafinerii',
+                    'magazynier paliw', 'operator składu',
+                    # Чешский
+                    'pracovník ropné základny', 'operátor terminálu', 'dělník rafinerie',
+                    'skladník paliv', 'operátor skladu'
+                ]
+            },
+            
+            
             
             '🏗️ СТРОИТЕЛЬСТВО И ПРОИЗВОДСТВО': {
                 'Строитель-разнорабочий': [
@@ -1202,52 +1513,62 @@ class GlobalJobAggregator:
         return all_jobs
     
     def _perform_search(self, preferences: Dict, progress_callback=None) -> List[JobVacancy]:
-        """Выполнение поиска через API с батчингом"""
-        all_jobs = []
-        
+        """Выполнение поиска через API с поддержкой НЕСКОЛЬКИХ городов (через запятую)"""
+        all_jobs: List[JobVacancy] = []
+
         selected_jobs = preferences['selected_jobs']
         countries = preferences['countries']
-        city = preferences.get('city', '')
 
-        # Логика автоматической коррекции города
-        if city:
-            city_original = city
-            city_lower = city.lower().strip()
-            if city_lower in self.CITY_CORRECTIONS:
-                corrected_city = self.CITY_CORRECTIONS[city_lower]
-                print(f"📍 Город '{city_original}' автоматически исправлен на '{corrected_city}'")
-                city = corrected_city
-        
-        print(f"\n🎯 ВЫБРАННЫЕ ПРОФЕССИИ: {', '.join(selected_jobs)}")
-        print(f"🌍 СТРАНЫ: {', '.join([self.countries[c]['name'] for c in countries])}")
-        if city:
-            print(f"📍 ГОРОД: {city}")
-        print("=" * 60)
-        
-        # Формируем оптимизированные поисковые задачи
-        search_tasks = self._optimize_search_tasks(selected_jobs, countries)
-        
-        total_searches = len(search_tasks)
+        # Собираем список городов:
+        #  - если передан preferences['cities'] (из /search), используем его,
+        #  - иначе берём одиночный preferences['city'] (обратная совместимость),
+        #  - если ничего не передано — ищем по стране (без города).
+        raw_cities = preferences.get('cities') or []
+        if not raw_cities and preferences.get('city'):
+            raw_cities = [preferences.get('city')]
+
+        # Автокоррекция каждого города по словарю CITY_CORRECTIONS
+        cities: List[str] = []
+        for c in raw_cities:
+            if not c:
+                continue
+            c_stripped = c.strip()
+            if not c_stripped:
+                continue
+            c_key = c_stripped.lower()
+            corrected = self.CITY_CORRECTIONS.get(c_key, c_stripped)
+            if corrected != c_stripped:
+                print(f"📍 Город '{c_stripped}' автоматически исправлен на '{corrected}'")
+            cities.append(corrected)
+
+        # Планируем задачи поиска по странам и профессиям
+        tasks = self._optimize_search_tasks(selected_jobs, countries)
+        total_searches = sum(len(t['terms']) for t in tasks)
         current_search = 0
-        
-        for task in search_tasks:
-            current_search += 1
-            job_name = task['job_name']
-            terms = task['terms']  # Теперь это список терминов
+
+        for task in tasks:
             country = task['country']
-            
-            print(f"   🔎 ({current_search}/{total_searches}) Ищем '{', '.join(terms[:3])}...' в {self.countries[country]['name']}")
-            
-            # Используем батч поиск для нескольких терминов
-            jobs = self._batch_search_jobs(terms, country, city, 25)
-            if jobs:
-                all_jobs.extend(jobs)
-                print(f"     ✅ Найдено: {len(jobs)} вакансий")
-            
-            if progress_callback:
-                progress_callback(current_search, total_searches)
-        
+            terms = task['terms']
+
+            # Список городов для прохода; если пусто — один проход без города
+            cities_to_use = cities if cities else [None]
+
+            for city in cities_to_use:
+                # Выполняем батч-поиск по терминам для одной страны+города
+                jobs = self._batch_search_jobs(terms, country, city or '', 25)
+                current_search += 1
+
+                if jobs:
+                    all_jobs.extend(jobs)
+                    print(f"     ✅ Найдено: {len(jobs)} вакансий (страна={country}, город={city or '—'})")
+                else:
+                    print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем со следующими городами/терминами")
+
+                if progress_callback:
+                    progress_callback(min(current_search, total_searches), total_searches)
+
         return self._deduplicate_jobs(all_jobs)
+
     
     def _optimize_search_tasks(self, selected_jobs: List[str], countries: List[str]) -> List[Dict]:
         """Оптимизация поисковых задач с учетом языков"""
