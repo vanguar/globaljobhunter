@@ -622,3 +622,241 @@ footer a:hover {
 .source-badge i {
     opacity: 0.7;
 }
+
+/* ДОБАВИТЬ В КОНЕЦ ФАЙЛА style.css */
+
+/* === СТИЛИ ДЛЯ НОВОГО ПОЛЯ "НАЗВАНИЕ ВАКАНСИИ" === */
+
+/* Специальная карточка для быстрого поиска */
+.featured-search-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.featured-search-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% { transform: translateX(-50%) translateY(-50%) rotate(0deg); }
+    50% { transform: translateX(-50%) translateY(-50%) rotate(180deg); }
+}
+
+.featured-search-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
+}
+
+.featured-header {
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+    margin-bottom: 1.5rem;
+}
+
+.featured-header h4 {
+    color: white;
+    margin-bottom: 0.2rem;
+}
+
+.featured-header small {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.featured-number {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    font-size: 1.2rem;
+    backdrop-filter: blur(10px);
+}
+
+/* Стилизованное поле ввода */
+.featured-input-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.featured-input {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: #333;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.featured-input:focus {
+    background: white;
+    border-color: #FFD700;
+    box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.3);
+    transform: scale(1.02);
+}
+
+.featured-input::placeholder {
+    color: #666;
+    font-weight: 500;
+}
+
+.featured-input-overlay {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #667eea;
+    font-size: 1.2rem;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Красивая подсказка */
+.featured-tip {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.tip-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+}
+
+.tip-content {
+    flex: 1;
+}
+
+.tip-title {
+    font-weight: 600;
+    color: #FFD700;
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+}
+
+.tip-grid {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.tip-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.tip-emoji {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* Разделитель "ИЛИ" */
+.divider-section {
+    display: flex;
+    align-items: center;
+    margin: 2.5rem 0;
+    position: relative;
+}
+
+.divider-line {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ddd, transparent);
+}
+
+.divider-text {
+    padding: 0 2rem;
+    background: var(--background-color);
+    color: #666;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    position: relative;
+}
+
+.divider-text::before,
+.divider-text::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    background: #667eea;
+    border-radius: 50%;
+    transform: translateY(-50%);
+}
+
+.divider-text::before {
+    left: 0.5rem;
+}
+
+.divider-text::after {
+    right: 0.5rem;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .featured-search-card {
+        margin: 1rem 0;
+    }
+    
+    .featured-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .tip-grid {
+        gap: 0.8rem;
+    }
+    
+    .tip-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.3rem;
+    }
+    
+    .divider-text {
+        padding: 0 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .featured-input {
+        font-size: 1rem;
+        padding: 0.9rem 1.2rem;
+    }
+}
+
+/* Улучшенная анимация для быстрого поиска */
+.featured-search-card {
+    animation: featured-entry 0.8s ease-out;
+}
+
+@keyframes featured-entry {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

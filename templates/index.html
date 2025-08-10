@@ -50,10 +50,61 @@
                             </div>
                         </div>
 
+                        <!-- НОВЫЙ БЛОК: Название вакансии в самом верху -->
+                        <div class="form-step-card featured-search-card">
+                            <div class="form-step-header featured-header">
+                                <span class="step-number featured-number">🎯</span>
+                                <div>
+                                    <h4>Быстрый поиск по названию</h4>
+                                    <small class="text-muted">Введите конкретную вакансию для точного поиска</small>
+                                </div>
+                            </div>
+                            <div class="featured-input-container">
+                                <input type="text" class="form-control form-control-lg featured-input" name="job_title" 
+                                       placeholder="🔍 Например: Software Engineer, Водитель, Kellner, Data Analyst, Fahrer...">
+                                <div class="featured-input-overlay">
+                                    <i class="bi bi-lightning-charge"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Красивая подсказка с новым дизайном -->
+                            <div class="featured-tip">
+                                <div class="tip-icon">💡</div>
+                                <div class="tip-content">
+                                    <div class="tip-title">Секрет эффективного поиска:</div>
+                                    <div class="tip-grid">
+                                        <div class="tip-item">
+                                            <span class="tip-emoji">🌍</span>
+                                            <span><strong>На английском:</strong> Software Engineer, Data Analyst</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <span class="tip-emoji">🏳️</span>
+                                            <span><strong>На местном языке:</strong> Fahrer, Kellner, Chauffeur</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <span class="tip-emoji">⚡</span>
+                                            <span><strong>Можно оба варианта</strong> для лучшего результата</span>
+                                        </div>
+                                        <div class="tip-item">
+                                            <span class="tip-emoji">📋</span>
+                                            <span><strong>Или выберите категории</strong> ниже</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Разделитель "ИЛИ" -->
+                        <div class="divider-section">
+                            <div class="divider-line"></div>
+                            <div class="divider-text">ИЛИ выберите из категорий</div>
+                            <div class="divider-line"></div>
+                        </div>
+
                         <div class="form-step-card">
                             <div class="form-step-header">
                                 <span class="step-number">2</span>
-                                <h4>Выберите профессии</h4>
+                                <h4>Выберите профессии по категориям</h4>
                             </div>
                              <div class="mb-4">
                                 <p class="text-muted mb-2">Быстрый выбор по категориям:</p>
@@ -110,33 +161,11 @@
                         <div class="form-step-card">
                             <div class="form-step-header">
                                 <span class="step-number">4</span>
-                                <h4>Название вакансии (опционально)</h4>
-                            </div>
-                            <input type="text" class="form-control form-control-lg mb-3" name="job_title" placeholder="Например: Software Engineer, Водитель, Kellner, Programmer, Fahrer...">
-                            
-                            <!-- Подсказка для названия вакансии -->
-                            <div class="alert alert-info py-2" style="font-size: 0.9rem; border-radius: 8px;">
-                                <div class="d-flex align-items-start">
-                                    <i class="bi bi-lightbulb-fill me-2 text-info" style="margin-top: 2px;"></i>
-                                    <div>
-                                        <strong>💡 Как лучше искать:</strong> 
-                                        <br>• <strong>На английском языке</strong> (Software Engineer, Data Analyst, Driver)
-                                        <br>• <strong>На языке страны поиска</strong> (Fahrer - нем., Chauffeur - фр., Kierowca - пол.)
-                                        <br>• <strong>Попробуйте оба варианта</strong> для максимального охвата вакансий
-                                        <br>• <strong>Оставьте пустым</strong> если выбрали профессии выше
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-step-card">
-                            <div class="form-step-header">
-                                <span class="step-number">5</span>
                                 <h4>Город (опционально)</h4>
                             </div>
                             <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Варшава, Munich, Краков...">
                             
-                            <!-- ✅ ДОБАВЛЕНО: КРАСИВАЯ ПОДСКАЗКА -->
+                            <!-- Подсказка для города -->
                             <div class="alert alert-info mt-3 py-2" style="font-size: 0.9rem; border-radius: 8px;">
                                 <div class="d-flex align-items-start">
                                     <i class="bi bi-geo-alt-fill me-2 text-info" style="margin-top: 2px;"></i>
