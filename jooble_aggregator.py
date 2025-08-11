@@ -54,6 +54,28 @@ class JoobleAggregator(BaseJobAggregator):
         "dk": "Denmark", "cz": "Czechia", "us": "United States", "ca": "Canada", "au": "Australia"
     }
 
+        # Города по умолчанию для поиска, когда пользователь город не указал
+    DEFAULT_CITIES: Dict[str, List[str]] = {
+        "de": ["Berlin", "München", "Hamburg", "Köln", "Frankfurt am Main", "Stuttgart"],
+        "pl": ["Warszawa", "Kraków", "Wrocław", "Gdańsk", "Poznań", "Łódź"],
+        "fr": ["Paris", "Lyon", "Marseille", "Toulouse", "Bordeaux", "Lille"],
+        "it": ["Roma", "Milano", "Torino", "Napoli", "Bologna", "Firenze"],
+        "es": ["Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza", "Málaga"],
+        "nl": ["Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven", "Tilburg"],
+        "at": ["Wien", "Graz", "Linz", "Salzburg", "Innsbruck", "Klagenfurt"],
+        "be": ["Bruxelles", "Antwerpen", "Gent", "Liège", "Brugge", "Namur"],
+        "ch": ["Zürich", "Genève", "Basel", "Bern", "Lausanne", "Luzern"],
+        "cz": ["Praha", "Brno", "Ostrava", "Plzeň", "Olomouc", "Liberec"],
+        "se": ["Stockholm", "Göteborg", "Malmö", "Uppsala", "Västerås", "Örebro"],
+        "dk": ["København", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers"],
+        "no": ["Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen", "Kristiansand"],
+        "gb": ["London", "Manchester", "Birmingham", "Leeds", "Glasgow", "Bristol"],
+        "us": ["New York", "Los Angeles", "Chicago", "Houston", "San Francisco", "Boston"],
+        "ca": ["Toronto", "Vancouver", "Montréal", "Calgary", "Ottawa", "Edmonton"],
+        "au": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Canberra"],
+    }
+
+
     # Языки по умолчанию для стран (fallback, если фронт не пришлёт)
     COUNTRY_LANGS_FALLBACK: Dict[str, List[str]] = {
         "de": ["de", "en"], "pl": ["pl", "en"], "cz": ["cs", "en"], "sk": ["sk", "cs", "en"],
@@ -168,34 +190,47 @@ class JoobleAggregator(BaseJobAggregator):
         countries = preferences.get("countries") or []
         country_code = (countries[0] if countries else "").lower()
 
-        # Если нет города — подставим англ. имя страны (иначе Jooble ищет «по миру»)
-        default_location = cities[0] if cities else self.COUNTRY_NAME_EN.get(country_code, "")
+        # Список локаций для перебора:
+        #   - если пользователь указал город(а) — берём их (ограничим до 3)
+        #   - иначе берём дефолтные города для страны (ограничим до 6)
+        if cities:
+            locations: List[str] = [c for c in cities if c and c.strip()][:3]
+        else:
+            locations = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
 
-        print(f"Jooble: terms={selected_jobs[:self.max_terms]} | location={default_location!r} | country={country_code!r}")
+        # Если вообще нет локаций (неизвестная страна) — не задаём location (но тогда меньше шансов на попадания).
+        if not locations:
+            locations = [""]
 
-        # 3) Поисковые запросы с пагинацией
-        for query in selected_jobs[: self.max_terms]:
-            if not query:
-                continue
-            page = 1
-            while page <= self.max_pages:
-                body = {"keywords": query, "location": default_location, "page": page}
-                data = self._safe_post(self.endpoint, json=body)
+        print(f"Jooble: terms={selected_jobs[:self.max_terms]} | locations={locations} | country={country_code!r}")
 
-                items = (data or {}).get("jobs") or []
-                if not items:
-                    break
+        # 3) Поисковые запросы: перебор по городам и пагинация
+        for loc in locations:
+            for query in selected_jobs[: self.max_terms]:
+                if not query:
+                    continue
 
-                for item in items:
-                    # жёсткий пост‑фильтр по стране
-                    if country_code and not self._passes_country_filter(item, country_code):
-                        continue
+                page = 1
+                while page <= self.max_pages:
+                    body = {"keywords": query, "location": loc, "page": page}
+                    data = self._safe_post(self.endpoint, json=body)
 
-                    job = self._to_jobvacancy(item, query, countries)
-                    if job and self.is_relevant_job(job.title, job.description, query):
-                        jobs.append(job)
+                    items = (data or {}).get("jobs") or []
+                    print(f"Jooble: loc='{loc}' q='{query}' page={page} -> {len(items)} items")
 
-                page += 1
+                    if not items:
+                        break
+
+                    for item in items:
+                        # Жёсткий пост‑фильтр по стране (отсечёт «Киев/Китай»)
+                        if country_code and not self._passes_country_filter(item, country_code):
+                            continue
+
+                        job = self._to_jobvacancy(item, query, countries)
+                        if job and self.is_relevant_job(job.title, job.description, query):
+                            jobs.append(job)
+
+                    page += 1
 
         return jobs
 
