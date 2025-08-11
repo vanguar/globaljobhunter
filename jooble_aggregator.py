@@ -5,10 +5,10 @@ Jooble Aggregator — официальный API
 Документация: https://jooble.org/api/about
 
 Фишки:
-- Авто-расширение запросов на языки страны (fallback, если фронт не дал selected_jobs_multilang)
-- Пагинация и ретраи на 429/5xx
-- Жёсткий пост‑фильтр по стране (в location должны быть алиасы выбранной страны)
-- Устойчивый парсинг даты
+- Авто-расширение запросов на языки/синонимы (fallback, если фронт не дал selected_jobs_multilang)
+- Перебор по городам (из формы или дефолтные по стране), чтобы Jooble не искал «везде»
+- Ретраи на 429/5xx, устойчивый парс дат
+- Жёсткий пост‑фильтр по стране (отсечёт «Киев/Китай», если выбрана Германия)
 
 ENV:
   JOOBLE_API_KEY=...
@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import time
 import random
+import unicodedata
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import uuid5, NAMESPACE_URL
@@ -32,13 +33,13 @@ import requests
 from dotenv import load_dotenv
 
 from base_aggregator import BaseJobAggregator
-from adzuna_aggregator import JobVacancy  # общий тип
+from adzuna_aggregator import JobVacancy  # единый тип вакансии
 
 load_dotenv()
 
 
 class JoobleAggregator(BaseJobAggregator):
-    # Отображаемые имена стран (для UI/мета)
+    # Отображаемые имена стран (для UI/метаданных)
     COUNTRIES_MAP: Dict[str, str] = {
         "de": "Германия", "pl": "Польша", "gb": "Великобритания", "fr": "Франция",
         "it": "Италия", "es": "Испания", "nl": "Нидерланды", "at": "Австрия",
@@ -46,7 +47,7 @@ class JoobleAggregator(BaseJobAggregator):
         "dk": "Дания", "cz": "Чехия", "us": "США", "ca": "Канада", "au": "Австралия"
     }
 
-    # Английские названия стран (для location и матчинга)
+    # Английские названия стран (для подстановки в location при отсутствии города)
     COUNTRY_NAME_EN: Dict[str, str] = {
         "de": "Germany", "pl": "Poland", "gb": "United Kingdom", "fr": "France",
         "it": "Italy", "es": "Spain", "nl": "Netherlands", "at": "Austria",
@@ -54,33 +55,28 @@ class JoobleAggregator(BaseJobAggregator):
         "dk": "Denmark", "cz": "Czechia", "us": "United States", "ca": "Canada", "au": "Australia"
     }
 
-        # Города по умолчанию для поиска, когда пользователь город не указал
-        # Алиасы городов: локальное -> английское ASCII
-    CITY_ALIASES_EN: Dict[str, str] = {
-        # DE
-        "köln": "Cologne",
-        "munchen": "Munich", "münchen": "Munich",
-        "nürnberg": "Nuremberg", "nurnberg": "Nuremberg",
-        "frankfurt am main": "Frankfurt",
-        "düsseldorf": "Dusseldorf", "dusseldorf": "Dusseldorf",
-        "stuttgart": "Stuttgart", "hamburg": "Hamburg", "berlin": "Berlin",
-        # FR
-        "lyon": "Lyon", "marseille": "Marseille",
-        # IT
-        "milano": "Milan", "torino": "Turin", "napoli": "Naples", "roma": "Rome",
-        # ES
-        "sevilla": "Seville",
-        # CZ
-        "praha": "Prague",
-        # PL
-        "kraków": "Krakow", "krakow": "Krakow", "wrocław": "Wroclaw", "wroclaw": "Wroclaw",
-        # NL
-        "den haag": "The Hague",
+    # Дефолтные города: используем, если пользователь город не указал
+    DEFAULT_CITIES: Dict[str, List[str]] = {
+        "de": ["Berlin", "Munich", "Hamburg", "Cologne", "Frankfurt", "Stuttgart"],
+        "pl": ["Warsaw", "Krakow", "Wroclaw", "Gdansk", "Poznan", "Lodz"],
+        "fr": ["Paris", "Lyon", "Marseille", "Toulouse", "Bordeaux", "Lille"],
+        "it": ["Rome", "Milan", "Turin", "Naples", "Bologna", "Florence"],
+        "es": ["Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza", "Malaga"],
+        "nl": ["Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven", "Tilburg"],
+        "at": ["Vienna", "Graz", "Linz", "Salzburg", "Innsbruck", "Klagenfurt"],
+        "be": ["Brussels", "Antwerp", "Ghent", "Liege", "Bruges", "Namur"],
+        "ch": ["Zurich", "Geneva", "Basel", "Bern", "Lausanne", "Lucerne"],
+        "cz": ["Prague", "Brno", "Ostrava", "Pilsen", "Olomouc", "Liberec"],
+        "se": ["Stockholm", "Gothenburg", "Malmo", "Uppsala", "Vasteras", "Orebro"],
+        "dk": ["Copenhagen", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers"],
+        "no": ["Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen", "Kristiansand"],
+        "gb": ["London", "Manchester", "Birmingham", "Leeds", "Glasgow", "Bristol"],
+        "us": ["New York", "Los Angeles", "Chicago", "Houston", "San Francisco", "Boston"],
+        "ca": ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa", "Edmonton"],
+        "au": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Canberra"],
     }
 
-
-
-    # Языки по умолчанию для стран (fallback, если фронт не пришлёт)
+    # Языки по умолчанию для стран (fallback, если фронт не пришлёт multilang)
     COUNTRY_LANGS_FALLBACK: Dict[str, List[str]] = {
         "de": ["de", "en"], "pl": ["pl", "en"], "cz": ["cs", "en"], "sk": ["sk", "cs", "en"],
         "it": ["it", "en"], "es": ["es", "en"], "pt": ["pt", "en"], "nl": ["nl", "en"],
@@ -90,8 +86,7 @@ class JoobleAggregator(BaseJobAggregator):
         "be": ["nl", "fr", "en"], "ie": ["en", "ga"], "mt": ["en"], "at": ["de", "en"], "lu": ["fr", "de", "en"]
     }
 
-    # Частые многоязычные синонимы: ключи — ЛЮБОЙ из вариантов (ru/en/de/…),
-    # значения — расширенный список запросов, который отправим в Jooble
+    # Частые многоязычные синонимы (ключ можно дать на любом языке — ru/en/de/…)
     BUILTIN_VARIANTS: Dict[str, List[str]] = {
         # Ресторан / сервис
         "официант": ["waiter", "waitress", "server", "kellner", "kellnerin", "bedienung",
@@ -129,7 +124,7 @@ class JoobleAggregator(BaseJobAggregator):
                          "operaio generico", "algemeen medewerker", "pracownik fizyczny"],
     }
 
-    # Алиасы стран для жёсткого пост‑фильтра location
+    # Алиасы стран для жёсткого пост‑фильтра (смотрим в location)
     COUNTRY_ALIASES: Dict[str, List[str]] = {
         "de": ["germany", "deutschland"],
         "pl": ["poland", "polska"],
@@ -151,7 +146,7 @@ class JoobleAggregator(BaseJobAggregator):
     }
 
     def __init__(self) -> None:
-        # нужно до super().__init__ чтобы базовый ctor мог обратиться
+        # нужно до super().__init__, базовый ctor читает список стран
         self._countries: Dict[str, str] = dict(self.COUNTRIES_MAP)
 
         # --- Ключ и параметры ---
@@ -172,55 +167,11 @@ class JoobleAggregator(BaseJobAggregator):
             "Accept": "application/json",
             "Content-Type": "application/json",
         })
-
         self.endpoint = f"https://jooble.org/api/{self.api_key}"
 
         super().__init__("Jooble")
 
-    def _normalized_locations(self, cities: List[str], country_code: str) -> List[str]:
-        """Из списка городов собираем варианты 'City, Country' с англ. алиасами + фолбэк только 'Country'."""
-        country_en = self.COUNTRY_NAME_EN.get(country_code, "").strip()
-        out: List[str] = []
-        for c in cities:
-            if not c: 
-                continue
-            raw = c.strip()
-            low = raw.lower()
-            # упростим диакритику
-            low = (low.replace("ä","a").replace("ö","o").replace("ü","u").replace("ß","ss"))
-            # англ. алиас, если знаем
-            alias = self.CITY_ALIASES_EN.get(low, None)
-            city_en = alias or raw
-            if country_en:
-                out.append(f"{city_en}, {country_en}")
-            out.append(city_en)  # вдруг сработает и без страны
-        if country_en:
-            out.append(country_en)  # фолбэк по одной стране
-        # уникализируем порядок
-        seen = set(); uniq=[]
-        for x in out:
-            k = x.strip().lower()
-            if not k or k in seen: 
-                continue
-            seen.add(k); uniq.append(x.strip())
-        return uniq[:8]
-    
-        
-    def _sanitize_terms(self, terms: List[str]) -> List[str]:
-        """Убираем все, что содержит кириллицу/не-латиницу, оставляем наши синонимы."""
-        out = []
-        for t in terms:
-            s = (t or "").strip()
-            if not s:
-                continue
-            # если есть кириллица — пропускаем
-            if any('а' <= ch <= 'я' or 'А' <= ch <= 'Я' for ch in s):
-                continue
-            out.append(s)
-        # уникально
-        return list(dict.fromkeys(out))
-
-    # ---------------- Публичные методы ----------------
+    # ---------- Публичные методы ----------
 
     def get_supported_countries(self) -> Dict[str, Dict]:
         """Совместимость с остальными агрегаторами: код -> объект с name."""
@@ -229,28 +180,31 @@ class JoobleAggregator(BaseJobAggregator):
     def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
         jobs: List[JobVacancy] = []
 
-        # 1) Языковые варианты (мультиязычие)
+        # 1) Мультиязычные термины
         selected_jobs: List[str] = self._expand_queries(preferences)
 
-        # 2) География
+        # 2) География (города/страна)
         cities = preferences.get("cities") or []
         countries = preferences.get("countries") or []
         country_code = (countries[0] if countries else "").lower()
 
-        # Если городов нет — берём дефолтные по стране, без диакритики проблемных
-        if not cities:
-            cities = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
+        # Список локаций для перебора.
+        # Если пользователь дал города — берём их (макс 3), иначе дефолтные по стране (макс 6).
+        if cities:
+            locations: List[str] = [c for c in cities if c and c.strip()][:3]
+        else:
+            locations = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
 
-        locations: List[str] = self._normalized_locations(cities[:3], country_code)
+        # Если вообще нет локаций — как последний шанс подставляем англ. имя страны (лучше, чем пусто).
+        if not locations:
+            fallback_country = self.COUNTRY_NAME_EN.get(country_code, "")
+            locations = [fallback_country] if fallback_country else [""]
 
-        # чистим термы: только латиница (плюс наши синонимы уже добавлены в _expand_queries)
-        selected_jobs = self._sanitize_terms(selected_jobs)
+        print(f"Jooble: terms={selected_jobs[:self.max_terms]} | locations={locations} | country='{country_code}'")
 
-        print(f"Jooble: terms={selected_jobs[:self.max_terms]} | locations={locations} | country={country_code!r}")
-
-
-        # 3) Поисковые запросы: перебор по городам и пагинация
+        # 3) Поисковые запросы: по каждой локации и с пагинацией
         for loc in locations:
+            loc = loc.strip()
             for query in selected_jobs[: self.max_terms]:
                 if not query:
                     continue
@@ -267,7 +221,7 @@ class JoobleAggregator(BaseJobAggregator):
                         break
 
                     for item in items:
-                        # Жёсткий пост‑фильтр по стране (отсечёт «Киев/Китай»)
+                        # Жёсткий пост‑фильтр по стране (отсечёт «левые» регионы)
                         if country_code and not self._passes_country_filter(item, country_code):
                             continue
 
@@ -279,18 +233,18 @@ class JoobleAggregator(BaseJobAggregator):
 
         return jobs
 
-    # ---------------- Внутренние утилиты ----------------
+    # ---------- Внутренние утилиты ----------
 
     def _expand_queries(self, preferences: Dict) -> List[str]:
         """
-        Итоговый список поисковых фраз с учетом мультиязычности.
+        Итоговый список поисковых фраз с учетом мультиязычия.
         Приоритет:
           1) selected_jobs_multilang (из фронта)
-          2) language_variants (сервером прокинутый словарь term -> [варианты])
-          3) server-side fallback: добавляем встроенные синонимы (если знаем термин)
+          2) language_variants (серверный словарь: term -> [варианты])
+          3) fallback: встроенные синонимы (если термин распознали)
           4) просто базовые selected_jobs
         """
-        # 1) фронт собрал варианты
+        # 1) фронт отдал уже расширенный набор
         if preferences.get("selected_jobs_multilang"):
             uniq = list(dict.fromkeys([s.strip() for s in preferences["selected_jobs_multilang"] if s and s.strip()]))
             return uniq
@@ -309,45 +263,39 @@ class JoobleAggregator(BaseJobAggregator):
                         expanded.append(v)
             return list(dict.fromkeys(expanded))
 
-        # 3) fallback — подключаем встроенные синонимы (если знаем термин)
+        # 3) fallback — добавим встроенные синонимы, если знаем термин
         expanded: List[str] = []
         for term in base:
             t = term.strip()
             if not t:
                 continue
             expanded.append(t)
-
             key = t.lower()
             if key in self.BUILTIN_VARIANTS:
                 expanded.extend(self.BUILTIN_VARIANTS[key])
 
-        # нормализуем и ограничим количество
+        # нормализуем и вернём
         uniq = list(dict.fromkeys([s for s in (w.strip() for w in expanded) if s]))
         return uniq
 
     def _passes_country_filter(self, item: Dict, country_code: str) -> bool:
         """
-        True только если в location явно встречается выбранная страна (по алиасам).
-        Если location пуст/мутный — считаем НЕ прошёл (лучше отсечь мусор).
+        True только если в location явный индикатор выбранной страны (по алиасам).
+        Пустой location считаем НЕ прошёл (лучше отрезать мусор).
         """
-        loc = (item.get("location") or "").strip().lower()
+        loc = (item.get("location") or "").strip()
         if not loc:
             return False
 
-        # нормализация некоторых символов
-        loc = (loc
-               .replace("ö", "o")
-               .replace("ä", "a")
-               .replace("ü", "u")
-               .replace("ß", "ss"))
+        # Нормализуем: приводим к ASCII‑приближению и нижнему регистру
+        loc_norm = unicodedata.normalize("NFKD", loc).encode("ascii", "ignore").decode("ascii").lower()
 
-        # прямая проверка по алиасам
         for token in self.COUNTRY_ALIASES.get(country_code, []):
-            if token in loc:
+            if token in loc_norm:
                 return True
 
-        # иногда страна идёт после запятой/в скобках
-        parts = [p.strip() for p in loc.replace("(", ",").replace(")", ",").split(",")]
+        # Иногда страна после запятой/в скобках
+        parts = [p.strip() for p in loc_norm.replace("(", ",").replace(")", ",").split(",")]
         for p in reversed(parts):
             for token in self.COUNTRY_ALIASES.get(country_code, []):
                 if token in p:
@@ -401,10 +349,10 @@ class JoobleAggregator(BaseJobAggregator):
             return datetime.utcnow().strftime("%Y-%m-%d")
         candidates = [value, value.split("T")[0], value.replace("/", "-")]
         fmts = ["%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%d-%m-%Y", "%d/%m/%Y"]
-        for candidate in candidates:
+        for c in candidates:
             for fmt in fmts:
                 try:
-                    return datetime.strptime(candidate, fmt).strftime("%Y-%m-%d")
+                    return datetime.strptime(c, fmt).strftime("%Y-%m-%d")
                 except Exception:
                     pass
         return datetime.utcnow().strftime("%Y-%m-%d")
