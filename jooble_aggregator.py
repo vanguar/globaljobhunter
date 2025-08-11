@@ -55,25 +55,29 @@ class JoobleAggregator(BaseJobAggregator):
     }
 
         # Города по умолчанию для поиска, когда пользователь город не указал
-    DEFAULT_CITIES: Dict[str, List[str]] = {
-        "de": ["Berlin", "München", "Hamburg", "Köln", "Frankfurt am Main", "Stuttgart"],
-        "pl": ["Warszawa", "Kraków", "Wrocław", "Gdańsk", "Poznań", "Łódź"],
-        "fr": ["Paris", "Lyon", "Marseille", "Toulouse", "Bordeaux", "Lille"],
-        "it": ["Roma", "Milano", "Torino", "Napoli", "Bologna", "Firenze"],
-        "es": ["Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza", "Málaga"],
-        "nl": ["Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven", "Tilburg"],
-        "at": ["Wien", "Graz", "Linz", "Salzburg", "Innsbruck", "Klagenfurt"],
-        "be": ["Bruxelles", "Antwerpen", "Gent", "Liège", "Brugge", "Namur"],
-        "ch": ["Zürich", "Genève", "Basel", "Bern", "Lausanne", "Luzern"],
-        "cz": ["Praha", "Brno", "Ostrava", "Plzeň", "Olomouc", "Liberec"],
-        "se": ["Stockholm", "Göteborg", "Malmö", "Uppsala", "Västerås", "Örebro"],
-        "dk": ["København", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers"],
-        "no": ["Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen", "Kristiansand"],
-        "gb": ["London", "Manchester", "Birmingham", "Leeds", "Glasgow", "Bristol"],
-        "us": ["New York", "Los Angeles", "Chicago", "Houston", "San Francisco", "Boston"],
-        "ca": ["Toronto", "Vancouver", "Montréal", "Calgary", "Ottawa", "Edmonton"],
-        "au": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Canberra"],
+        # Алиасы городов: локальное -> английское ASCII
+    CITY_ALIASES_EN: Dict[str, str] = {
+        # DE
+        "köln": "Cologne",
+        "munchen": "Munich", "münchen": "Munich",
+        "nürnberg": "Nuremberg", "nurnberg": "Nuremberg",
+        "frankfurt am main": "Frankfurt",
+        "düsseldorf": "Dusseldorf", "dusseldorf": "Dusseldorf",
+        "stuttgart": "Stuttgart", "hamburg": "Hamburg", "berlin": "Berlin",
+        # FR
+        "lyon": "Lyon", "marseille": "Marseille",
+        # IT
+        "milano": "Milan", "torino": "Turin", "napoli": "Naples", "roma": "Rome",
+        # ES
+        "sevilla": "Seville",
+        # CZ
+        "praha": "Prague",
+        # PL
+        "kraków": "Krakow", "krakow": "Krakow", "wrocław": "Wroclaw", "wroclaw": "Wroclaw",
+        # NL
+        "den haag": "The Hague",
     }
+
 
 
     # Языки по умолчанию для стран (fallback, если фронт не пришлёт)
@@ -173,6 +177,49 @@ class JoobleAggregator(BaseJobAggregator):
 
         super().__init__("Jooble")
 
+    def _normalized_locations(self, cities: List[str], country_code: str) -> List[str]:
+        """Из списка городов собираем варианты 'City, Country' с англ. алиасами + фолбэк только 'Country'."""
+        country_en = self.COUNTRY_NAME_EN.get(country_code, "").strip()
+        out: List[str] = []
+        for c in cities:
+            if not c: 
+                continue
+            raw = c.strip()
+            low = raw.lower()
+            # упростим диакритику
+            low = (low.replace("ä","a").replace("ö","o").replace("ü","u").replace("ß","ss"))
+            # англ. алиас, если знаем
+            alias = self.CITY_ALIASES_EN.get(low, None)
+            city_en = alias or raw
+            if country_en:
+                out.append(f"{city_en}, {country_en}")
+            out.append(city_en)  # вдруг сработает и без страны
+        if country_en:
+            out.append(country_en)  # фолбэк по одной стране
+        # уникализируем порядок
+        seen = set(); uniq=[]
+        for x in out:
+            k = x.strip().lower()
+            if not k or k in seen: 
+                continue
+            seen.add(k); uniq.append(x.strip())
+        return uniq[:8]
+    
+        
+    def _sanitize_terms(self, terms: List[str]) -> List[str]:
+        """Убираем все, что содержит кириллицу/не-латиницу, оставляем наши синонимы."""
+        out = []
+        for t in terms:
+            s = (t or "").strip()
+            if not s:
+                continue
+            # если есть кириллица — пропускаем
+            if any('а' <= ch <= 'я' or 'А' <= ch <= 'Я' for ch in s):
+                continue
+            out.append(s)
+        # уникально
+        return list(dict.fromkeys(out))
+
     # ---------------- Публичные методы ----------------
 
     def get_supported_countries(self) -> Dict[str, Dict]:
@@ -190,19 +237,17 @@ class JoobleAggregator(BaseJobAggregator):
         countries = preferences.get("countries") or []
         country_code = (countries[0] if countries else "").lower()
 
-        # Список локаций для перебора:
-        #   - если пользователь указал город(а) — берём их (ограничим до 3)
-        #   - иначе берём дефолтные города для страны (ограничим до 6)
-        if cities:
-            locations: List[str] = [c for c in cities if c and c.strip()][:3]
-        else:
-            locations = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
+        # Если городов нет — берём дефолтные по стране, без диакритики проблемных
+        if not cities:
+            cities = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
 
-        # Если вообще нет локаций (неизвестная страна) — не задаём location (но тогда меньше шансов на попадания).
-        if not locations:
-            locations = [""]
+        locations: List[str] = self._normalized_locations(cities[:3], country_code)
+
+        # чистим термы: только латиница (плюс наши синонимы уже добавлены в _expand_queries)
+        selected_jobs = self._sanitize_terms(selected_jobs)
 
         print(f"Jooble: terms={selected_jobs[:self.max_terms]} | locations={locations} | country={country_code!r}")
+
 
         # 3) Поисковые запросы: перебор по городам и пагинация
         for loc in locations:
