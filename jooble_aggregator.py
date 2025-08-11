@@ -41,15 +41,19 @@ load_dotenv()
 
 
 class JoobleAggregator(BaseJobAggregator):
-    # Карта кодов стран -> отображаемое имя (для фронта и метаданных)
+    # Коды стран -> отображаемое имя (для фронта/метаданных)
     COUNTRIES_MAP: Dict[str, str] = {
         "de": "Германия", "pl": "Польша", "gb": "Великобритания", "fr": "Франция",
         "it": "Италия", "es": "Испания", "nl": "Нидерланды", "at": "Австрия",
         "be": "Бельгия", "ch": "Швейцария", "se": "Швеция", "no": "Норвегия",
-        "dk": "Дания", "cz": "Чехия", "us": "США", "ca": "Канада", "au": "Австралия"
+        "dk": "Дания", "cz": "Чехия", "us": "США", "ca": "Канада", "au": "Австралия",
+        "sk": "Словакия", "ie": "Ирландия", "pt": "Португалия", "fi": "Финляндия",
+        "lu": "Люксембург", "ro": "Румыния", "bg": "Болгария", "hu": "Венгрия",
+        "si": "Словения", "hr": "Хорватия", "lt": "Литва", "lv": "Латвия", "ee": "Эстония",
+        "el": "Греция", "se": "Швеция", "dk": "Дания", "mt": "Мальта"
     }
 
-    # Мультиязычность: базовая карта "код страны -> предпочитаемые языки" (fallback, если фронт не пришлет)
+    # Fallback языков страны (если фронт не прислал готовые варианты)
     COUNTRY_LANGS_FALLBACK: Dict[str, List[str]] = {
         "de": ["de", "en"], "pl": ["pl", "en"], "cz": ["cs", "en"], "sk": ["sk", "cs", "en"],
         "it": ["it", "en"], "es": ["es", "en"], "pt": ["pt", "en"], "nl": ["nl", "en"],
@@ -107,12 +111,11 @@ class JoobleAggregator(BaseJobAggregator):
         # 1) Итоговый список запросов с учётом мультиязычности
         selected_jobs: List[str] = self._expand_queries(preferences)
 
-        # 2) Гео
+        # 2) Гео — НИКОГДА не подставляем в location русское название страны
         cities = preferences.get("cities") or []
         countries = preferences.get("countries") or []
         default_location = cities[0] if cities else ""
         print(f"Jooble: terms={selected_jobs[:self.max_terms]} location={default_location!r}")
-
 
         # 3) Запросы к API (пагинация)
         for query in selected_jobs[: self.max_terms]:
@@ -125,6 +128,7 @@ class JoobleAggregator(BaseJobAggregator):
                 data = self._safe_post(self.endpoint, json=body)
 
                 items = (data or {}).get("jobs") or []
+                print(f"Jooble: page={page} items={len(items)} for '{query}'")
                 if not items:
                     break
 
@@ -145,7 +149,7 @@ class JoobleAggregator(BaseJobAggregator):
         Приоритет:
           1) selected_jobs_multilang (фронт уже дал готовые варианты на языках страны)
           2) language_variants (серверный словарь: term -> [варианты])
-          3) selected_jobs как есть
+          3) selected_jobs как есть (с предупреждением в лог)
         """
         # (1) фронт собрал варианты — используем их
         if preferences.get("selected_jobs_multilang"):
@@ -168,7 +172,10 @@ class JoobleAggregator(BaseJobAggregator):
                         expanded.append(v)
             return list(dict.fromkeys(expanded))
 
-        # (3) просто базовые
+        # (3) просто базовые — предупреждаем, что нет мультиязычия
+        if base:
+            print("ℹ️ Jooble: нет multilang-терминов (selected_jobs_multilang/language_variants пусты). "
+                  "Рекомендация: прокидывать варианты по языкам страны из фронта.")
         return base
 
     def _safe_post(self, url: str, *, json: dict) -> Optional[dict]:
@@ -199,7 +206,7 @@ class JoobleAggregator(BaseJobAggregator):
         if isinstance(salary_data, dict):
             min_sal = salary_data.get("min")
             max_sal = salary_data.get("max")
-            currency = salary_data.get("currency", "")
+            currency = (salary_data.get("currency") or "").strip()
             if min_sal and max_sal:
                 return f"{min_sal}–{max_sal} {currency}".strip()
             if min_sal:
@@ -209,6 +216,25 @@ class JoobleAggregator(BaseJobAggregator):
         elif isinstance(salary_data, (int, float, str)):
             return str(salary_data)
         return None
+
+    @staticmethod
+    def _parse_date_safe(value: str) -> str:
+        """Более устойчивый парс даты Jooble."""
+        if not value:
+            return datetime.utcnow().strftime("%Y-%m-%d")
+        candidates = [
+            value,
+            value.split("T")[0],
+            value.replace("/", "-"),
+        ]
+        fmts = ["%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%d-%m-%Y", "%d/%m/%Y"]
+        for candidate in candidates:
+            for fmt in fmts:
+                try:
+                    return datetime.strptime(candidate, fmt).strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+        return datetime.utcnow().strftime("%Y-%m-%d")
 
     def _to_jobvacancy(self, d: Dict, search_term: str, countries: List[str]) -> Optional[JobVacancy]:
         """Маппинг Jooble -> JobVacancy."""
@@ -221,14 +247,11 @@ class JoobleAggregator(BaseJobAggregator):
         job_type = d.get("type") or None
 
         posted_raw = d.get("updated") or datetime.utcnow().strftime("%Y-%m-%d")
-        try:
-            posted = datetime.fromisoformat(posted_raw.split("T")[0]).strftime("%Y-%m-%d")
-        except Exception:
-            posted = datetime.utcnow().strftime("%Y-%m-%d")
+        posted = self._parse_date_safe(posted_raw)
 
         country_name = ""
         if countries:
-            code = countries[0]
+            code = (countries[0] or "").lower()
             country_name = self._countries.get(code, code)
 
         return JobVacancy(
@@ -248,7 +271,8 @@ class JoobleAggregator(BaseJobAggregator):
         )
 
     def is_relevant_job(self, job_title: str, job_description: str, search_term: str) -> bool:
-        """Фильтрация релевантности."""
+        """Фильтрация релевантности: по заголовку и фрагменту описания."""
         q_words = (search_term or "").lower().split()
-        title_lower = (job_title or "").lower()
-        return any(w for w in q_words if w and w in title_lower)
+        t = (job_title or "").lower()
+        d = (job_description or "").lower()
+        return any(w for w in q_words if w and (w in t or w in d))
