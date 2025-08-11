@@ -110,7 +110,9 @@ class JoobleAggregator(BaseJobAggregator):
         # 2) Гео
         cities = preferences.get("cities") or []
         countries = preferences.get("countries") or []
-        default_location = cities[0] if cities else (self._countries.get(countries[0], "") if countries else "")
+        default_location = cities[0] if cities else ""
+        print(f"Jooble: terms={selected_jobs[:self.max_terms]} location={default_location!r}")
+
 
         # 3) Запросы к API (пагинация)
         for query in selected_jobs[: self.max_terms]:
