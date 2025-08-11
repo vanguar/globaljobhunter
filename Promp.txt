@@ -1,0 +1,51 @@
+Файлы, которые нужно загружать каждый раз:
+Обязательные для понимания архитектуры:
+
+base_aggregator.py - базовый класс для всех агрегаторов
+adzuna_aggregator.py - пример реализации с кешированием
+app.py - основное Flask приложение с роутингом
+database.py - модели БД
+email_service.py - сервис email уведомлений
+
+Для понимания UI/UX:
+
+layout.html - базовый шаблон
+index.html - главная страница с формой
+results.html - страница результатов
+style.css - стили
+app.js - клиентская логика
+
+
+ПРОМТ ДЛЯ СЛЕДУЮЩИХ СЕССИЙ:
+КОНТЕКСТ: Я разрабатываю GlobalJobHunter - сервис поиска работы для украинских беженцев. 
+
+АРХИТЕКТУРА:
+- Flask приложение с Bootstrap UI
+- Базовый класс BaseJobAggregator для унификации всех источников
+- Реализованы: Adzuna API (основной) + Jobicy API (дополнительный)  
+- Умное кеширование (Redis + файловый fallback)
+- Email рассылка подписчикам с админкой
+- Rate limiting и мониторинг
+
+ЗАДАЧА: Подключить новые API источники вакансий:
+1. **Jooble** (https://jooble.org/api/about) - бесплатный API
+2. **CareerJet** (https://www.careerjet.com/partners/) - CPC партнерка
+3. **Remotive** (https://remotive.com/remote-jobs/api) - $25 за продажу
+4. **SmartRecruiters** (https://developers.smartrecruiters.com/) - marketplace
+
+ПАТТЕРН РЕАЛИЗАЦИИ:
+1. Создать класс наследник от BaseJobAggregator (как AdzunaAggregator)
+2. Реализовать методы: get_supported_countries(), search_jobs(), is_relevant_job()
+3. Добавить в app.py в additional_aggregators
+4. Протестировать интеграцию через /search endpoint
+
+ТРЕБОВАНИЯ:
+- Следовать существующей архитектуре с BaseJobAggregator
+- Унифицированный возврат JobVacancy объектов  
+- Поддержка кеширования и мультиязычности
+- Интеграция в общий UI без изменений фронтенда
+- Соблюдение rate limits API
+
+ПРИОРИТЕТ: Начинать с самых простых API (Jooble → CareerJet → остальные)
+
+При получении файлов - сразу приступай к реализации следующего агрегатора в очереди.

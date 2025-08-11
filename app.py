@@ -94,6 +94,15 @@ except ImportError as e:
     ADDITIONAL_SOURCES_AVAILABLE = False
     print(f"ℹ️ Дополнительные источники недоступны: {e}")
 
+# Импортируем Jooble отдельно, чтобы не ломать флаг ADDITIONAL_SOURCES_AVAILABLE
+try:
+    from jooble_aggregator import JoobleAggregator
+    JOOBLE_AVAILABLE = True
+except ImportError as e:
+    JOOBLE_AVAILABLE = False
+    print(f"ℹ️ Jooble недоступен: {e}")
+
+
 load_dotenv()
 
 app = Flask(__name__)
