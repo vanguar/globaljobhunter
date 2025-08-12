@@ -416,11 +416,15 @@ class JoobleAggregator(BaseJobAggregator):
 
     def _passes_country_filter(self, item: Dict, country_code: str) -> bool:
         """
-        Позитивный фильтр страны/города + защита от шума, когда location=нужная страна,
-        но title/snippet явно указывают на другую (пример: “Hamburg, PA” при country=de).
+        Позитивный фильтр страны/города + защита от шума.
+        Исправление: сравнение по токенам/границам слов, чтобы 'NY' не совпадало с 'Germany'.
         """
         def _norm(s: str) -> str:
             return unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii").lower().strip()
+
+        def _tokens(s: str) -> List[str]:
+            # только буквы, для точного сравнения (us-штаты и т.п.)
+            return re.findall(r"[a-z]+", s)
 
         location = (item.get("location") or "")
         title = (item.get("title") or "")
@@ -428,33 +432,61 @@ class JoobleAggregator(BaseJobAggregator):
 
         loc_norm = _norm(location)
         text_norm = _norm(f"{title} {snippet}")
+        loc_tokens = set(_tokens(loc_norm))
 
-        # 1) Ранний отказ: если в location явно видны другие страны
-        other_tokens = set()
+        # 1) Ранний отказ: если в location явно видны другие страны (по токенам/словам)
+        other_single = set()
+        other_multi = []
         for code, toks in self.COUNTRY_ALIASES.items():
-            if code != country_code:
-                other_tokens.update(toks)
-        if any(tok and tok in loc_norm for tok in other_tokens):
+            if code == country_code:
+                continue
+            for tok in toks:
+                if " " in tok:        # многословные алиасы: 'united states'
+                    other_multi.append(tok)
+                else:                 # однословные алиасы: 'usa', 'canada', 'pa', 'ca', ...
+                    other_single.add(tok)
+
+        # многословные — ищем по границам слов
+        for tok in other_multi:
+            if re.search(rf"\b{re.escape(tok)}\b", loc_norm):
+                return False
+
+        # однословные — только точные токены (без подстроки)
+        if any(tok in loc_tokens for tok in other_single):
             return False
 
-        # 2) Разрешающие токены нашей страны
+        # 2) Разрешающие токены нашей страны/городов
         allowed_country_aliases = set(self.COUNTRY_ALIASES.get(country_code, []))
         city_aliases = { _norm(c) for c in self.DEFAULT_CITIES.get(country_code, []) }
         city_aliases.update(self.EXTRA_CITY_ALIASES.get(country_code, []))
-        allowed_tokens = allowed_country_aliases | city_aliases
+        allowed = allowed_country_aliases | city_aliases
 
-        positive_match = any(tok and tok in loc_norm for tok in allowed_tokens)
-
-        # Спец‑поддержка: если location пустой/скупой — пробуем title/snippet
-        if not positive_match and (not loc_norm or len(loc_norm) < 3):
-            if any(tok and tok in text_norm for tok in allowed_tokens):
+        positive_match = False
+        # многословные разрешающие
+        for tok in (t for t in allowed if " " in t):
+            if re.search(rf"\b{re.escape(tok)}\b", loc_norm):
                 positive_match = True
-            # Немецкие текстовые маркеры
+                break
+        # однословные разрешающие (через токены)
+        if not positive_match and any((t in loc_tokens) for t in (t for t in allowed if " " not in t)):
+            positive_match = True
+
+        # если локация пустая/скупая — ищем маркеры в тексте
+        if not positive_match and (not loc_norm or len(loc_norm) < 3):
+            # многословные
+            if any(re.search(rf"\b{re.escape(tok)}\b", text_norm) for tok in (t for t in allowed if " " in t)):
+                positive_match = True
+            # однословные
+            if not positive_match:
+                text_tokens = set(_tokens(text_norm))
+                if any(t in text_tokens for t in (t for t in allowed if " " not in t)):
+                    positive_match = True
+            # немецкие текстовые маркеры
             if country_code == "de" and not positive_match:
                 if any(tok in text_norm for tok in self.DE_LANGUAGE_MARKERS):
                     positive_match = True
 
-        # Немецкие почтовые индексы 10000–99999 (как дополнительный слабый сигнал)
+        # немецкие почтовые индексы 10000–99999 (слабый сигнал)
         if country_code == "de" and not positive_match:
             if re.search(r'\b[1-9]\d{4}\b', text_norm):
                 positive_match = True
@@ -462,18 +494,17 @@ class JoobleAggregator(BaseJobAggregator):
         if not positive_match:
             return False
 
-        # 3) Анти‑шум по title/snippet: US/CA маркеры и US‑штаты
+        # 3) Анти‑шум по title/snippet: US/CA маркеры и US‑штаты в тексте (по токенам)
         if self._has_foreign_markers_in_text(text_norm, country_code):
             return False
 
-        # 4) Спец‑кейс: Delaware vs Germany
+        # 4) Спец‑кейс: Delaware vs Germany — строго по границам
         if country_code == "de":
-            delaware_markers = ["delaware", "dover, de", "newark, de", "wilmington, de", ", de"]
-            for marker in delaware_markers:
-                if marker in loc_norm:
-                    return False
+            if re.search(r"(delaware\b|\bdover,\s*de\b|\bnewark,\s*de\b|\bwilmington,\s*de\b|,\s*de\b)", loc_norm):
+                return False
 
         return True
+
 
     def _safe_post(self, url: str, *, json: dict) -> Optional[dict]:
         """
