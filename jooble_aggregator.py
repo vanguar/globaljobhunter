@@ -515,6 +515,7 @@ class JoobleAggregator(BaseJobAggregator):
         """
         def _norm(s: str) -> str:
             return unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii").lower().strip()
+
         def _tokens(s: str) -> List[str]:
             return re.findall(r"[a-z]+", s or "")
 
@@ -523,75 +524,79 @@ class JoobleAggregator(BaseJobAggregator):
         snippet  = (item.get("snippet") or "")
 
         loc_norm  = _norm(location)
-        text_norm = _norm(f"{title} {snippet} {location}")  # добавили location
+        # ВАЖНО: учитываем location в тексте — ловим кейсы вроде "Hamburg, PA"
+        text_norm = _norm(f"{title} {snippet} {location}")
 
-        # 1) Отсев по маркерам *других* стран сначала по локации
-        other_single = set()
-        other_multi  = []
+        # 1) Отсев по маркерам других стран (сначала по локации)
+        other_single: Set[str] = set()   # однословные токены (точные)
+        other_multi:  List[str] = []     # многословные фразы
+
         for code, toks in self.COUNTRY_ALIASES.items():
             if code == country_code:
                 continue
             for tok in toks:
                 tok_n = _norm(tok)
-                (other_multi if " " in tok_n else other_single).append(tok_n) if isinstance(other_multi, list) else None
-        # исправим .append выше (py trick): просто пересоздадим корректно
-        other_single = set()
-        other_multi = []
-        for code, toks in self.COUNTRY_ALIASES.items():
-            if code == country_code:
-                continue
-            for tok in toks:
-                tok_n = _norm(tok)
-                if " " in tok_n: other_multi.append(tok_n)
-                else: other_single.add(tok_n)
+                if " " in tok_n:
+                    other_multi.append(tok_n)   # список → append ОК
+                else:
+                    other_single.add(tok_n)     # множество → add ОК
 
         loc_tokens = set(_tokens(loc_norm))
-        for tok in other_multi:
-            if re.search(rf"\b{re.escape(tok)}\b", loc_norm):
+
+        # многословные — по границам слов
+        for phrase in other_multi:
+            if re.search(rf"\b{re.escape(phrase)}\b", loc_norm):
                 return False
+
+        # однословные — как точные токены
         if any(tok in loc_tokens for tok in other_single):
             return False
 
-        # 2) Позитив по нашим алиасам страны/городов
+        # 2) Позитив по нашей стране/городам
         allowed = set(self.COUNTRY_ALIASES.get(country_code, []))
         city_aliases = {_norm(c) for c in self.DEFAULT_CITIES.get(country_code, [])}
-        city_aliases.update(self.EXTRA_CITY_ALIASES.get(country_code, []))
+        # если у тебя есть EXTRA_CITY_ALIASES — тоже подключи
+        if hasattr(self, "EXTRA_CITY_ALIASES"):
+            city_aliases.update(self.EXTRA_CITY_ALIASES.get(country_code, []))
         allowed |= city_aliases
 
         positive_match = False
-        for tok in (t for t in allowed if " " in t):
-            if re.search(rf"\b{re.escape(tok)}\b", loc_norm):
+
+        # многословные разрешающие — в локации
+        for phrase in (t for t in allowed if " " in t):
+            if re.search(rf"\b{re.escape(phrase)}\b", loc_norm):
                 positive_match = True
                 break
+
+        # однословные разрешающие — как точные токены
         if not positive_match and any(t in loc_tokens for t in (t for t in allowed if " " not in t)):
             positive_match = True
 
+        # если локация пустая/слабая — ищем маркеры в тексте
         if not positive_match and (not loc_norm or len(loc_norm) < 3):
             text_tokens = set(_tokens(text_norm))
-            if any(re.search(rf"\b{re.escape(tok)}\b", text_norm) for tok in (t for t in allowed if " " in t)):
+            if any(re.search(rf"\b{re.escape(phrase)}\b", text_norm) for phrase in (t for t in allowed if " " in t)):
                 positive_match = True
-            if not positive_match and any(t in text_tokens for t in (t for t in allowed if " " not in t)):
+            elif any(t in text_tokens for t in (t for t in allowed if " " not in t)):
                 positive_match = True
 
         if not positive_match:
             return False
 
-        # 3) Отсев US/CA по тексту целиком
+        # 3) Отсев US/CA по всему тексту
         if self._has_foreign_markers_in_text(text_norm, country_code):
             return False
 
-        # 4) Минус-слова/компании (если используете)
+        # 4) Минус-слова/компании (если используются)
         title_lc = _norm(title)
         if any(bad in title_lc for bad in self.NEGATIVE_GLOBAL):
             return False
+
         comp_norm = (getattr(self, "_last_company_norm", "") or "").lower()
         if comp_norm and any(bad in comp_norm for bad in self.HARD_NEGATIVE_COMPANIES):
             return False
 
         return True
-
-
-
 
     def _safe_post(self, url: str, *, json: dict) -> Optional[dict]:
         """
