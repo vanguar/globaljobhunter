@@ -37,6 +37,7 @@ import unicodedata
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from uuid import uuid5, NAMESPACE_URL
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -151,6 +152,38 @@ class JoobleAggregator(BaseJobAggregator):
         "heftruckchauffeur": ["forklift driver", "warehouse driver"],
     }
 
+    # Жёсткий стоп‑лист по компаниям (фейковые/нерелевантные для вакансий рабочих)
+    HARD_NEGATIVE_COMPANIES: List[str] = [
+        "scandinavian tobacco group",   # по логам лезет в DE с нерелевантными ролями
+        "tradebe",                      # operations driver и прочее нерелевантное
+        "stg",                          # сокращение того же бренда
+    ]
+
+
+
+    # — положительные маркеры для «склад/логистика»
+    WAREHOUSE_POSITIVE = {
+        "warehouse","operative","order picker","picker","packer","loader",
+        "material handler","forklift","reach truck","pallet","logistics",
+        "lager","lagerarbeiter","lagermitarbeiter","kommissionierer",
+        "staplerfahrer","gabelstapler","versand","wareneingang","warenausgang",
+        "magazijn","orderpicker","heftruck","reachtruck","logistiek",
+        "magazyn","magazynier","kompletacja","pakowacz","operator wózka",
+        "склад","кладовщик","грузчик","упаковщик","комплектовщик","погрузчик",
+    }
+
+    # — жёсткие «минусы» по нерелевантным доменам ролей
+    NEGATIVE_GLOBAL = {
+        "taco bell","barista","bar associate","bartender","server","waiter",
+        "cashier","restaurant","kitchen","cook","chef","food service",
+        "nurse","nursing","teacher","assistant director of nursing",
+        "virtual assistant","office manager","receptionist",
+    }
+
+    # — можно отстреливать по компаниям (добавляй при надобности)
+    HARD_NEGATIVE_COMPANIES = {"taco bell","mcdonald","kfc","starbucks"}
+
+
     # Алиасы стран/городов для фильтрации
     COUNTRY_ALIASES: Dict[str, List[str]] = {
         "de": ["germany", "deutschland", "german", "berlin", "munich", "münchen", "hamburg", "cologne", "köln",
@@ -172,8 +205,13 @@ class JoobleAggregator(BaseJobAggregator):
         "cz": ["czech republic", "czechia", "česko", "cesko", "czech", "prague", "brno"],
         "us": ["united states", "usa", "u.s.a.", "american", "america",
                "alabama", "nevada", "california", "texas", "new york", "florida", "delaware",
-               "al", "nv", "ca", "tx", "ny", "fl", "pa", "oh", "wa", "or", "il", "az"],
-        "ca": ["canada", "canadian", "toronto", "vancouver", "montreal"],
+               "al", "nv", "ca", "tx", "ny", "fl", "pa", "oh", "wa", "or", "il", "az"] + [
+        "al","ak","az","ar","ca","co","ct","de","fl","ga","hi","id","il","in","ia","ks","ky","la","me","md",
+        "ma","mi","mn","ms","mo","mt","ne","nv","nh","nj","nm","ny","nc","nd","oh","ok","or","pa","ri","sc",
+        "sd","tn","tx","ut","vt","va","wa","wv","wi","wy","dc"
+    ],
+        "ca": ["canada", "canadian", "toronto", "vancouver", "montreal"] + 
+          ["ab","bc","mb","nb","nl","ns","nt","nu","on","pe","qc","sk","yt"],
         "au": ["australia", "australian", "sydney", "melbourne"],
     }
 
@@ -307,7 +345,7 @@ class JoobleAggregator(BaseJobAggregator):
                     break
 
             # Глобальный поиск — только если локально почти ничего не нашли
-            if term_collected < 2:
+            if (not country_code) and term_collected < 2:
                 loc, loc_type = ("", "global")
                 page = 1
                 while page <= self.max_pages and term_collected < self.term_cap:
@@ -349,29 +387,53 @@ class JoobleAggregator(BaseJobAggregator):
 
     def _get_translated_terms(self, preferences: Dict) -> List[str]:
         """
-        Приоритет английским вариантам, но ничего не удаляем из входа.
-        Если фронт дал selected_jobs_multilang — используем, как есть.
+        Собирает поисковые термины:
+        • если фронт дал selected_jobs_multilang — используем их как есть (с дедупликацией);
+        • иначе: берём selected_jobs, расширяем через TERM_TRANSLATIONS;
+        • англ. термины идут первыми (как было);
+        • при country='de' поднимаем наверх локальные DE-синонимы (не добавляя новых терминов).
         """
+        # 1) Прямые мультиязычные термины
         if preferences.get("selected_jobs_multilang"):
             multilang = [s.strip() for s in preferences["selected_jobs_multilang"] if s and s.strip()]
             return list(dict.fromkeys(multilang))
 
+        # 2) Базовые термины
         base_terms = [s.strip() for s in (preferences.get("selected_jobs") or []) if s and s.strip()]
 
+        # 3) Расширение переводами/синонимами
         translated: List[str] = []
         for term in base_terms:
             translated.append(term)
             variants = self.TERM_TRANSLATIONS.get(term.lower(), [])
             translated.extend(variants)
 
-        # Убираем дубли, сохраняя порядок
+        # 4) Дедуп с сохранением порядка
         unique = list(dict.fromkeys(translated))
 
-        # Англоязычные — вперёд
+        # 5) Английские вперёд (как было)
         english_first, non_english = [], []
         for t in unique:
             (english_first if self._is_likely_english(t) else non_english).append(t)
-        return english_first + non_english
+        ordered = english_first + non_english
+
+        # 6) Небольшое переупорядочивание под страну
+        country = ((preferences.get("countries") or [None])[0] or "").lower()
+        if country == "de":
+            prefer_de = {
+                "lagermitarbeiter",    # сотрудник склада
+                "lagerarbeiter",       # рабочий склада
+                "kommissionierer",     # комплектовщик
+                "staplerfahrer",       # водитель погрузчика
+                "versandmitarbeiter",  # сотрудник отгрузки
+            }
+            head = [t for t in ordered if t.lower() in prefer_de]
+            tail = [t for t in ordered if t.lower() not in prefer_de]
+            ordered = head + tail
+
+        return ordered
+
+
 
     def _is_likely_english(self, term: str) -> bool:
         if not term or not term.isascii():
@@ -387,91 +449,146 @@ class JoobleAggregator(BaseJobAggregator):
 
     def _has_foreign_markers_in_text(self, text_norm: str, target_country_code: str) -> bool:
         """
-        True, если в тексте есть явные маркеры другой страны.
-        Ловим базовые US/CA‑маркеры и US‑штаты (PA, CA, TX, NY, …) — кейсы «Hamburg, PA».
+        True, если в тексте (title+snippet+location, уже нормализованных) видны маркеры другой страны.
+        Ловим: 'united states', 'usa', 'canada', длинные имена штатов/провинций, а также безопасные аббревиатуры штатов.
         """
-        # 1) Базовые ключевые слова стран
+        def has_word(hay: str, needle: str) -> bool:
+            return re.search(rf"\b{re.escape(needle)}\b", hay) is not None
+
+        # 1) Базовые слова
         foreign_words = {
-            "us": ["united states", "usa", "u.s.a."],
-            "ca": ["canada", "canadian"],
+            "us": ["united states", "usa", "u.s.a.", "america", "american",
+                "california", "texas", "new york", "florida", "pennsylvania", "delaware"],
+            "ca": ["canada", "canadian", "ontario", "quebec", "british columbia", "alberta"],
         }
         for code, words in foreign_words.items():
-            if code != target_country_code and any(w in text_norm for w in words):
+            if code != target_country_code and any(has_word(text_norm, w) for w in words):
                 return True
 
-        # 2) US‑штаты: 2‑буквенные коды (pa, ca, tx, ny, …)
-        us_states = {
-            "al","ak","az","ar","ca","co","ct","de","fl","ga","hi","id","il","in","ia","ks","ky","la","me","md",
-            "ma","mi","mn","ms","mo","mt","ne","nv","nh","nj","nm","ny","nc","nd","oh","ok","or","pa","ri","sc",
-            "sd","tn","tx","ut","vt","va","wa","wv","wi","wy","dc"
+        # 2) Аккуратные 2-буквенные коды штатов США (без неоднозначных 'in', 'or', 'me' и т.п.)
+        safe_us_states = {
+            "ak","al","ar","az","ca","co","ct","dc","de","fl","ga","hi","ia","id","il","in","ks","ky","la","ma","md",
+            "mi","mn","mo","ms","mt","nc","nd","ne","nh","nj","nm","nv","ny","oh","ok","or","pa","ri","sc","sd","tn",
+            "tx","ut","va","vt","wa","wi","wv","wy"
         }
-        tokens = [t.strip(",.;:()[]{}") for t in text_norm.split()]
-        for i, tok in enumerate(tokens):
-            if tok in us_states:
-                # чтобы не ловить случайные "pa" (public address), смотрим, что слева "похоже на город"
-                if i > 0 and re.fullmatch(r"[a-z][a-z\-']{2,}", tokens[i-1] or ""):
-                    return True
+        # если целевая страна DE — не считаем 'de' (Delaware) маркером США
+        if target_country_code == "de" and "de" in safe_us_states:
+            safe_us_states = set(safe_us_states) - {"de"}
+
+        tokens = set(re.findall(r"[a-z]+", text_norm))
+        if target_country_code != "us" and tokens.intersection(safe_us_states):
+            return True
+
+        # 3) Канада: только длинные имена провинций (двубуквенные слишком шумные: on/bc/qc и пр.)
+        canadian_provinces = {"ontario","quebec","manitoba","saskatchewan","alberta","yukon","nunavut",
+                            "newfoundland","labrador","nova","scotia","new","brunswick","british","columbia","prince","edward","island"}
+        if target_country_code != "ca" and tokens.intersection(canadian_provinces):
+            return True
 
         return False
+    
+    def _build_loc_variants(self, country_code: str, cities: List[str]) -> List[Tuple[str, str]]:
+        """
+        Формирует варианты локаций для Jooble: "City, CountryEN" → "City" → "CountryEN" → [локальное] → "".
+        Без ISO-кодов. Для DE добавляем 'Deutschland' как альтернативу 'Germany'.
+        """
+        country_name_en = self.COUNTRY_NAME_EN.get(country_code, "")
+        # локальные (нативные) имена стран — точечно, где реально помогает
+        country_name_local = {
+            "de": "Deutschland",
+            "at": "Österreich",
+            "ch": "Schweiz",
+            "fr": "France",       # локально 'France' и англ. совпали; оставим как есть
+        }.get(country_code, "")
+
+        # Базовые города: из настроек пользователя или дефолтов
+        if cities:
+            base_locations = [c.strip() for c in cities if c and c.strip()][:3]
+        else:
+            base_locations = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
+
+        loc_variants: List[Tuple[str, str]] = []
+        for city in base_locations:
+            if not city:
+                continue
+            if country_name_en:
+                loc_variants.append((f"{city}, {country_name_en}", "city_full"))
+            # Локальное имя страны (например, 'Berlin, Deutschland')
+            if country_name_local:
+                loc_variants.append((f"{city}, {country_name_local}", "city_full_local"))
+            loc_variants.append((city, "city_short"))
+
+        if country_name_en:
+            loc_variants.append((country_name_en, "country_only"))
+        if country_name_local:
+            loc_variants.append((country_name_local, "country_only_local"))
+
+        # Глобальный вариант всегда последним
+        loc_variants.append(("", "global"))
+        return loc_variants
+
+
 
     def _passes_country_filter(self, item: Dict, country_code: str) -> bool:
         """
-        Позитивный фильтр страны/города + защита от шума.
-        Исправление: сравнение по токенам/границам слов, чтобы 'NY' не совпадало с 'Germany'.
+        Позитивный фильтр по стране/городам (по локации и, при её отсутствии, по тексту).
+        Также режем явные US/CA-маркеры (в т.ч. «Hamburg, PA» кейсы).
         """
         def _norm(s: str) -> str:
             return unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode("ascii").lower().strip()
 
         def _tokens(s: str) -> List[str]:
-            # только буквы, для точного сравнения (us-штаты и т.п.)
-            return re.findall(r"[a-z]+", s)
+            return re.findall(r"[a-z]+", s or "")
 
         location = (item.get("location") or "")
-        title = (item.get("title") or "")
-        snippet = (item.get("snippet") or "")
+        title    = (item.get("title") or "")
+        snippet  = (item.get("snippet") or "")
 
-        loc_norm = _norm(location)
-        text_norm = _norm(f"{title} {snippet}")
-        loc_tokens = set(_tokens(loc_norm))
+        loc_norm  = _norm(location)
+        text_norm = _norm(f"{title} {snippet} {location}")  # ВАЖНО: добавили location в текст
 
-        # 1) Ранний отказ: если в location явно видны другие страны (по токенам/словам)
+        # 1) Жёсткие отрицательные по другим странам (сначала — по локации)
+        # Собираем токены/фразы для других стран
         other_single = set()
-        other_multi = []
+        other_multi  = []
         for code, toks in self.COUNTRY_ALIASES.items():
             if code == country_code:
                 continue
             for tok in toks:
-                if " " in tok:        # многословные алиасы: 'united states'
-                    other_multi.append(tok)
-                else:                 # однословные алиасы: 'usa', 'canada', 'pa', 'ca', ...
-                    other_single.add(tok)
+                tok_n = _norm(tok)
+                if " " in tok_n:
+                    other_multi.append(tok_n)
+                else:
+                    other_single.add(tok_n)
+
+        loc_tokens = set(_tokens(loc_norm))
 
         # многословные — ищем по границам слов
         for tok in other_multi:
             if re.search(rf"\b{re.escape(tok)}\b", loc_norm):
                 return False
 
-        # однословные — только точные токены (без подстроки)
+        # однословные — только точные токены (без подстрок)
         if any(tok in loc_tokens for tok in other_single):
             return False
 
-        # 2) Разрешающие токены нашей страны/городов
+        # 2) Позитивные алиасы нашей страны/городов
         allowed_country_aliases = set(self.COUNTRY_ALIASES.get(country_code, []))
-        city_aliases = { _norm(c) for c in self.DEFAULT_CITIES.get(country_code, []) }
+        city_aliases = {_norm(c) for c in self.DEFAULT_CITIES.get(country_code, [])}
         city_aliases.update(self.EXTRA_CITY_ALIASES.get(country_code, []))
         allowed = allowed_country_aliases | city_aliases
 
         positive_match = False
-        # многословные разрешающие
+        # многословные разрешающие — в локации
         for tok in (t for t in allowed if " " in t):
             if re.search(rf"\b{re.escape(tok)}\b", loc_norm):
                 positive_match = True
                 break
-        # однословные разрешающие (через токены)
+        # однословные — как точные токены
         if not positive_match and any((t in loc_tokens) for t in (t for t in allowed if " " not in t)):
             positive_match = True
 
-        # если локация пустая/скупая — ищем маркеры в тексте
+        # если локация пустая/слабая — ищем маркеры в тексте
         if not positive_match and (not loc_norm or len(loc_norm) < 3):
             # многословные
             if any(re.search(rf"\b{re.escape(tok)}\b", text_norm) for tok in (t for t in allowed if " " in t)):
@@ -481,29 +598,25 @@ class JoobleAggregator(BaseJobAggregator):
                 text_tokens = set(_tokens(text_norm))
                 if any(t in text_tokens for t in (t for t in allowed if " " not in t)):
                     positive_match = True
-            # немецкие текстовые маркеры
-            if country_code == "de" and not positive_match:
-                if any(tok in text_norm for tok in self.DE_LANGUAGE_MARKERS):
-                    positive_match = True
-
-        # немецкие почтовые индексы 10000–99999 (слабый сигнал)
-        if country_code == "de" and not positive_match:
-            if re.search(r'\b[1-9]\d{4}\b', text_norm):
-                positive_match = True
 
         if not positive_match:
             return False
 
-        # 3) Анти‑шум по title/snippet: US/CA маркеры и US‑штаты в тексте (по токенам)
+        # 3) Антишум из США/Канады по тексту (title+snippet+location)
         if self._has_foreign_markers_in_text(text_norm, country_code):
             return False
 
-        # 4) Спец‑кейс: Delaware vs Germany — строго по границам
-        if country_code == "de":
-            if re.search(r"(delaware\b|\bdover,\s*de\b|\bnewark,\s*de\b|\bwilmington,\s*de\b|,\s*de\b)", loc_norm):
-                return False
+        # 4) Жёсткие минус-слова/компании (если используете)
+        title_lc = _norm(title)
+        if any(bad in title_lc for bad in self.NEGATIVE_GLOBAL):
+            return False
+
+        comp_norm = (getattr(self, "_last_company_norm", "") or "").lower()
+        if comp_norm and any(bad in comp_norm for bad in self.HARD_NEGATIVE_COMPANIES):
+            return False
 
         return True
+
 
 
     def _safe_post(self, url: str, *, json: dict) -> Optional[dict]:
@@ -676,44 +789,133 @@ class JoobleAggregator(BaseJobAggregator):
                     continue
 
         return datetime.utcnow().strftime("%Y-%m-%d")
+    
+    @staticmethod
+    def _norm_txt(s: str) -> str:
+        s = (s or "").strip().lower()
+        s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+        s = re.sub(r"[^\w\s]", " ", s)
+        return re.sub(r"\s+", " ", s).strip()
+
+    @staticmethod
+    def _city_part(loc: str) -> str:
+        loc = (loc or "").lower()
+        parts = re.split(r"[,/()|\-\u2013]", loc)
+        for p in parts:
+            p = p.strip()
+            if p and len(p) > 1:
+                return p
+        return ""
+
+    @staticmethod
+    def _domain(u: str) -> str:
+        try:
+            d = urlparse(u).netloc.lower()
+            return d[4:] if d.startswith("www.") else d
+        except Exception:
+            return ""
+
 
     def _deduplicate_jobs(self, jobs: List[JobVacancy]) -> List[JobVacancy]:
-        """Удаление дубликатов по ID"""
-        seen_ids = set()
-        unique_jobs = []
+        """
+        Усиленный дедуп внутри Jooble:
+          K1: (norm_title, norm_company, city)
+          K2: (domain(apply_url), norm_title)
+        Выбираем «лучший» экземпляр: свежая дата выше, наличие зарплаты выше.
+        """
+        if not jobs:
+            return jobs
 
-        for job in jobs:
-            if job.id not in seen_ids:
-                seen_ids.add(job.id)
-                unique_jobs.append(job)
+        def score(j: JobVacancy) -> int:
+            s = 0
+            # зарплата – небольшой буст
+            if getattr(j, "salary", None):
+                s += 10
+            # свежесть
+            try:
+                ts = datetime.strptime(j.posted_date, "%Y-%m-%d").timestamp()
+                # делим, чтобы не раздувать счёт
+                s += int(ts // (24 * 3600))
+            except Exception:
+                pass
+            return s
 
-        if len(jobs) != len(unique_jobs):
-            print(f"🔄 Jooble: удалено {len(jobs) - len(unique_jobs)} дубликатов")
+        seen_tuple = {}         # K1 -> JobVacancy
+        seen_domain_title = {}  # K2 -> JobVacancy
 
-        return unique_jobs
+        for j in jobs:
+            k1 = (self._norm_txt(j.title), self._norm_txt(j.company), self._city_part(j.location))
+            k2 = (self._domain(j.apply_url), self._norm_txt(j.title))
+
+            # по K1
+            cur = seen_tuple.get(k1)
+            if cur is None or score(j) > score(cur):
+                seen_tuple[k1] = j
+
+            # по K2 (ловим трекинг-ссылки от одного и того же источника)
+            if k2[0]:  # домен известен
+                cur2 = seen_domain_title.get(k2)
+                if cur2 is None or score(j) > score(cur2):
+                    seen_domain_title[k2] = j
+
+        # собрать лучшие экземпляры
+        picked = {}
+        for v in seen_tuple.values():
+            picked[v.id] = v
+        for v in seen_domain_title.values():
+            picked[v.id] = v
+
+        result = list(picked.values())
+        if self.debug and len(result) < len(jobs):
+            print(f"🔄 Jooble: удалено {len(jobs) - len(result)} дубликатов (усиленный дедуп)")
+
+        return result
+    
+    def _infer_role_from_term(self, term: str) -> str:
+        t = (term or "").lower()
+        warehouse_markers = {
+            "warehouse","operative","picker","packer","loader","material handler",
+            "magazijn","orderpicker","lager","kommissionierer","magazyn","грузчик","склад"
+        }
+        if any(m in t for m in warehouse_markers):
+            return "warehouse"
+        for k, variants in self.TERM_TRANSLATIONS.items():
+            if t == k or t in (v.lower() for v in variants):
+                if any("warehouse" in v.lower() or "lager" in v.lower()
+                    or "magaz" in v.lower() or "kommissionierer" in v.lower()
+                    for v in ([k] + variants)):
+                    return "warehouse"
+        return "generic"
+
 
     def is_relevant_job(self, job_title: str, job_description: str, search_term: str) -> bool:
-        """
-        Мягкая проверка релевантности: ищем слова из термина в title/первых 200 символах описания.
-        """
+        title = (job_title or "").lower()
+        desc  = (job_description or "").lower()
+        company_norm = (getattr(self, "_last_company_norm", "") or "").lower()
+        text_norm = re.sub(r"[^a-zа-яё0-9 ]", " ", title).lower()
+        if any(bad in company_norm for bad in self.HARD_NEGATIVE_COMPANIES):
+            return False
+
+        role = self._infer_role_from_term(search_term)
+
+        # — для «склада» требуем ПОЛОЖИТЕЛЬНЫЕ маркеры
+        if role == "warehouse":
+            if any(pos in title or pos in desc for pos in self.WAREHOUSE_POSITIVE):
+                return True
+            return False  # нет складских маркеров — нерелевант
+
+        # — остальное оставляем мягким (как было)
         if not search_term:
             return True
+        t = search_term.lower()
+        if t in title:
+            return True
+        words = [w for w in re.findall(r"[a-zа-яё\-]+", t) if len(w) > 2]
+        if not words:
+            return t in desc
+        found = sum(1 for w in words if w in title or w in desc)
+        return found >= max(1, int(len(words) * 0.5))
 
-        title_norm = (job_title or "").lower()
-        desc_norm = (job_description or "")[:200].lower()
-        term_norm = search_term.lower()
-
-        term_words = [w for w in term_norm.split() if len(w) > 2]
-
-        for word in term_words:
-            if word in title_norm or word in desc_norm:
-                return True
-
-        if len(term_words) > 1:
-            found_words = sum(1 for w in term_words if w in title_norm or w in desc_norm)
-            return found_words >= len(term_words) * 0.5
-
-        return False
 
 
 # ---------- DEBUG / ТЕСТЫ ----------
