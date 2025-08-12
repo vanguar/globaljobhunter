@@ -272,11 +272,9 @@ class JoobleAggregator(BaseJobAggregator):
                 print(f"⚠️ Jooble: неподдерживаемая страна '{country_code}', пропускаем")
             return jobs
 
-        # Базовые города
-        if cities:
-            base_locations: List[str] = [c.strip() for c in cities if c and c.strip()][:3]
-        else:
-            base_locations = list(self.DEFAULT_CITIES.get(country_code, []))[:6]
+        # Варианты локаций (с учётом локального названия страны)
+        loc_variants: List[Tuple[str, str]] = self._build_loc_variants(country_code, cities)
+
 
         # Конструируем варианты локаций (без ISO)
         loc_variants: List[Tuple[str, str]] = []
@@ -473,6 +471,7 @@ class JoobleAggregator(BaseJobAggregator):
     
     def _build_loc_variants(self, country_code: str, cities: List[str]) -> List[Tuple[str, str]]:
         """
+        Формирует локации для запроса в Jooble:
         "City, CountryEN" → "City, CountryLocal" → "City" → "CountryEN" → "CountryLocal" → "" (global).
         Для DE добавляем 'Deutschland'.
         """
@@ -483,6 +482,7 @@ class JoobleAggregator(BaseJobAggregator):
             "ch": "Schweiz",
         }.get(country_code, "")
 
+        # Города: из настроек или дефолтов
         if cities:
             base_locations = [c.strip() for c in cities if c and c.strip()][:3]
         else:
@@ -505,9 +505,6 @@ class JoobleAggregator(BaseJobAggregator):
 
         loc_variants.append(("", "global"))
         return loc_variants
-
-
-
 
     def _passes_country_filter(self, item: Dict, country_code: str) -> bool:
         """
