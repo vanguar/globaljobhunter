@@ -8,6 +8,7 @@ import requests
 import time
 from datetime import datetime
 from typing import List, Dict, Optional
+from dataclasses import asdict
 import hashlib
 from dotenv import load_dotenv
 
@@ -55,17 +56,14 @@ class CareerjetAggregator(BaseJobAggregator):
 
     def get_supported_countries(self) -> Dict[str, Dict]:
         """Возвращает словарь стран, поддерживаемых этим агрегатором."""
-        return {
-            code: self.adzuna_countries.get(code, {"name": name})
-            for code, name in self.country_map.items()
-        }
+        return {}
 
     def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
         """
         Основной метод поиска. Ищет по стране, и если указан город - уточняет поиск.
         Выполняет поиск для каждой профессии отдельно.
         """
-        print(f"🔍 {self.source_name}: Начинаем поиск...")
+        print(f"� {self.source_name}: Начинаем поиск...")
         all_jobs: List[JobVacancy] = []
         
         selected_jobs = preferences.get('selected_jobs', [])
@@ -212,17 +210,13 @@ class CareerjetAggregator(BaseJobAggregator):
             except (ValueError, TypeError):
                 posted_date = datetime.now().strftime('%Y-%m-%d')
 
-            # Безопасный strip() для полей
-            company = (raw_job.get('company') or 'Not specified').strip()
-            location = (raw_job.get('locations') or 'Not specified').strip()
-
             return JobVacancy(
                 id=f"careerjet_{job_id}",
-                title=title.strip() if title else '',
-                company=company,
-                location=location,
+                title=title,
+                company=raw_job.get('company', 'Not specified'),
+                location=raw_job.get('locations', 'Not specified'),
                 salary=raw_job.get('salary'),
-                description=description.strip() if description else '',
+                description=description,
                 apply_url=url,
                 source=self.source_name,
                 posted_date=posted_date,
