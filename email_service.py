@@ -19,11 +19,14 @@ def send_async_email(app, msg):
             print(f"❌ Ошибка отправки email на {msg.recipients[0]}: {e}")
             return False
 
-def send_job_notifications(app, aggregator):
-    """Отправка уведомлений всем подписчикам - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
+def send_job_notifications(app, main_aggregator, additional_aggregators={}):
+    """
+    Отправка уведомлений всем подписчикам.
+    **Новая версия:** Ищет по ВСЕМ доступным источникам.
+    """
     with app.app_context():
         print("=" * 60)
-        print("📧 НАЧИНАЕМ ОТПРАВКУ УВЕДОМЛЕНИЙ...")
+        print("📧 НАЧИНАЕМ ОТПРАВКУ УВЕДОМЛЕНИЙ (ВСЕ ИСТОЧНИКИ)...")
         print("=" * 60)
         
         subscribers = Subscriber.query.filter_by(is_active=True).all()
@@ -43,7 +46,7 @@ def send_job_notifications(app, aggregator):
                     'is_refugee': subscriber.is_refugee,
                     'selected_jobs': subscriber.get_selected_jobs(),
                     'countries': subscriber.get_countries(),
-                    'city': subscriber.city
+                    'cities': [subscriber.city] if subscriber.city else []
                 }
                 
                 print(f"   ⚙️ Предпочтения: профессии={len(preferences['selected_jobs'])}, страны={len(preferences['countries'])}")
@@ -52,47 +55,68 @@ def send_job_notifications(app, aggregator):
                     print(f"   ⚠️ У {subscriber.email} отсутствуют профессии или страны - пропускаем")
                     continue
                 
-                # 🔧 ИСПРАВЛЕНИЕ: ПОИСК РЕАЛЬНЫХ ВАКАНСИЙ
-                print(f"   🔍 Ищем вакансии через агрегатор...")
+                # --- ГЛАВНОЕ ИЗМЕНЕНИЕ: Поиск по всем агрегаторам ---
+                print(f"   🔍 Ищем вакансии через все доступные источники...")
                 
-                if aggregator:
-                    # Используем РЕАЛЬНЫЙ поиск вакансий
-                    real_jobs = aggregator.search_specific_jobs(preferences)
-                    print(f"   ✅ Найдено {len(real_jobs)} реальных вакансий")
-                    
-                    if len(real_jobs) == 0:
-                        print(f"   ℹ️ Нет новых вакансий для {subscriber.email} - пропускаем отправку")
-                        continue
-                        
-                else:
-                    print(f"   ⚠️ Агрегатор недоступен - создаем тестовые вакансии")
-                    real_jobs = create_fallback_jobs(preferences)
+                all_found_jobs = []
+                
+                # 1. Основной агрегатор (Adzuna)
+                if main_aggregator:
+                    try:
+                        adzuna_jobs = main_aggregator.search_specific_jobs(preferences)
+                        all_found_jobs.extend(adzuna_jobs)
+                        print(f"   ✅ Adzuna: найдено {len(adzuna_jobs)} вакансий")
+                    except Exception as e:
+                        print(f"   ⚠️ Adzuna ошибка: {e}")
+
+                # 2. Дополнительные агрегаторы
+                for source_name, aggregator in additional_aggregators.items():
+                    try:
+                        additional_jobs = aggregator.search_jobs(preferences)
+                        all_found_jobs.extend(additional_jobs)
+                        print(f"   ✅ {source_name.title()}: найдено {len(additional_jobs)} вакансий")
+                    except Exception as e:
+                        print(f"   ⚠️ {source_name.title()} ошибка: {e}")
+                
+                # Дедупликация финального списка
+                seen_urls = set()
+                final_jobs = []
+                for job in all_found_jobs:
+                    if hasattr(job, 'apply_url') and job.apply_url and job.apply_url not in seen_urls:
+                        seen_urls.add(job.apply_url)
+                        final_jobs.append(job)
+
+                print(f"   📊 Итого уникальных вакансий: {len(final_jobs)}")
+                # --- КОНЕЦ ГЛАВНОГО ИЗМЕНЕНИЯ ---
+
+                if not final_jobs:
+                    print(f"   ℹ️ Нет новых вакансий для {subscriber.email} - пропускаем отправку")
+                    continue
                 
                 # Отправляем email с найденными вакансиями
-                if len(real_jobs) > 0:
-                    print(f"   📤 Отправляем email с {len(real_jobs)} вакансиями...")
-                    
-                    success = send_job_email(app, subscriber, real_jobs[:20], preferences)
-                    
-                    if success:
-                        log = EmailLog(
-                            subscriber_id=subscriber.id,
-                            email=subscriber.email,
-                            subject=f"🎯 ТОП-{min(5, len(real_jobs))} новых вакансий (из {len(real_jobs)} найденных)",
-                            jobs_count=len(real_jobs),
-                            status='sent',
-                            sent_at=datetime.now()
-                        )
-                        db.session.add(log)
-                        subscriber.last_sent = datetime.now()
-                        sent_count += 1
-                        print(f"   ✅ Email успешно отправлен на {subscriber.email}")
-                        time.sleep(3)
-                    else:
-                        print(f"   ❌ Не удалось отправить email на {subscriber.email}")
+                print(f"   📤 Отправляем email с {len(final_jobs)} вакансиями...")
+                
+                success = send_job_email(app, subscriber, final_jobs[:20], preferences) # Ограничение в 20 вакансий на письмо
+                
+                if success:
+                    log = EmailLog(
+                        subscriber_id=subscriber.id,
+                        email=subscriber.email,
+                        subject=f"🎯 Найдено {len(final_jobs)} новых вакансий",
+                        jobs_count=len(final_jobs),
+                        status='sent',
+                        sent_at=datetime.now()
+                    )
+                    db.session.add(log)
+                    subscriber.last_sent = datetime.now()
+                    sent_count += 1
+                    print(f"   ✅ Email успешно отправлен на {subscriber.email}")
+                    time.sleep(3) # Небольшая пауза между отправками
+                else:
+                    print(f"   ❌ Не удалось отправить email на {subscriber.email}")
                 
             except Exception as e:
-                print(f"   ❌ ОШИБКА для {subscriber.email}: {e}")
+                print(f"   ❌ КРИТИЧЕСКАЯ ОШИБКА для {subscriber.email}: {e}")
                 import traceback
                 traceback.print_exc()
         

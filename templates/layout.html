@@ -42,6 +42,25 @@
         </div>
     </nav>
 
+    <!-- СОВРЕМЕННЫЙ БЛОК ПАРТНЕРОВ -->
+    <section class="partners-modern-section">
+        <div class="container">
+            <h5 class="text-center text-muted fw-light mb-4">Нам доверяют и предоставляют данные</h5>
+            <div class="partners-grid">
+                <div class="partner-card">
+                    <div class="partner-logo adzuna">Adzuna</div>
+                </div>
+                <div class="partner-card">
+                    <div class="partner-logo jobicy">Jobicy</div>
+                </div>
+                <div class="partner-card">
+                    <div class="partner-logo careerjet">career<span>JET</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- КОНЕЦ НОВОГО БЛОКА -->
+
     <main class="flex-grow-1">
         {% block content %}{% endblock %}
     </main>
@@ -59,12 +78,16 @@
                     </p>
                 </div>
                 
-                <div class="col-lg-3 mb-4 mb-lg-0">
-                    <h6 class="fw-bold mb-3">Быстрые ссылки</h6>
+                <h6 class="fw-bold mb-3">Быстрые ссылки</h6>
                     <ul class="list-unstyled">
                         <li class="mb-2">
                             <a href="{{ url_for('index') }}" class="text-light opacity-75 text-decoration-none btn-hover">
                                 <i class="bi bi-house me-2"></i>Главная
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="{{ url_for('support') }}" class="text-light opacity-75 text-decoration-none btn-hover">
+                                <i class="bi bi-heart me-2"></i>Поддержать проект
                             </a>
                         </li>
                     </ul>
@@ -74,7 +97,7 @@
                     <h6 class="fw-bold mb-3">Поддержка</h6>
                     <div class="d-flex align-items-center mb-2">
                         <i class="bi bi-code-slash me-2 text-primary"></i>
-                        <span class="opacity-75">Powered by Adzuna API, Jobicy API</span>
+                        <span class="opacity-75">Powered by Adzuna, Jobicy & Careerjet API</span>
                     </div>
                 </div>
             </div>

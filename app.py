@@ -29,6 +29,7 @@ import schedule
 
 # Импортируем существующий агрегатор
 from adzuna_aggregator import GlobalJobAggregator, JobVacancy
+from careerjet_aggregator import CareerjetAggregator
 
 # Rate limiting
 RATE_LIMIT_FILE = "rate_limits.json"
@@ -131,6 +132,12 @@ if ADDITIONAL_SOURCES_AVAILABLE:
     try:
         additional_aggregators['jobicy'] = JobicyAggregator()
         # additional_aggregators['usajobs'] = USAJobsAggregator()  # Нужен API ключ
+        # Передаем справочник стран из основного агрегатора
+        # Передаем оба справочника из основного агрегатора
+        additional_aggregators['careerjet'] = CareerjetAggregator(
+            adzuna_countries=aggregator.countries, 
+            specific_jobs_map=aggregator.specific_jobs
+        )
         app.logger.info(f"✅ Дополнительные источники: {list(additional_aggregators.keys())}")
     except Exception as e:
         app.logger.warning(f"⚠️ Дополнительные источники недоступны: {e}")
@@ -1358,7 +1365,8 @@ def admin_send_emails():
         
         # Если есть активные подписчики - отправляем
         from email_service import send_job_notifications
-        sent_count = send_job_notifications(app, aggregator)
+        # Передаем основной и дополнительные агрегаторы
+        sent_count = send_job_notifications(app, aggregator, additional_aggregators)
         
         if sent_count > 0:
             flash(f'✅ Рассылка завершена! Отправлено {sent_count} из {len(active_subscribers)} писем', 'success')
@@ -1872,7 +1880,8 @@ def send_notifications():
             debug_info.append(f"   Страны: {countries}")
         
         # Попытка отправки
-        sent_count = send_job_notifications(app, aggregator)
+        # Передаем основной и дополнительные агрегаторы
+        sent_count = send_job_notifications(app, aggregator, additional_aggregators)
         
         debug_info.append(f"📧 Отправлено: {sent_count}")
         

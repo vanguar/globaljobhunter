@@ -622,3 +622,59 @@ footer a:hover {
 .source-badge i {
     opacity: 0.7;
 }
+
+/* --- СОВРЕМЕННЫЙ БЛОК ПАРТНЕРОВ --- */
+.partners-modern-section {
+    padding: 40px 0;
+    background: #f8f9fa; /* Светлый фон для контраста */
+    border-bottom: 1px solid #e9ecef;
+}
+
+.partners-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Адаптивная сетка */
+    gap: 20px;
+    justify-content: center;
+}
+
+.partner-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px; /* Скругленные углы */
+    padding: 25px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.partner-card:hover {
+    transform: translateY(-5px); /* Эффект "приподнимания" */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08); /* Мягкая тень */
+}
+
+.partner-logo {
+    font-size: 1.8rem;
+    font-weight: 700;
+    display: block;
+}
+
+/* Стилизация логотипов */
+.partner-logo.adzuna {
+    font-family: 'Inter', sans-serif;
+    color: #00a99d;
+}
+
+.partner-logo.jobicy {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    color: #0069ff;
+    font-style: italic;
+}
+
+.partner-logo.careerjet {
+    font-family: Arial, sans-serif;
+    color: #555;
+}
+
+.partner-logo.careerjet span {
+    color: #f8971d;
+}
