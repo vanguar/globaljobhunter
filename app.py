@@ -88,26 +88,11 @@ def check_rate_limit(ip_address):
 try:
     from jobicy_aggregator import JobicyAggregator
     from usajobs_aggregator import USAJobsAggregator
-
     ADDITIONAL_SOURCES_AVAILABLE = True
     print("✅ Дополнительные источники доступны")
 except ImportError as e:
     ADDITIONAL_SOURCES_AVAILABLE = False
     print(f"ℹ️ Дополнительные источники недоступны: {e}")
-
-# Импортируем Jooble отдельно, чтобы не ломать флаг ADDITIONAL_SOURCES_AVAILABLE
-try:
-    from jooble_aggregator import JoobleAggregator
-    JOOBLE_AVAILABLE = True
-except ImportError as e:
-    JOOBLE_AVAILABLE = False
-    print(f"ℹ️ Jooble недоступен: {e}")
-
-if JOOBLE_AVAILABLE:
-    if os.getenv('JOOBLE_API_KEY'):
-        print("🔑 JOOBLE_API_KEY найден в окружении")
-    else:
-        print("⛔ JOOBLE_API_KEY отсутствует — Jooble не будет добавлен")
 
 load_dotenv()
 
@@ -145,13 +130,6 @@ additional_aggregators = {}
 if ADDITIONAL_SOURCES_AVAILABLE:
     try:
         additional_aggregators['jobicy'] = JobicyAggregator()
-        if JOOBLE_AVAILABLE and os.getenv('JOOBLE_API_KEY'):
-            additional_aggregators['jooble'] = JoobleAggregator()
-            app.logger.info("✅ Jooble API подключён")
-        else:
-            app.logger.info("ℹ️ Jooble пропущен: "
-                            f"available={JOOBLE_AVAILABLE}, "
-                            f"has_key={'yes' if os.getenv('JOOBLE_API_KEY') else 'no'}")    
         # additional_aggregators['usajobs'] = USAJobsAggregator()  # Нужен API ключ
         app.logger.info(f"✅ Дополнительные источники: {list(additional_aggregators.keys())}")
     except Exception as e:
