@@ -129,9 +129,14 @@
                             <button type="submit" class="btn btn-primary btn-lg px-5 py-3">
                                 🚀 Найти работу
                             </button>
-                            <!-- ДОБАВЬТЕ ЭТОТ БЛОК СРАЗУ ПОСЛЕ КНОПКИ -->
+                            <!-- ДОБАВЬТЕ ИЛИ ЗАМЕНИТЕ НА ЭТОТ БЛОК -->
                             <div id="loading-message" class="mt-3 text-center" style="display: none; height: 0; opacity: 0; transition: all 0.5s ease;">
-                                <p class="text-muted">Ищем вакансии по всем сайтам... Это может занять до минуты, пожалуйста, подождите.</p>
+                                <div class="d-flex justify-content-center align-items-center">
+                                    <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="text-muted mb-0">Ищем вакансии по всем сайтам... Это может занять до минуты, пожалуйста, подождите.</p>
+                                </div>
                             </div>
 
                             <div class="text-center mt-4 pt-4 border-top">
@@ -265,6 +270,7 @@ function showTemporaryMessage(message, type = 'info') {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('job-search-form');
+    // Уточняем селектор, чтобы найти именно кнопку отправки формы
     const searchButton = form.querySelector('button[type="submit"]');
     const loadingMessageDiv = document.getElementById('loading-message');
     let loadingMessageTimeout;
@@ -276,12 +282,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(form);
         const selectedJobs = formData.getAll('selected_jobs');
         const countries = formData.getAll('countries');
-        const isRefugee = formData.get('is_refugee') === 'true';
+        // Убедимся, что radio button всегда имеет значение
+        const isRefugeeInput = formData.get('is_refugee');
+        const isRefugee = isRefugeeInput === 'true'; 
         const city = formData.get('city');
 
         // Валидация
+        if (!isRefugeeInput) {
+            showTemporaryMessage('Пожалуйста, укажите ваш статус (шаг 1)', 'warning');
+            return;
+        }
         if (selectedJobs.length === 0) {
-            showTemporaryMessage('Пожалуйста, выберите хотя бы одну профессию', 'warning');
+            showTemporaryMessage('Пожалуйста, выберите хотя бы одну профессию (шаг 2)', 'warning');
+            return;
+        }
+        if (countries.length === 0) {
+            showTemporaryMessage('Пожалуйста, выберите хотя бы одну страну (шаг 3)', 'warning');
             return;
         }
 
@@ -314,20 +330,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 city: city
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // Если сервер вернул ошибку (например, 429 Rate Limit)
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
         .then(data => {
             clearTimeout(loadingMessageTimeout); // Отменяем таймер
-            if (data.success) {
+            if (data.success && data.redirect_url) {
                 window.location.href = data.redirect_url; // Переходим на страницу результатов
             } else {
-                showTemporaryMessage(data.error || 'Произошла ошибка', 'warning');
+                // Если success=false или нет redirect_url
+                showTemporaryMessage(data.error || 'Произошла неизвестная ошибка', 'warning');
                 resetButton();
             }
         })
         .catch(error => {
             console.error('Search error:', error);
             clearTimeout(loadingMessageTimeout); // Отменяем таймер при ошибке
-            showTemporaryMessage('Произошла ошибка сети. Попробуйте снова.', 'warning');
+            // Показываем ошибку от сервера, если она есть
+            const errorMessage = error.error || 'Произошла ошибка сети. Попробуйте снова.';
+            showTemporaryMessage(errorMessage, 'warning');
             resetButton();
         });
     });
