@@ -1,7 +1,6 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<!-- Подключение стилей для логотипов партнеров -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/partners.css') }}">
 
 <main>
@@ -19,32 +18,25 @@
         </div>
     </section>
 
-    <!-- === НАЧАЛО ИЗМЕНЕНИЙ: БЛОК ПАРТНЕРОВ ОБНОВЛЕН === -->
     <section class="partners-section bg-light py-4">
         <div class="container">
             <h6 class="text-center text-muted mb-4">Нам доверяют и предоставляют данные</h6>
             <div class="row align-items-center justify-content-center g-4">
-                <!-- Adzuna (CSS Logo) -->
                 <div class="col-6 col-md-3 text-center">
                     <div class="logo-text adzuna-logo">Adzuna</div>
                 </div>
-                <!-- Jobicy (CSS Logo) -->
                 <div class="col-6 col-md-3 text-center">
                     <div class="logo-text jobicy-logo">Jobicy</div>
                 </div>
-                <!-- Careerjet (CSS Logo) -->
                 <div class="col-6 col-md-3 text-center">
                     <div class="logo-text careerjet-logo">career<span class="jet">JET</span></div>
                 </div>
-                <!-- Remotive (CSS Logo) -->
                 <div class="col-6 col-md-3 text-center">
                     <div class="logo-text remotive-logo">Remotive</div>
                 </div>
             </div>
         </div>
     </section>
-    <!-- === КОНЕЦ ИЗМЕНЕНИЙ === -->
-
     <section id="search-form-section">
         <div class="container">
             <div class="row justify-content-center">
@@ -86,7 +78,6 @@
                             </div>
                             <div class="mb-4">
                                 <p class="text-muted mb-2">Быстрый выбор по категориям:</p>
-                                <!-- === НАЧАЛО ИЗМЕНЕНИЙ: ДОБАВЛЕНА КНОПКА "ОФИС И УПРАВЛЕНИЕ" === -->
                                 <div id="quick-select-buttons" class="d-flex flex-wrap gap-2">
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('transport', this)">🚗 Транспорт</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('restaurant', this)">🍽️ Общепит</button>
@@ -99,8 +90,7 @@
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('fuel', this)">⛽ АЗС</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('oilgas', this)">🛢 Нефть и газ</button>
                                 </div>
-                                <!-- === КОНЕЦ ИЗМЕНЕНИЙ === -->
-                            </div>
+                                </div>
 
                             {% for category, jobs in job_categories.items() %}
                             <div class="mb-3" data-category="{{ category }}">
@@ -198,7 +188,6 @@
     </section>
 </main>
 
-<!-- Подключаем мульти-языковые категории -->
 <script src="{{ url_for('static', filename='js/categories.js') }}"></script>
 
 <script>
@@ -240,6 +229,7 @@ function selectJobCategory(category, buttonElement) {
     }
 }
 
+// === НАЧАЛО ИЗМЕНЕНИЙ: ДОБАВЛЕНА КАТЕГОРИЯ 'OFFICE' ДЛЯ КОРРЕКТНОЙ РАБОТЫ КНОПКИ ===
 function getReadableCategoryName(category) {
     const names = {
         'transport': 'Транспорт',
@@ -251,10 +241,11 @@ function getReadableCategoryName(category) {
         'autoservice': 'Автосервис',
         'fuel': 'АЗС',
         'oilgas': 'Нефть и газ',
-        'office': 'Офис и управление' // <-- ДОБАВЛЕНА ЭТА СТРОКА
+        'office': 'Офис и управление'
     };
     return names[category] || category;
 }
+// === КОНЕЦ ИЗМЕНЕНИЙ ===
 
 function showTemporaryMessage(message, type = 'info') {
     // удалить предыдущие уведомления
@@ -393,4 +384,18 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const targetText = 'Powered by Adzuna, Jobicy & Careerjet Api';
+    const replacementText = 'Powered by Adzuna, Jobicy, Careerjet & Remotive Api';
+    
+    // Ищем целевой элемент в футере
+    const footerElements = document.querySelectorAll('footer p, footer div');
+    footerElements.forEach(el => {
+        if (el.textContent.includes(targetText)) {
+            el.textContent = replacementText;
+        }
+    });
+});
+</script>
 {% endblock %}
