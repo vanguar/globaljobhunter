@@ -30,6 +30,7 @@ import schedule
 # Импортируем существующий агрегатор
 from adzuna_aggregator import GlobalJobAggregator, JobVacancy
 from careerjet_aggregator import CareerjetAggregator
+from remotive_aggregator import RemotiveAggregator
 
 # Rate limiting
 RATE_LIMIT_FILE = "rate_limits.json"
@@ -132,12 +133,18 @@ if ADDITIONAL_SOURCES_AVAILABLE:
     try:
         additional_aggregators['jobicy'] = JobicyAggregator()
         # additional_aggregators['usajobs'] = USAJobsAggregator()  # Нужен API ключ
-        # Передаем справочник стран из основного агрегатора
+        
         # Передаем оба справочника из основного агрегатора
         additional_aggregators['careerjet'] = CareerjetAggregator(
             adzuna_countries=aggregator.countries, 
             specific_jobs_map=aggregator.specific_jobs
         )
+
+        # ДОБАВИТЬ ЭТИ 3 СТРОКИ
+        additional_aggregators['remotive'] = RemotiveAggregator(
+            specific_jobs_map=aggregator.specific_jobs
+        )
+
         app.logger.info(f"✅ Дополнительные источники: {list(additional_aggregators.keys())}")
     except Exception as e:
         app.logger.warning(f"⚠️ Дополнительные источники недоступны: {e}")
