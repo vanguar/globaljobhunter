@@ -5,6 +5,92 @@ import os
 from threading import Thread
 import time
 
+def _search_all_sources(main_aggregator, additional_aggregators, preferences):
+    """
+    Вспомогательная функция для поиска по ВСЕМ источникам и дедупликации.
+    """
+    print(f"   🔍 Ищем вакансии через все доступные источники...")
+    all_found_jobs = []
+
+    # 1. Основной агрегатор (Adzuna)
+    if main_aggregator:
+        try:
+            adzuna_jobs = main_aggregator.search_specific_jobs(preferences)
+            all_found_jobs.extend(adzuna_jobs)
+            print(f"   ✅ Adzuna: найдено {len(adzuna_jobs)} вакансий")
+        except Exception as e:
+            print(f"   ⚠️ Adzuna ошибка: {e}")
+
+    # 2. Дополнительные агрегаторы
+    for source_name, aggregator in additional_aggregators.items():
+        try:
+            additional_jobs = aggregator.search_jobs(preferences)
+            all_found_jobs.extend(additional_jobs)
+            print(f"   ✅ {source_name.title()}: найдено {len(additional_jobs)} вакансий")
+        except Exception as e:
+            print(f"   ⚠️ {source_name.title()} ошибка: {e}")
+
+    # 3. Дедупликация финального списка
+    seen_urls = set()
+    final_jobs = []
+    for job in all_found_jobs:
+        if hasattr(job, 'apply_url') and job.apply_url and job.apply_url not in seen_urls:
+            seen_urls.add(job.apply_url)
+            final_jobs.append(job)
+
+    print(f"   📊 Итого уникальных вакансий: {len(final_jobs)}")
+    return final_jobs
+
+def _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
+    """
+    Ищет и отправляет уведомление для ОДНОГО подписчика.
+    """
+    try:
+        preferences = {
+            'is_refugee': subscriber.is_refugee,
+            'selected_jobs': subscriber.get_selected_jobs(),
+            'countries': subscriber.get_countries(),
+            'cities': [subscriber.city] if subscriber.city else []
+        }
+
+        if not preferences['selected_jobs'] or not preferences['countries']:
+            print(f"   ⚠️ У {subscriber.email} отсутствуют профессии или страны - пропускаем")
+            return False
+
+        # Используем единую функцию поиска
+        final_jobs = _search_all_sources(main_aggregator, additional_aggregators, preferences)
+
+        if not final_jobs:
+            print(f"   ℹ️ Нет новых вакансий для {subscriber.email} - пропускаем отправку")
+            return False
+
+        # Отправляем email
+        print(f"   📤 Отправляем email с {len(final_jobs)} вакансиями...")
+        success = send_job_email(app, subscriber, final_jobs[:20], preferences) # Ограничение в 20 вакансий
+
+        if success:
+            log = EmailLog(
+                subscriber_id=subscriber.id,
+                email=subscriber.email,
+                subject=f"🎯 Найдено {len(final_jobs)} новых вакансий",
+                jobs_count=len(final_jobs),
+                status='sent',
+                sent_at=datetime.now()
+            )
+            db.session.add(log)
+            subscriber.last_sent = datetime.now()
+            print(f"   ✅ Email успешно отправлен на {subscriber.email}")
+            return True
+        else:
+            print(f"   ❌ Не удалось отправить email на {subscriber.email}")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ КРИТИЧЕСКАЯ ОШИБКА для {subscriber.email}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 mail = Mail()
 
 def send_async_email(app, msg):
@@ -21,110 +107,66 @@ def send_async_email(app, msg):
 
 def send_job_notifications(app, main_aggregator, additional_aggregators={}):
     """
-    Отправка уведомлений всем подписчикам.
-    **Новая версия:** Ищет по ВСЕМ доступным источникам.
+    Отправка уведомлений всем подписчикам (вызывается из админки).
     """
     with app.app_context():
         print("=" * 60)
-        print("📧 НАЧИНАЕМ ОТПРАВКУ УВЕДОМЛЕНИЙ (ВСЕ ИСТОЧНИКИ)...")
+        print("📧 НАЧИНАЕМ РУЧНУЮ ОТПРАВКУ УВЕДОМЛЕНИЙ...")
         print("=" * 60)
         
         subscribers = Subscriber.query.filter_by(is_active=True).all()
         print(f"👥 Найдено {len(subscribers)} активных подписчиков")
         
         if not subscribers:
-            print("ℹ️ Нет активных подписчиков для рассылки")
             return 0
         
         sent_count = 0
-        
         for i, subscriber in enumerate(subscribers, 1):
-            try:
-                print(f"\n🔄 ({i}/{len(subscribers)}) Обрабатываем {subscriber.email}...")
-                
-                preferences = {
-                    'is_refugee': subscriber.is_refugee,
-                    'selected_jobs': subscriber.get_selected_jobs(),
-                    'countries': subscriber.get_countries(),
-                    'cities': [subscriber.city] if subscriber.city else []
-                }
-                
-                print(f"   ⚙️ Предпочтения: профессии={len(preferences['selected_jobs'])}, страны={len(preferences['countries'])}")
-                
-                if not preferences['selected_jobs'] or not preferences['countries']:
-                    print(f"   ⚠️ У {subscriber.email} отсутствуют профессии или страны - пропускаем")
-                    continue
-                
-                # --- ГЛАВНОЕ ИЗМЕНЕНИЕ: Поиск по всем агрегаторам ---
-                print(f"   🔍 Ищем вакансии через все доступные источники...")
-                
-                all_found_jobs = []
-                
-                # 1. Основной агрегатор (Adzuna)
-                if main_aggregator:
-                    try:
-                        adzuna_jobs = main_aggregator.search_specific_jobs(preferences)
-                        all_found_jobs.extend(adzuna_jobs)
-                        print(f"   ✅ Adzuna: найдено {len(adzuna_jobs)} вакансий")
-                    except Exception as e:
-                        print(f"   ⚠️ Adzuna ошибка: {e}")
-
-                # 2. Дополнительные агрегаторы
-                for source_name, aggregator in additional_aggregators.items():
-                    try:
-                        additional_jobs = aggregator.search_jobs(preferences)
-                        all_found_jobs.extend(additional_jobs)
-                        print(f"   ✅ {source_name.title()}: найдено {len(additional_jobs)} вакансий")
-                    except Exception as e:
-                        print(f"   ⚠️ {source_name.title()} ошибка: {e}")
-                
-                # Дедупликация финального списка
-                seen_urls = set()
-                final_jobs = []
-                for job in all_found_jobs:
-                    if hasattr(job, 'apply_url') and job.apply_url and job.apply_url not in seen_urls:
-                        seen_urls.add(job.apply_url)
-                        final_jobs.append(job)
-
-                print(f"   📊 Итого уникальных вакансий: {len(final_jobs)}")
-                # --- КОНЕЦ ГЛАВНОГО ИЗМЕНЕНИЯ ---
-
-                if not final_jobs:
-                    print(f"   ℹ️ Нет новых вакансий для {subscriber.email} - пропускаем отправку")
-                    continue
-                
-                # Отправляем email с найденными вакансиями
-                print(f"   📤 Отправляем email с {len(final_jobs)} вакансиями...")
-                
-                success = send_job_email(app, subscriber, final_jobs[:20], preferences) # Ограничение в 20 вакансий на письмо
-                
-                if success:
-                    log = EmailLog(
-                        subscriber_id=subscriber.id,
-                        email=subscriber.email,
-                        subject=f"🎯 Найдено {len(final_jobs)} новых вакансий",
-                        jobs_count=len(final_jobs),
-                        status='sent',
-                        sent_at=datetime.now()
-                    )
-                    db.session.add(log)
-                    subscriber.last_sent = datetime.now()
-                    sent_count += 1
-                    print(f"   ✅ Email успешно отправлен на {subscriber.email}")
-                    time.sleep(3) # Небольшая пауза между отправками
-                else:
-                    print(f"   ❌ Не удалось отправить email на {subscriber.email}")
-                
-            except Exception as e:
-                print(f"   ❌ КРИТИЧЕСКАЯ ОШИБКА для {subscriber.email}: {e}")
-                import traceback
-                traceback.print_exc()
+            print(f"\n🔄 ({i}/{len(subscribers)}) Обрабатываем {subscriber.email}...")
+            if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
+                sent_count += 1
+            time.sleep(3) # Пауза между отправками
         
         db.session.commit()
         print("=" * 60)
-        print(f"🎉 ОТПРАВКА ЗАВЕРШЕНА: {sent_count}/{len(subscribers)} писем отправлено")
+        print(f"🎉 РУЧНАЯ ОТПРАВКА ЗАВЕРШЕНА: {sent_count}/{len(subscribers)} писем отправлено")
         print("=" * 60)
         return sent_count
+    
+def run_scheduled_notifications(app, main_aggregator, additional_aggregators):
+    """
+    Функция, которую вызывает планировщик.
+    Проверяет, кому нужно отправить письмо, и запускает процесс.
+    """
+    with app.app_context():
+        print("="*60)
+        print(f"📅 ПЛАНИРОВЩИК: Проверка подписчиков в {datetime.now().strftime('%H:%M:%S')}")
+        print("="*60)
+        
+        subscribers_to_notify = []
+        all_active_subscribers = Subscriber.query.filter_by(is_active=True).all()
+
+        for sub in all_active_subscribers:
+            if should_send_notification(sub):
+                subscribers_to_notify.append(sub)
+        
+        if not subscribers_to_notify:
+            print("ℹ️ ПЛАНИРОВЩИК: Нет подписчиков для отправки уведомлений.")
+            return
+
+        print(f"📬 ПЛАНИРОВЩИК: Найдено {len(subscribers_to_notify)} подписчиков для уведомления.")
+        
+        sent_count = 0
+        for i, subscriber in enumerate(subscribers_to_notify, 1):
+            print(f"\n🔄 ({i}/{len(subscribers_to_notify)}) Отправка для {subscriber.email}...")
+            if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
+                sent_count += 1
+            time.sleep(5) # Увеличим паузу для планировщика
+
+        db.session.commit()
+        print("=" * 60)
+        print(f"🎉 ПЛАНИРОВЩИК ЗАВЕРШЕН: {sent_count}/{len(subscribers_to_notify)} писем отправлено")
+        print("=" * 60)    
 
 def create_fallback_jobs(preferences):
     """Создание fallback вакансий только при недоступности агрегатора"""

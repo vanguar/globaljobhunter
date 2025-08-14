@@ -16,7 +16,7 @@ import secrets
 import uuid
 from dataclasses import asdict
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, render_template_string
-from email_service import mail, send_welcome_email, send_preferences_update_email, send_job_notifications
+from email_service import mail, send_welcome_email, send_preferences_update_email, send_job_notifications, run_scheduled_notifications
 
 # Добавить эти импорты ПОСЛЕ существующих
 from flask_mail import Mail
@@ -1894,25 +1894,22 @@ def send_notifications():
 def support():
     return render_template('support.html')  # или 'support_page.html' 
 
-def email_scheduler():
-    """Планировщик email рассылки"""
-    print("📅 Планировщик email рассылки запущен")
+def email_scheduler(app, main_aggregator, additional_aggregators):
+    """Планировщик email рассылки, который знает обо всех агрегаторах."""
+    print("📅 Планировщик email рассылки запущен со всеми агрегаторами")
+
+    # Передаем все агрегаторы в функцию, которую будет вызывать schedule
+    job_func = lambda: run_scheduled_notifications(app, main_aggregator, additional_aggregators)
+
+    # Запускаем проверку каждый час
+    schedule.every().hour.do(job_func)
     
-    # Ежедневно в 9:00
-    schedule.every().day.at("09:00").do(send_daily_notifications)
-    
-    # Еженедельно по понедельникам в 9:00  
-    schedule.every().monday.at("09:00").do(send_weekly_notifications)
-    
-    # Ежемесячно 1 числа в 9:00 (приблизительно)
-    schedule.every(30).days.at("09:00").do(send_monthly_notifications)
-    
-    # Для тестирования - каждые 2 минуты (УДАЛИТЬ В ПРОДАКШЕНЕ)
-    # schedule.every(2).minutes.do(send_test_notifications)
-    
+    # Для тестирования - запуск каждые 5 минут. ЗАКОММЕНТИРОВАТЬ В ПРОДАКШЕНЕ!
+    # schedule.every(5).minutes.do(job_func)
+
     while True:
         schedule.run_pending()
-        time.sleep(60)  # Проверяем каждую минуту
+        time.sleep(60)
 
 def send_daily_notifications():
     """Ежедневная рассылка"""
@@ -2330,7 +2327,8 @@ def upload_backup():
 if __name__ == '__main__':
     # Запускаем планировщик в отдельном потоке
     print("🚀 Запуск планировщика email рассылки...")
-    scheduler_thread = Thread(target=email_scheduler, daemon=True)
+    # Передаем в поток планировщика все, что ему нужно для работы
+    scheduler_thread = Thread(target=email_scheduler, args=(app, aggregator, additional_aggregators), daemon=True)
     scheduler_thread.start()
     
     # Запускаем Flask
