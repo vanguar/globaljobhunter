@@ -37,6 +37,7 @@
             </div>
         </div>
     </section>
+
     <section id="search-form-section">
         <div class="container">
             <div class="row justify-content-center">
@@ -90,7 +91,7 @@
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('fuel', this)">⛽ АЗС</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('oilgas', this)">🛢 Нефть и газ</button>
                                 </div>
-                                </div>
+                            </div>
 
                             {% for category, jobs in job_categories.items() %}
                             <div class="mb-3" data-category="{{ category }}">
@@ -229,7 +230,7 @@ function selectJobCategory(category, buttonElement) {
     }
 }
 
-// === НАЧАЛО ИЗМЕНЕНИЙ: ДОБАВЛЕНА КАТЕГОРИЯ 'OFFICE' ДЛЯ КОРРЕКТНОЙ РАБОТЫ КНОПКИ ===
+// Исправленная функция для корректной работы кнопки "Офис и управление"
 function getReadableCategoryName(category) {
     const names = {
         'transport': 'Транспорт',
@@ -245,7 +246,6 @@ function getReadableCategoryName(category) {
     };
     return names[category] || category;
 }
-// === КОНЕЦ ИЗМЕНЕНИЙ ===
 
 function showTemporaryMessage(message, type = 'info') {
     // удалить предыдущие уведомления
@@ -384,18 +384,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const targetText = 'Powered by Adzuna, Jobicy & Careerjet Api';
-    const replacementText = 'Powered by Adzuna, Jobicy, Careerjet & Remotive Api';
-    
-    // Ищем целевой элемент в футере
-    const footerElements = document.querySelectorAll('footer p, footer div');
-    footerElements.forEach(el => {
-        if (el.textContent.includes(targetText)) {
-            el.textContent = replacementText;
-        }
-    });
-});
-</script>
 {% endblock %}
