@@ -308,6 +308,31 @@ window.categoryMap = {
     'sl': ["Zaposleni na bencinski črpalki", "Upravitelj črpalke", "Blagajnik na črpalki"],
     'sv': ["Bensinstationsbiträde", "Stationsföreståndare", "Kassör på bensinstation"]
   },
+  'office': {
+    'ru': ["Менеджер", "Администратор", "Координатор", "Аналитик"],
+    'bg': ["Мениджър", "Администратор", "Координатор", "Аналитик"],
+    'cs': ["Manažer", "Administrátor", "Koordinátor", "Analytik"],
+    'da': ["Manager", "Administrator", "Koordinator", "Analytiker"],
+    'de': ["Manager", "Administrator", "Koordinator", "Analyst"],
+    'el': ["Μάνατζερ", "Διαχειριστής", "Συντονιστής", "Αναλυτής"],
+    'en': ["Manager", "Administrator", "Coordinator", "Analyst"],
+    'es': ["Gerente", "Administrador", "Coordinador", "Analista"],
+    'et': ["Juht", "Administraator", "Koordinaator", "Analüütik"],
+    'fi': ["Johtaja", "Ylläpitäjä", "Koordinaattori", "Analyytikko"],
+    'fr': ["Gestionnaire", "Administrateur", "Coordinateur", "Analyste"],
+    'hr': ["Menadžer", "Administrator", "Koordinator", "Analitičar"],
+    'hu': ["Menedzser", "Adminisztrátor", "Koordinátor", "Elemző"],
+    'it': ["Manager", "Amministratore", "Coordinatore", "Analista"],
+    'lt': ["Vadovas", "Administratorius", "Koordinatorius", "Analitikas"],
+    'lv': ["Vadītājs", "Administrators", "Koordinators", "Analītiķis"],
+    'nl': ["Manager", "Beheerder", "Coördinator", "Analist"],
+    'pl': ["Menedżer", "Administrator", "Koordynator", "Analityk"],
+    'pt': ["Gerente", "Administrador", "Coordenador", "Analista"],
+    'ro': ["Manager", "Administrator", "Coordonator", "Analist"],
+    'sk': ["Manažér", "Administrátor", "Koordinátor", "Analytik"],
+    'sl': ["Vodja", "Administrator", "Koordinator", "Analitik"],
+    'sv': ["Chef", "Administratör", "Koordinator", "Analytiker"]
+  },
   'oilgas': {
     'ru': ["Оператор добычи", "Помощник бурильщика", "Рабочий нефтебазы"],
     'bg': ["Оператор добив", "Помощник сондажист", "Работник нефтена база"],
@@ -404,9 +429,8 @@ window.CATEGORY_MAP = {
     'Системный администратор',
     'Тестировщик'
   ],
-  // --- НАЧАЛО ИЗМЕНЕНИЙ: ДОБАВЛЕНА НОВАЯ КАТЕГОРИЯ ---
-    'office': [
-        'Менеджер', 'Администратор', 'Координатор', 'Аналитик'
+  office: [
+    'Менеджер', 'Администратор', 'Координатор', 'Аналитик'
   ],
   refugee: [
     'Работа для украинцев',

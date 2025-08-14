@@ -1,4 +1,5 @@
 /* GlobalJobHunter - Modern Redesign by Gemini */
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@600&display=swap');
 :root {
     --primary-blue: #0057B7; /* Ukrainian Blue */
     --primary-yellow: #FFD700; /* Ukrainian Yellow */
@@ -692,11 +693,12 @@ footer .remotive-footer:hover {
 }
 
 .partner-logo.remotive-new {
-    font-family: 'Lexend', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-weight: 600;
-    color: #2d2d2d;
+    color: #8B4513; /* Коричневый как на скрине */
     letter-spacing: -0.5px;
     text-decoration: none;
+    font-size: 2rem;
 }
 
 .partner-card a.text-decoration-none:hover .remotive-new {

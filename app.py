@@ -149,24 +149,36 @@ if ADDITIONAL_SOURCES_AVAILABLE:
     except Exception as e:
         app.logger.warning(f"⚠️ Дополнительные источники недоступны: {e}")
 
-# ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ
+# В файле app.py найдите функцию index() и замените её на эту версию:
+
 @app.route('/')
 def index():
-   """Главная страница с современным дизайном"""
-   if not aggregator:
-       return render_template('error.html', 
-                            error="API ключи не настроены. Обратитесь к администратору.")
-   
-   job_categories = aggregator.specific_jobs
-   total_jobs = sum(len(jobs) for jobs in job_categories.values())
-   
-   session.pop('results_id', None)
-   session.pop('last_search_preferences', None)
-   
-   return render_template('index.html', 
-                        job_categories=job_categories,
-                        total_jobs=total_jobs,
-                        countries=aggregator.countries)
+    """Главная страница с современным дизайном"""
+    if not aggregator:
+        return render_template('error.html', 
+                             error="API ключи не настроены. Обратитесь к администратору.")
+    
+    job_categories = aggregator.specific_jobs
+    
+    # ИСПРАВЛЕНИЕ: Добавляем недостающую категорию "Офис и управление"
+    # Это решит проблему с кнопкой "Офис и управление"
+    if 'Офис и управление' not in job_categories:
+        job_categories['Офис и управление'] = [
+            'Менеджер',
+            'Администратор', 
+            'Координатор',
+            'Аналитик'
+        ]
+    
+    total_jobs = sum(len(jobs) for jobs in job_categories.values())
+    
+    session.pop('results_id', None)
+    session.pop('last_search_preferences', None)
+    
+    return render_template('index.html', 
+                         job_categories=job_categories,
+                         total_jobs=total_jobs,
+                         countries=aggregator.countries)
 
 @app.route('/search', methods=['POST'])
 def search_jobs():
