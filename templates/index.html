@@ -1,6 +1,9 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<!-- Подключение стилей для логотипов партнеров -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/partners.css') }}">
+
 <main>
     <section class="hero-section">
         <div class="container">
@@ -15,6 +18,32 @@
             </a>
         </div>
     </section>
+
+    <!-- === НАЧАЛО ИЗМЕНЕНИЙ: БЛОК ПАРТНЕРОВ ОБНОВЛЕН === -->
+    <section class="partners-section bg-light py-4">
+        <div class="container">
+            <h6 class="text-center text-muted mb-4">Нам доверяют и предоставляют данные</h6>
+            <div class="row align-items-center justify-content-center g-4">
+                <!-- Adzuna (CSS Logo) -->
+                <div class="col-6 col-md-3 text-center">
+                    <div class="logo-text adzuna-logo">Adzuna</div>
+                </div>
+                <!-- Jobicy (CSS Logo) -->
+                <div class="col-6 col-md-3 text-center">
+                    <div class="logo-text jobicy-logo">Jobicy</div>
+                </div>
+                <!-- Careerjet (CSS Logo) -->
+                <div class="col-6 col-md-3 text-center">
+                    <div class="logo-text careerjet-logo">career<span class="jet">JET</span></div>
+                </div>
+                <!-- Remotive (CSS Logo) -->
+                <div class="col-6 col-md-3 text-center">
+                    <div class="logo-text remotive-logo">Remotive</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- === КОНЕЦ ИЗМЕНЕНИЙ === -->
 
     <section id="search-form-section">
         <div class="container">
@@ -57,17 +86,20 @@
                             </div>
                             <div class="mb-4">
                                 <p class="text-muted mb-2">Быстрый выбор по категориям:</p>
+                                <!-- === НАЧАЛО ИЗМЕНЕНИЙ: ДОБАВЛЕНА КНОПКА "ОФИС И УПРАВЛЕНИЕ" === -->
                                 <div id="quick-select-buttons" class="d-flex flex-wrap gap-2">
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('transport', this)">🚗 Транспорт</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('restaurant', this)">🍽️ Общепит</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('construction', this)">🏗️ Стройка</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('care', this)">👥 Уход</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('it', this)">💻 IT</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('office', this)">👔 Офис и управление</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('refugee', this)">🇺🇦 Для украинцев</button>
-                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('autoservice', this)">🛠 Автосервис и техобслуживание</button>
-                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('fuel', this)">⛽ АЗС и топливо</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('autoservice', this)">🛠 Автосервис</button>
+                                    <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('fuel', this)">⛽ АЗС</button>
                                     <button type="button" class="btn btn-outline-secondary quick-select-btn" onclick="selectJobCategory('oilgas', this)">🛢 Нефть и газ</button>
                                 </div>
+                                <!-- === КОНЕЦ ИЗМЕНЕНИЙ === -->
                             </div>
 
                             {% for category, jobs in job_categories.items() %}
@@ -129,7 +161,7 @@
                             <button type="submit" class="btn btn-primary btn-lg px-5 py-3">
                                 🚀 Найти работу
                             </button>
-                            <!-- ДОБАВЬТЕ ИЛИ ЗАМЕНИТЕ НА ЭТОТ БЛОК -->
+
                             <div id="loading-message" class="mt-3 text-center" style="display: none; height: 0; opacity: 0; transition: all 0.5s ease;">
                                 <div class="d-flex justify-content-center align-items-center">
                                     <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status">
@@ -216,9 +248,10 @@ function getReadableCategoryName(category) {
         'care': 'Уход',
         'it': 'IT',
         'refugee': 'Для украинцев',
-        'autoservice': 'Автосервис и техобслуживание',
-        'fuel': 'АЗС и топливо',
-        'oilgas': 'Нефть и газ'
+        'autoservice': 'Автосервис',
+        'fuel': 'АЗС',
+        'oilgas': 'Нефть и газ',
+        'office': 'Офис и управление' // <-- ДОБАВЛЕНА ЭТА СТРОКА
     };
     return names[category] || category;
 }
@@ -267,27 +300,24 @@ function showTemporaryMessage(message, type = 'info') {
     }, 3000);
 }
 </script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('job-search-form');
-    // Уточняем селектор, чтобы найти именно кнопку отправки формы
     const searchButton = form.querySelector('button[type="submit"]');
     const loadingMessageDiv = document.getElementById('loading-message');
     let loadingMessageTimeout;
 
     form.addEventListener('submit', function(event) {
-        event.preventDefault(); // Отменяем стандартную отправку формы
+        event.preventDefault(); 
 
-        // --- 1. Сбор данных с формы ---
         const formData = new FormData(form);
         const selectedJobs = formData.getAll('selected_jobs');
         const countries = formData.getAll('countries');
-        // Убедимся, что radio button всегда имеет значение
         const isRefugeeInput = formData.get('is_refugee');
         const isRefugee = isRefugeeInput === 'true'; 
         const city = formData.get('city');
 
-        // Валидация
         if (!isRefugeeInput) {
             showTemporaryMessage('Пожалуйста, укажите ваш статус (шаг 1)', 'warning');
             return;
@@ -301,23 +331,20 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // --- 2. Управление UI ---
         searchButton.disabled = true;
         searchButton.innerHTML = `
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             Идет поиск...
         `;
 
-        // Показываем сообщение о длительном поиске через 4 секунды
         loadingMessageTimeout = setTimeout(function() {
             loadingMessageDiv.style.display = 'block';
-            setTimeout(() => { // Даем время для display:block перед анимацией
+            setTimeout(() => { 
                 loadingMessageDiv.style.height = loadingMessageDiv.scrollHeight + 'px';
                 loadingMessageDiv.style.opacity = '1';
             }, 10);
         }, 4000);
 
-        // --- 3. Отправка AJAX запроса ---
         fetch('/search', {
             method: 'POST',
             headers: {
@@ -332,25 +359,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                // Если сервер вернул ошибку (например, 429 Rate Limit)
                 return response.json().then(err => Promise.reject(err));
             }
             return response.json();
         })
         .then(data => {
-            clearTimeout(loadingMessageTimeout); // Отменяем таймер
+            clearTimeout(loadingMessageTimeout); 
             if (data.success && data.redirect_url) {
-                window.location.href = data.redirect_url; // Переходим на страницу результатов
+                window.location.href = data.redirect_url; 
             } else {
-                // Если success=false или нет redirect_url
                 showTemporaryMessage(data.error || 'Произошла неизвестная ошибка', 'warning');
                 resetButton();
             }
         })
         .catch(error => {
             console.error('Search error:', error);
-            clearTimeout(loadingMessageTimeout); // Отменяем таймер при ошибке
-            // Показываем ошибку от сервера, если она есть
+            clearTimeout(loadingMessageTimeout); 
             const errorMessage = error.error || 'Произошла ошибка сети. Попробуйте снова.';
             showTemporaryMessage(errorMessage, 'warning');
             resetButton();
@@ -364,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingMessageDiv.style.opacity = '0';
         setTimeout(() => {
             loadingMessageDiv.style.display = 'none';
-        }, 500); // Скрываем после анимации
+        }, 500);
     }
 });
 </script>

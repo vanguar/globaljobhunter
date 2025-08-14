@@ -1,0 +1,46 @@
+/* Импорт кастомных шрифтов для логотипов */
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@600&family=Poppins:wght@500;700&display=swap');
+
+/* Общий стиль для всех текстовых логотипов */
+.partners-section .logo-text {
+    font-size: 24px;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+    opacity: 0.7;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.partners-section .logo-text:hover {
+    opacity: 1;
+}
+
+/* Стили для логотипа Adzuna */
+.partners-section .adzuna-logo {
+    color: #00a99d;
+    font-weight: 700;
+}
+
+/* Стили для логотипа Jobicy */
+.partners-section .jobicy-logo {
+    color: #2a343d;
+    font-weight: 500;
+}
+
+/* Стили для логотипа Careerjet */
+.partners-section .careerjet-logo {
+    color: #2d2d2d;
+    font-weight: 500;
+}
+
+.partners-section .careerjet-logo .jet {
+    color: #f5a623;
+    font-weight: 700;
+}
+
+/* Стили для логотипа Remotive */
+.partners-section .remotive-logo {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 600;
+    color: #2d2d2d;
+    letter-spacing: -0.5px;
+}
