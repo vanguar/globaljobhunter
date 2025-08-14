@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Remotive Aggregator for GlobalJobHunter v1.2
+Remotive Aggregator for GlobalJobHunter v1.3
 """
 
 import os
@@ -19,44 +19,58 @@ from base_aggregator import BaseJobAggregator
 class RemotiveAggregator(BaseJobAggregator):
     """
     Агрегатор для поиска удаленных вакансий через Remotive API.
+    - УЛУЧШЕНО: Добавлен черный список профессий, которые не могут быть удаленными.
     - ИСПРАВЛЕНО: Объединение ключевых слов в один запрос для избежания Rate Limit.
     - Улучшено: Использует поиск по категориям и исправлен Rate Limiter.
     """
+    
+    # --- НОВОЕ: Список профессий, которые не ищем на этом сайте ---
+    NON_REMOTE_JOBS = {
+        # Транспорт и доставка
+        'Водитель такси', 'Водитель категории B', 'Водитель категории C',
+        'Водитель-курьер', 'Курьер пешком', 'Курьер-доставщик еды',
+        'Водитель автобуса', 'Водитель грузовика',
+        # Автосервис
+        'Автомеханик', 'Автослесарь', 'Шиномонтажник', 'Диагност',
+        'Мастер-приёмщик', 'Кузовщик', 'Маляр по авто',
+        # АЗС и Топливо
+        'Заправщик на АЗС', 'Оператор АЗС', 'Кассир на АЗС',
+        # Нефть и газ
+        'Оператор добычи', 'Помощник бурильщика', 'Рабочий нефтебазы',
+        # Строительство и производство
+        'Строитель-разнорабочий', 'Грузчик', 'Складской работник',
+        'Разнорабочий', 'Рабочий на производстве',
+        # Общепит и сервис
+        'Официант', 'Бармен', 'Повар', 'Помощник повара', 'Посудомойщик',
+        'Кассир', 'Продавец',
+        # Сервис и обслуживание
+        'Уборщик', 'Садовник', 'Домработница', 'Массажист',
+        # Уход и медицина (требующие физического присутствия)
+        'Медсестра', 'Сиделка', 'Няня', 'Гувернантка', 'Уход за пенсионерами'
+    }
+
     def __init__(self, specific_jobs_map: Dict, cache_duration_hours: int = 12):
         """
         Инициализация агрегатора.
-        :param specific_jobs_map: Словарь для перевода русских названий профессий в английские.
-        :param cache_duration_hours: Время жизни кеша в часах.
         """
         super().__init__(source_name='Remotive')
         self.base_url = "https://remotive.com/api/remote-jobs"
         self.specific_jobs_map = specific_jobs_map
         self.cache_manager = CacheManager(cache_duration_hours=cache_duration_hours)
-        # Устанавливаем лимит в 2 запроса в минуту согласно документации
         self.rate_limiter = RateLimiter(requests_per_minute=2) 
 
-        # Карта категорий для Remotive API (можно дополнять)
         self.job_to_category_map = {
-            'python developer': 'software-dev',
-            'web developer': 'software-dev',
-            'programmer': 'software-dev',
-            'software developer': 'software-dev',
-            'qa engineer': 'qa',
-            'software tester': 'qa',
-            'data analyst': 'data',
-            'data scientist': 'data',
-            'designer': 'design',
-            'product manager': 'product',
-            'manager': 'management',
-            'sales assistant': 'sales-marketing',
-            'marketer': 'sales-marketing',
-            'recruiter': 'hr',
+            'python developer': 'software-dev', 'web developer': 'software-dev',
+            'programmer': 'software-dev', 'software developer': 'software-dev',
+            'qa engineer': 'qa', 'software tester': 'qa', 'data analyst': 'data',
+            'data scientist': 'data', 'designer': 'design', 'product manager': 'product',
+            'manager': 'management', 'sales assistant': 'sales-marketing',
+            'marketer': 'sales-marketing', 'recruiter': 'hr',
             'customer support': 'customer-service'
         }
-        print(f"✅ Remotive Aggregator v1.2 инициализирован (Rate Limit: 2/min).")
+        print(f"✅ Remotive Aggregator v1.3 инициализирован (Rate Limit: 2/min, с фильтром профессий).")
 
     def get_supported_countries(self) -> Dict[str, Dict]:
-        """Remotive - это только удаленные вакансии, поэтому список стран пуст."""
         return {}
 
     def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
@@ -72,12 +86,17 @@ class RemotiveAggregator(BaseJobAggregator):
             return []
 
         for russian_job_title in selected_jobs:
+            # --- НОВОЕ: Проверяем, есть ли профессия в черном списке ---
+            if russian_job_title in self.NON_REMOTE_JOBS:
+                print(f"    - Пропускаем '{russian_job_title}', т.к. не является удаленной.")
+                continue
+            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
             english_keywords = self._get_english_keywords(russian_job_title)
             
             if not english_keywords:
                 continue
 
-            # Пробуем найти по категории для первого ключевого слова
             primary_keyword = english_keywords[0]
             category = self.job_to_category_map.get(primary_keyword.lower())
             
@@ -86,7 +105,6 @@ class RemotiveAggregator(BaseJobAggregator):
                 jobs = self._fetch_jobs(params={'category': category})
                 all_jobs.extend(jobs)
             else:
-                # --- ИСПРАВЛЕНИЕ: Объединяем все ключевые слова в один запрос ---
                 search_query = " ".join(english_keywords)
                 print(f"    - Ищем по ключевым словам: '{search_query}'")
                 jobs = self._fetch_jobs(params={'search': search_query})
@@ -96,14 +114,12 @@ class RemotiveAggregator(BaseJobAggregator):
         return self._deduplicate_jobs(all_jobs)
 
     def _get_english_keywords(self, russian_job_title: str) -> List[str]:
-        """Извлекает английские ключевые слова для русской профессии."""
         for category in self.specific_jobs_map.values():
             if russian_job_title in category:
                 return [term for term in category[russian_job_title][:3] if term]
         return []
 
     def _fetch_jobs(self, params: Dict) -> List[JobVacancy]:
-        """Получает вакансии по заданным параметрам с кешированием."""
         cached_result = self.cache_manager.get_cached_result(params)
         if cached_result:
             search_term_log = params.get('search') or params.get('category')
@@ -140,9 +156,6 @@ class RemotiveAggregator(BaseJobAggregator):
             return []
 
     def _normalize_job_data(self, raw_job: Dict, search_term: str) -> Optional[JobVacancy]:
-        """
-        Преобразует сырые данные от API в стандартизированный объект JobVacancy.
-        """
         try:
             title = raw_job.get('title', '')
             description = raw_job.get('description', '')
@@ -179,11 +192,9 @@ class RemotiveAggregator(BaseJobAggregator):
 
     def is_relevant_job(self, job_title: str, job_description: str, search_term: str) -> bool:
         """Простая проверка на релевантность."""
-        # Для категорий не нужна дополнительная проверка, т.к. они уже релевантны
         if search_term in self.job_to_category_map.values():
              return True
         
-        # Для поиска по ключевым словам, проверяем наличие хотя бы одного из них
         search_keywords = search_term.lower().split()
         title_lower = job_title.lower()
         return any(keyword in title_lower for keyword in search_keywords)

@@ -129,6 +129,10 @@
                             <button type="submit" class="btn btn-primary btn-lg px-5 py-3">
                                 🚀 Найти работу
                             </button>
+                            <!-- ДОБАВЬТЕ ЭТОТ БЛОК СРАЗУ ПОСЛЕ КНОПКИ -->
+                            <div id="loading-message" class="mt-3 text-center" style="display: none; height: 0; opacity: 0; transition: all 0.5s ease;">
+                                <p class="text-muted">Ищем вакансии по всем сайтам... Это может занять до минуты, пожалуйста, подождите.</p>
+                            </div>
 
                             <div class="text-center mt-4 pt-4 border-top">
                                 <h5 class="mb-3">📧 Получать новые вакансии на email</h5>
@@ -257,6 +261,87 @@ function showTemporaryMessage(message, type = 'info') {
         setTimeout(() => { messageDiv.remove(); }, 300);
     }, 3000);
 }
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('job-search-form');
+    const searchButton = form.querySelector('button[type="submit"]');
+    const loadingMessageDiv = document.getElementById('loading-message');
+    let loadingMessageTimeout;
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault(); // Отменяем стандартную отправку формы
+
+        // --- 1. Сбор данных с формы ---
+        const formData = new FormData(form);
+        const selectedJobs = formData.getAll('selected_jobs');
+        const countries = formData.getAll('countries');
+        const isRefugee = formData.get('is_refugee') === 'true';
+        const city = formData.get('city');
+
+        // Валидация
+        if (selectedJobs.length === 0) {
+            showTemporaryMessage('Пожалуйста, выберите хотя бы одну профессию', 'warning');
+            return;
+        }
+
+        // --- 2. Управление UI ---
+        searchButton.disabled = true;
+        searchButton.innerHTML = `
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Идет поиск...
+        `;
+
+        // Показываем сообщение о длительном поиске через 4 секунды
+        loadingMessageTimeout = setTimeout(function() {
+            loadingMessageDiv.style.display = 'block';
+            setTimeout(() => { // Даем время для display:block перед анимацией
+                loadingMessageDiv.style.height = loadingMessageDiv.scrollHeight + 'px';
+                loadingMessageDiv.style.opacity = '1';
+            }, 10);
+        }, 4000);
+
+        // --- 3. Отправка AJAX запроса ---
+        fetch('/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                selected_jobs: selectedJobs,
+                countries: countries,
+                is_refugee: isRefugee,
+                city: city
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            clearTimeout(loadingMessageTimeout); // Отменяем таймер
+            if (data.success) {
+                window.location.href = data.redirect_url; // Переходим на страницу результатов
+            } else {
+                showTemporaryMessage(data.error || 'Произошла ошибка', 'warning');
+                resetButton();
+            }
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            clearTimeout(loadingMessageTimeout); // Отменяем таймер при ошибке
+            showTemporaryMessage('Произошла ошибка сети. Попробуйте снова.', 'warning');
+            resetButton();
+        });
+    });
+
+    function resetButton() {
+        searchButton.disabled = false;
+        searchButton.innerHTML = '🚀 Найти работу';
+        loadingMessageDiv.style.height = '0';
+        loadingMessageDiv.style.opacity = '0';
+        setTimeout(() => {
+            loadingMessageDiv.style.display = 'none';
+        }, 500); // Скрываем после анимации
+    }
+});
 </script>
 
 {% endblock %}
