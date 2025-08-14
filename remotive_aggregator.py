@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Remotive Aggregator for GlobalJobHunter v1.1
+Remotive Aggregator for GlobalJobHunter v1.2
 """
 
 import os
@@ -19,6 +19,7 @@ from base_aggregator import BaseJobAggregator
 class RemotiveAggregator(BaseJobAggregator):
     """
     Агрегатор для поиска удаленных вакансий через Remotive API.
+    - ИСПРАВЛЕНО: Объединение ключевых слов в один запрос для избежания Rate Limit.
     - Улучшено: Использует поиск по категориям и исправлен Rate Limiter.
     """
     def __init__(self, specific_jobs_map: Dict, cache_duration_hours: int = 12):
@@ -31,7 +32,7 @@ class RemotiveAggregator(BaseJobAggregator):
         self.base_url = "https://remotive.com/api/remote-jobs"
         self.specific_jobs_map = specific_jobs_map
         self.cache_manager = CacheManager(cache_duration_hours=cache_duration_hours)
-        # ИСПРАВЛЕНО: Устанавливаем лимит в 2 запроса в минуту согласно документации
+        # Устанавливаем лимит в 2 запроса в минуту согласно документации
         self.rate_limiter = RateLimiter(requests_per_minute=2) 
 
         # Карта категорий для Remotive API (можно дополнять)
@@ -52,7 +53,7 @@ class RemotiveAggregator(BaseJobAggregator):
             'recruiter': 'hr',
             'customer support': 'customer-service'
         }
-        print(f"✅ Remotive Aggregator v1.1 инициализирован (Rate Limit: 2/min).")
+        print(f"✅ Remotive Aggregator v1.2 инициализирован (Rate Limit: 2/min).")
 
     def get_supported_countries(self) -> Dict[str, Dict]:
         """Remotive - это только удаленные вакансии, поэтому список стран пуст."""
@@ -60,7 +61,7 @@ class RemotiveAggregator(BaseJobAggregator):
 
     def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
         """
-        Основной метод поиска. Выполняет поиск для каждой выбранной профессии.
+        Основной метод поиска. Выполняет один поиск для каждой выбранной профессии.
         """
         print(f"📡 {self.source_name}: Начинаем поиск удаленных вакансий...")
         all_jobs: List[JobVacancy] = []
@@ -85,11 +86,11 @@ class RemotiveAggregator(BaseJobAggregator):
                 jobs = self._fetch_jobs(params={'category': category})
                 all_jobs.extend(jobs)
             else:
-                # Если категории нет, ищем по ключевым словам
-                for keyword in english_keywords:
-                    print(f"    - Ищем по ключевому слову: '{keyword}'")
-                    jobs = self._fetch_jobs(params={'search': keyword})
-                    all_jobs.extend(jobs)
+                # --- ИСПРАВЛЕНИЕ: Объединяем все ключевые слова в один запрос ---
+                search_query = " ".join(english_keywords)
+                print(f"    - Ищем по ключевым словам: '{search_query}'")
+                jobs = self._fetch_jobs(params={'search': search_query})
+                all_jobs.extend(jobs)
         
         print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(all_jobs)} вакансий.")
         return self._deduplicate_jobs(all_jobs)
@@ -105,6 +106,8 @@ class RemotiveAggregator(BaseJobAggregator):
         """Получает вакансии по заданным параметрам с кешированием."""
         cached_result = self.cache_manager.get_cached_result(params)
         if cached_result:
+            search_term_log = params.get('search') or params.get('category')
+            print(f"    - Cache HIT для '{search_term_log}'. Найдено: {len(cached_result)}.")
             return cached_result
 
         self.rate_limiter.wait_if_needed()
@@ -179,7 +182,11 @@ class RemotiveAggregator(BaseJobAggregator):
         # Для категорий не нужна дополнительная проверка, т.к. они уже релевантны
         if search_term in self.job_to_category_map.values():
              return True
-        return search_term.lower() in job_title.lower()
+        
+        # Для поиска по ключевым словам, проверяем наличие хотя бы одного из них
+        search_keywords = search_term.lower().split()
+        title_lower = job_title.lower()
+        return any(keyword in title_lower for keyword in search_keywords)
 
     def _deduplicate_jobs(self, jobs: List[JobVacancy]) -> List[JobVacancy]:
         """Удаление дубликатов по URL вакансии."""
