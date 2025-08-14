@@ -705,3 +705,36 @@ footer .remotive-footer:hover {
     color: var(--primary-blue);
     transition: var(--transition);
 }
+
+.trusted-heading {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-dark);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+    animation: fadeInSlide 1s ease-out;
+    position: relative;
+}
+
+.trusted-heading::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background: var(--primary-blue);
+    margin: 10px auto 0;
+    border-radius: 2px;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
