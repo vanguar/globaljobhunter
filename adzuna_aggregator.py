@@ -1443,25 +1443,32 @@ class GlobalJobAggregator:
         
             '🔍 ДРУГОЕ': {
                 "Другие вакансии": [
-                    # Английский
-                    'general worker', 'manual worker', 'unskilled', 'labourer', 'warehouse worker',
-                    'cleaner', 'janitor', 'kitchen assistant', 'waiter', 'shop assistant', 'packer',
-                    # Немецкий
-                    'helfer', 'aushilfe', 'ungelernt', 'hilfsarbeiter', 'lagerarbeiter', 'reiniger',
-                    'küchenhilfe', 'servicekraft', 'verkaufsmitarbeiter', 'packer',
-                    # Французский
-                    'manutentionnaire', 'ouvrier', 'agent de nettoyage', 'agent d\'entretien', 'magasinier',
-                    # Испанский
-                    'trabajador general', 'peón', 'limpiador', 'mozo de almacén', 'camarero', 'ayudante de cocina',
-                    # Итальянский
-                    'operaio', 'lavoratore generico', 'addetto pulizie', 'magazziniere', 'cameriere',
-                    # Нидерландский
-                    'algemene werknemer', 'magazijnmedewerker', 'schoonmaker', 'keukenhulp',
-                    # Польский
-                    'pracownik fizyczny', 'magazynier', 'sprzątacz', 'pomoc kuchenna', 'kelner',
-                    # Чешский
-                    'dělník', 'skladník', 'uklízeč', 'pomocná síla', 'číšník'
-                ],
+                    # Английские термины (оставлены только самые общие)
+                    'general worker', 'manual worker', 'unskilled', 'labourer', 'janitor', 
+                    'general operative', 'general assistant',
+                    
+                    # Немецкие термины (самые общие для неквалифицированной работы)
+                    'helfer', 'aushilfe', 'ungelernt', 'hilfsarbeiter', 'hilfstätigkeit', 
+                    'allrounder', 'mitarbeiter',
+                    
+                    # Французские термины
+                    'manoeuvre', 'ouvrier polyvalent', 'agent polyvalent', 'aide général',
+                    
+                    # Испанские термины
+                    'peón', 'operario', 'trabajador general', 'auxiliar', 'trabajo manual',
+                    
+                    # Итальянские термины
+                    'operaio generico', 'lavoratore generico', 'tuttofare', 'ausiliario',
+                    
+                    # Нидерландские термины
+                    'algemeen medewerker', 'hulpkracht', 'handwerker',
+                    
+                    # Польские термины
+                    'pracownik fizyczny', 'pracownik ogólnobudowlany', 'robotnik',
+                    
+                    # Чешские термины
+                    'dělník', 'pomocný pracovník', 'manuální pracovník'
+                ]
 
             }
         }
@@ -1590,40 +1597,32 @@ class GlobalJobAggregator:
         return self._deduplicate_jobs(all_jobs)
 
     
+    # adzuna_aggregator.py
+
     def _optimize_search_tasks(self, selected_jobs: List[str], countries: List[str]) -> List[Dict]:
-        """Оптимизация поисковых задач с учетом языков"""
+        """
+        Оптимизация поисковых задач с учетом языков (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+        """
         tasks = []
-        
-        search_other_jobs = 'Другие вакансии' in selected_jobs
         
         # Группируем все термины по странам для локализованного поиска
         for country in countries:
             country_terms = []
             
-            # Собираем все термины для обычных профессий
+            # Собираем термины для ВСЕХ выбранных профессий, включая "Другие вакансии"
             for job_name in selected_jobs:
-                if job_name == 'Другие вакансии':
-                    continue
-                    
+                # Больше нет специальной обработки или пропуска для "Другие вакансии"
                 for category, jobs in self.specific_jobs.items():
                     if job_name in jobs:
                         # Используем ВСЕ термины для локализации
                         country_terms.extend(jobs[job_name])
                         break
             
-            # Добавляем задачу для обычных профессий
+            # Добавляем одну общую задачу для всех найденных терминов в стране
             if country_terms:
                 tasks.append({
                     'job_name': 'Combined Localized Search',
-                    'terms': country_terms,  # Все термины для локализации
-                    'country': country
-                })
-            
-            # Добавляем поиск "других вакансий"
-            if search_other_jobs:
-                tasks.append({
-                    'job_name': 'Другие вакансии',
-                    'terms': ['search_for_other_jobs'],
+                    'terms': list(set(country_terms)),  # Используем set для удаления дубликатов терминов
                     'country': country
                 })
         
