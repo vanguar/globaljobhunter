@@ -26,6 +26,9 @@ from flask_migrate import Migrate
 
 from threading import Thread
 import schedule
+from threading import Thread
+from dataclasses import asdict
+import uuid
 
 # Импортируем существующий агрегатор
 from adzuna_aggregator import GlobalJobAggregator, JobVacancy
@@ -118,6 +121,11 @@ db.init_app(app)
 mail.init_app(app)
 migrate = Migrate(app, db)
 
+ACTIVE_JOBS = {}
+PROGRESS = {}
+RESULTS = {}
+CANCEL = {}
+
 # Инициализация основного агрегатора (БЕЗ ИЗМЕНЕНИЙ)
 try:
     aggregator = GlobalJobAggregator(cache_duration_hours=12)  # Увеличили до 12 часов
@@ -177,100 +185,106 @@ def index():
 
 @app.route('/search', methods=['POST'])
 def search_jobs():
-   """API для поиска с кешированием + поддержка нескольких городов через запятую"""
-   if not aggregator:
-       return jsonify({'error': 'Сервис временно недоступен'}), 500
-   
-   # Rate limiting
-   client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
-   allowed, remaining = check_rate_limit(client_ip)
-   if not allowed:
-       app.logger.warning(f"🚫 Rate limit exceeded for IP: {client_ip}")
-       return jsonify({
-           'error': f'Превышен лимит поисков. Максимум {MAX_SEARCHES_PER_DAY} поисков в день.',
-           'remaining_searches': 0,
-           'reset_time': '24 часа'
-       }), 429
-   
-   app.logger.info(f"✅ Rate limit OK for IP: {client_ip}, remaining: {remaining}")
-   
-   try:
-       form_data = request.json or request.form.to_dict()
-       
-       # === НОВОЕ: корректный разбор нескольких городов через запятую ===
-       raw_city = (form_data.get('city') or '').strip()
-       if raw_city:
-           cities = [c.strip() for c in raw_city.split(',') if c.strip()]
-       else:
-           cities = []
-       # ================================================================
-       
-       preferences = {
-           'is_refugee': form_data.get('is_refugee') == 'true',
-           'selected_jobs': form_data.get('selected_jobs', []),
-           'countries': form_data.get('countries', ['de']),
-           # оставляем старое поле для обратной совместимости (UI/шаблоны)
-           'city': None,
-           # НОВОЕ поле — список городов
-           'cities': cities
-       }
-       
-       if not preferences['selected_jobs']:
-           return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
-       
-       if isinstance(preferences['selected_jobs'], str):
-           preferences['selected_jobs'] = [preferences['selected_jobs']]
-       
-       app.logger.info(f"🔍 Начинаем поиск: {preferences}")
-       start_time = time.time()
-       
-       # Основной поиск (Adzuna)
-       jobs = aggregator.search_specific_jobs(preferences)
-       
-       # Доп. источники (если подключены)
-       if additional_aggregators:
-           for source_name, source_aggregator in additional_aggregators.items():
-               try:
-                   app.logger.info(f"🔄 Дополнительный поиск через {source_name}")
-                   additional_jobs = source_aggregator.search_jobs(preferences)
-                   jobs.extend(additional_jobs)
-                   app.logger.info(f"✅ {source_name}: +{len(additional_jobs)} вакансий")
-               except Exception as e:
-                   app.logger.warning(f"⚠️ {source_name} ошибка: {e}")
-                   continue
-       
-       search_time = time.time() - start_time
-       
-       cache_stats = aggregator.get_cache_stats()
-       app.logger.info(f"⏱️ Поиск завершен за {search_time:.1f}с, найдено {len(jobs)} вакансий")
-       app.logger.info(f"📊 Cache hit rate: {cache_stats['cache_hit_rate']}, API requests: {cache_stats['api_requests']}")
-       
-       if jobs:
-           results_id = str(uuid.uuid4())
-           job_details_map = {job.id: asdict(job) for job in jobs}
-           aggregator.search_cache[results_id] = job_details_map
-           
-           session['results_id'] = results_id
-           session['last_search_preferences'] = preferences
-           session['search_time'] = search_time
-       else:
-           session['results_id'] = None
-           session['last_search_preferences'] = preferences
-           session['search_time'] = search_time
+    if not aggregator:
+        return jsonify({'error': 'Сервис временно недоступен'}), 500
 
-       return jsonify({
-           'success': True,
-           'jobs_count': len(jobs),
-           'search_time': round(search_time, 1),
-           'cached': cache_stats['cache_hits'] > 0,
-           'sources_used': ['adzuna'] + list(additional_aggregators.keys()),
-           'remaining_searches': remaining,
-           'redirect_url': url_for('results')
-       })
-       
-   except Exception as e:
-       app.logger.error(f"❌ Ошибка поиска: {e}", exc_info=True)
-       return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
+    allowed, remaining = check_rate_limit(client_ip)
+    if not allowed:
+        return jsonify({
+            'error': f'Превышен лимит поисков. Максимум {MAX_SEARCHES_PER_DAY} поисков в день.',
+            'remaining_searches': 0
+        }), 429
+
+    data = request.get_json(force=True)
+    preferences = {
+        'is_refugee': bool(data.get('is_refugee')),
+        'selected_jobs': data.get('selected_jobs', []),
+        'countries': data.get('countries', []),
+        'city': data.get('city') or ''
+    }
+
+    job_id = str(uuid.uuid4())
+    session['results_id'] = job_id
+    PROGRESS[job_id] = {'current': 0, 'total': 0, 'done': False, 'count': 0}
+    RESULTS[job_id] = {}
+    CANCEL[job_id]   = False
+
+    # Инициализируем кэш для этого поиска
+    aggregator.search_cache[job_id] = {}
+
+    def on_progress(cur, total):
+        p = PROGRESS.get(job_id)
+        if p:
+            p['current'] = cur
+            p['total']   = total
+
+    def on_partial(batch):
+        if CANCEL.get(job_id):
+            raise InterruptedError("Search was cancelled") # Прерываем поиск
+
+        store = RESULTS.get(job_id)
+        if store is None: return
+
+        for j in batch:
+            store[j.id] = asdict(j)
+
+        PROGRESS[job_id]['count'] = len(store)
+        aggregator.search_cache[job_id] = store
+
+    def run_search_thread():
+        try:
+            all_sources = [('adzuna', aggregator)] + list(additional_aggregators.items())
+            total_tasks = len(all_sources)
+            PROGRESS[job_id]['total'] = total_tasks
+
+            for i, (name, source_aggregator) in enumerate(all_sources):
+                if CANCEL.get(job_id):
+                    print(f"⏹️ Поиск остановлен для job_id: {job_id}")
+                    break
+
+                app.logger.info(f"🔄 Поток {job_id}: запуск источника {name}")
+                try:
+                    # Для Adzuna используем сложный метод, для остальных - простой
+                    if name == 'adzuna':
+                        source_aggregator.search_specific_jobs(preferences, partial_callback=on_partial)
+                    else:
+                        jobs = source_aggregator.search_jobs(preferences)
+                        on_partial(jobs)
+                except InterruptedError:
+                    break # Выходим из цикла, если поиск отменен
+                except Exception as e:
+                    app.logger.warning(f"⚠️ Ошибка в потоке {job_id} для источника {name}: {e}")
+
+                PROGRESS[job_id]['current'] = i + 1
+
+        finally:
+            app.logger.info(f"✅ Поток {job_id} завершен.")
+            PROGRESS[job_id]['done'] = True
+            ACTIVE_JOBS.pop(job_id, None)
+            CANCEL.pop(job_id, None)
+
+    t = Thread(target=run_search_thread, daemon=True)
+    ACTIVE_JOBS[job_id] = t
+    t.start()
+
+    return jsonify({
+        'success': True,
+        'status': 'started',
+        'redirect_url': url_for('results')
+    }), 202
+
+@app.route('/search/progress/<job_id>')
+def search_progress(job_id):
+    p = PROGRESS.get(job_id, {'current': 0, 'total': 0, 'done': True, 'count': 0})
+    return jsonify(p)
+
+@app.route('/search/cancel/<job_id>', methods=['POST'])
+def cancel_search(job_id):
+    if job_id in CANCEL:
+        CANCEL[job_id] = True
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'job not found'}), 404
 
 
 # ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ПОЛНОСТЬЮ БЕЗ ИЗМЕНЕНИЙ

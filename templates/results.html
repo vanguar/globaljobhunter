@@ -10,6 +10,7 @@
             <p class="lead text-muted">
                 Найдено {{ stats.total }} вакансий за {{ search_time }}с.
             </p>
+            <span id="progress-badge" class="badge bg-primary ms-2 fs-6">Идет поиск...</span>
             <a href="{{ url_for('index') }}" class="btn btn-outline-primary mt-3">
                 <i class="bi bi-arrow-left me-2"></i>Изменить параметры поиска
             </a>
@@ -592,7 +593,44 @@ function updateSubscription(email, action) {
         console.error('Ошибка обновления подписки:', error);
         showToast('❌ Ошибка обновления подписки', 'danger');
     });
-}        
+}  
+
+document.addEventListener('DOMContentLoaded', () => {
+  const jobId = '{{ session.get("results_id") }}';
+  const badge = document.getElementById('progress-badge');
+  const jobsContainer = document.getElementById('jobs-container'); // Убедитесь, что у вашего контейнера с вакансиями есть этот ID
+
+  if (!jobId || !badge) return;
+
+  let isDone = false;
+
+  async function poll() {
+    if (isDone) return;
+
+    try {
+      const response = await fetch(`/search/progress/${jobId}`);
+      const progress = await response.json();
+
+      badge.textContent = `Найдено: ${progress.count}`;
+
+      if (progress.done) {
+        isDone = true;
+        badge.classList.remove('bg-primary');
+        badge.classList.add('bg-success');
+        badge.textContent = `Поиск завершен! Найдено: ${progress.count}`;
+        // Можно здесь перезагрузить страницу, чтобы показать все результаты, если они не подгружаются динамически
+        // location.reload(); 
+      } else {
+        setTimeout(poll, 2000); // Продолжаем опрос каждые 2 секунды
+      }
+    } catch(e) {
+      console.error("Ошибка опроса прогресса:", e);
+      setTimeout(poll, 5000); // В случае ошибки, пробуем снова через 5 секунд
+    }
+  }
+
+  poll();
+});
 
 </script>
 {% endblock %}
