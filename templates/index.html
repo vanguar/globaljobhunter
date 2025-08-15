@@ -293,101 +293,94 @@ function showTemporaryMessage(message, type = 'info') {
 </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('job-search-form');
-  const searchButton = form.querySelector('button[type="submit"]');
-  const loadingMessageDiv = document.getElementById('loading-message');
-  let loadingMessageTimeout;
-  let currentController = null;
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('job-search-form');
+    const searchButton = form.querySelector('button[type="submit"]');
+    const loadingMessageDiv = document.getElementById('loading-message');
+    let loadingMessageTimeout;
 
-  function hideLoading() {
-    clearTimeout(loadingMessageTimeout);
-    loadingMessageDiv.style.height = '0';
-    loadingMessageDiv.style.opacity = '0';
-    setTimeout(() => { loadingMessageDiv.style.display = 'none'; }, 500);
-  }
+    form.addEventListener('submit', function(event) {
+        event.preventDefault(); 
 
-  function resetButton() {
-    searchButton.disabled = false;
-    searchButton.innerHTML = '🚀 Найти работу';
-    hideLoading();
-  }
+        const formData = new FormData(form);
+        const selectedJobs = formData.getAll('selected_jobs');
+        const countries = formData.getAll('countries');
+        const isRefugeeInput = formData.get('is_refugee');
+        const isRefugee = isRefugeeInput === 'true'; 
+        const city = formData.get('city');
 
-  const stopBtn = document.createElement('button');
-  stopBtn.type = 'button';
-  stopBtn.id = 'stop-search';
-  stopBtn.className = 'btn btn-outline-danger ms-2';
-  stopBtn.style.display = 'none';
-  stopBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Остановить';
-  searchButton.parentElement.appendChild(stopBtn);
+        if (!isRefugeeInput) {
+            showTemporaryMessage('Пожалуйста, укажите ваш статус (шаг 1)', 'warning');
+            return;
+        }
+        if (selectedJobs.length === 0) {
+            showTemporaryMessage('Пожалуйста, выберите хотя бы одну профессию (шаг 2)', 'warning');
+            return;
+        }
+        if (countries.length === 0) {
+            showTemporaryMessage('Пожалуйста, выберите хотя бы одну страну (шаг 3)', 'warning');
+            return;
+        }
 
-  stopBtn.addEventListener('click', () => {
-    if (currentController) currentController.abort();
-  });
+        searchButton.disabled = true;
+        searchButton.innerHTML = `
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Идет поиск...
+        `;
 
-  form.addEventListener('submit', async function (event) {
-    event.preventDefault();
+        loadingMessageTimeout = setTimeout(function() {
+            loadingMessageDiv.style.display = 'block';
+            setTimeout(() => { 
+                loadingMessageDiv.style.height = loadingMessageDiv.scrollHeight + 'px';
+                loadingMessageDiv.style.opacity = '1';
+            }, 10);
+        }, 4000);
 
-    const formData = new FormData(form);
-    const selectedJobs = formData.getAll('selected_jobs');
-    const countries = formData.getAll('countries');
-    const isRefugeeInput = formData.get('is_refugee');
-    const isRefugee = isRefugeeInput === 'true';
-    const city = formData.get('city');
+        fetch('/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                selected_jobs: selectedJobs,
+                countries: countries,
+                is_refugee: isRefugee,
+                city: city
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(data => {
+            clearTimeout(loadingMessageTimeout); 
+            if (data.success && data.redirect_url) {
+                window.location.href = data.redirect_url; 
+            } else {
+                showTemporaryMessage(data.error || 'Произошла неизвестная ошибка', 'warning');
+                resetButton();
+            }
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            clearTimeout(loadingMessageTimeout); 
+            const errorMessage = error.error || 'Произошла ошибка сети. Попробуйте снова.';
+            showTemporaryMessage(errorMessage, 'warning');
+            resetButton();
+        });
+    });
 
-    if (!isRefugeeInput) { showTemporaryMessage('Пожалуйста, укажите ваш статус (шаг 1)', 'warning'); return; }
-    if (selectedJobs.length === 0) { showTemporaryMessage('Пожалуйста, выберите хотя бы одну профессию (шаг 2)', 'warning'); return; }
-    if (countries.length === 0) { showTemporaryMessage('Пожалуйста, выберите хотя бы одну страну (шаг 3)', 'warning'); return; }
-
-    searchButton.disabled = true;
-    searchButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Идет поиск...`;
-    stopBtn.style.display = 'inline-block';
-
-    loadingMessageTimeout = setTimeout(function () {
-      loadingMessageDiv.style.display = 'block';
-      setTimeout(() => {
-        loadingMessageDiv.style.height = loadingMessageDiv.scrollHeight + 'px';
-        loadingMessageDiv.style.opacity = '1';
-      }, 10);
-    }, 4000);
-
-    currentController = new AbortController();
-
-    try {
-      const response = await fetch('/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selected_jobs: selectedJobs, countries, is_refugee: isRefugee, city }),
-        signal: currentController.signal
-      });
-
-      let payload = {};
-      try { payload = await response.json(); } catch(e) { /* ignore */ }
-
-      if (!response.ok) {
-        const msg = payload.error || `Ошибка ${response.status}`;
-        throw Object.assign(new Error(msg), { code: response.status, payload });
-      }
-
-      if (payload.success && payload.redirect_url) {
-        window.location.href = payload.redirect_url;
-        return; 
-      } else {
-        throw new Error(payload.error || 'Произошла неизвестная ошибка');
-      }
-
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        showTemporaryMessage('Поиск остановлен пользователем.', 'info');
-      } else {
-        showTemporaryMessage(err.message || 'Произошла ошибка сети. Попробуйте снова.', 'warning');
-      }
-    } finally {
-      resetButton();
-      stopBtn.style.display = 'none';
-      currentController = null;
+    function resetButton() {
+        searchButton.disabled = false;
+        searchButton.innerHTML = '🚀 Найти работу';
+        loadingMessageDiv.style.height = '0';
+        loadingMessageDiv.style.opacity = '0';
+        setTimeout(() => {
+            loadingMessageDiv.style.display = 'none';
+        }, 500);
     }
-  });
 });
 </script>
 

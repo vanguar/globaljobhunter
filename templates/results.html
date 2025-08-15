@@ -10,7 +10,6 @@
             <p class="lead text-muted">
                 Найдено {{ stats.total }} вакансий за {{ search_time }}с.
             </p>
-            <span id="progress-badge" class="badge bg-primary ms-2 fs-6">Идет поиск...</span>
             <a href="{{ url_for('index') }}" class="btn btn-outline-primary mt-3">
                 <i class="bi bi-arrow-left me-2"></i>Изменить параметры поиска
             </a>
@@ -593,90 +592,7 @@ function updateSubscription(email, action) {
         console.error('Ошибка обновления подписки:', error);
         showToast('❌ Ошибка обновления подписки', 'danger');
     });
-}  
-
-document.addEventListener('DOMContentLoaded', () => {
-    const jobId = '{{ session.get("results_id") }}';
-    const badge = document.getElementById('progress-badge');
-    const jobsContainer = document.getElementById('jobs-container'); // Убедитесь, что у вашего контейнера с вакансиями есть этот ID
-    const emptyState = document.getElementById('empty-state'); // ID для блока "Ничего не найдено"
-
-    if (!jobId || !badge || !jobsContainer || !emptyState) return;
-
-    let isDone = false;
-    let displayedJobIds = new Set();
-
-    function renderJobCard(job) {
-        // Проверяем, не отображена ли уже эта вакансия
-        if (displayedJobIds.has(job.id)) {
-            return;
-        }
-        displayedJobIds.add(job.id);
-
-        const salaryHTML = job.salary ? `<div class="salary-badge">${job.salary}</div>` : '';
-        const cardHTML = `
-        <div class="col-md-12">
-            <div class="job-card" style="opacity:0; transform: translateY(20px); transition: all 0.5s ease;">
-                <div class="row align-items-center">
-                    <div class="col-md-9">
-                        <h5 class="job-title mb-1">${job.title}</h5>
-                        <p class="company-name text-muted">${job.company}</p>
-                        <div class="job-meta">
-                            <span><i class="bi bi-geo-alt-fill"></i> ${job.location}</span>
-                            <span><i class="bi bi-clock-fill"></i> ${job.posted_date}</span>
-                            <span class="source-badge"><i class="bi bi-box-arrow-up-right"></i> ${job.source}</span>
-                        </div>
-                    </div>
-                    <div class="col-md-3 text-md-end mt-3 mt-md-0">
-                        ${salaryHTML}
-                        <a href="${job.apply_url}" target="_blank" class="btn btn-primary mt-2 w-100">Откликнуться</a>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        jobsContainer.insertAdjacentHTML('afterbegin', cardHTML); // Добавляем новые в начало
-
-        // Плавное появление
-        setTimeout(() => {
-            const newCard = jobsContainer.firstChild.querySelector('.job-card');
-            if(newCard) {
-                newCard.style.opacity = '1';
-                newCard.style.transform = 'translateY(0)';
-            }
-        }, 50);
-    }
-
-    async function poll() {
-        if (isDone) return;
-        try {
-            const response = await fetch(`/results/data/${jobId}`);
-            const data = await response.json();
-
-            badge.textContent = `Найдено: ${data.total}`;
-
-            if (data.items.length > 0) {
-                emptyState.style.display = 'none'; // Скрываем сообщение "Ничего не найдено"
-                data.items.forEach(renderJobCard);
-            }
-
-            if (data.done) {
-                isDone = true;
-                badge.classList.remove('bg-primary');
-                badge.classList.add('bg-success');
-                badge.textContent = `Поиск завершен! Найдено: ${data.total}`;
-                if (data.total === 0) {
-                    emptyState.style.display = 'block'; // Показываем, если по итогу ничего нет
-                }
-            } else {
-                setTimeout(poll, 2500); // Продолжаем опрос
-            }
-        } catch (e) {
-            console.error("Ошибка опроса:", e);
-            setTimeout(poll, 5000); 
-        }
-    }
-    poll();
-});
+}        
 
 </script>
 {% endblock %}

@@ -1509,7 +1509,7 @@ class GlobalJobAggregator:
 
         
     
-    def search_specific_jobs(self, preferences: Dict, progress_callback=None, partial_callback=None) -> List[JobVacancy]:
+    def search_specific_jobs(self, preferences: Dict, progress_callback=None) -> List[JobVacancy]:
         """Поиск конкретных профессий С КЕШИРОВАНИЕМ"""
         
         # Проверяем кеш
@@ -1523,7 +1523,7 @@ class GlobalJobAggregator:
         print("🔍 Кеш пуст, выполняем поиск через API...")
         
         # Выполняем поиск
-        all_jobs = self._perform_search(preferences, progress_callback, partial_callback)
+        all_jobs = self._perform_search(preferences, progress_callback)
         
         # Кешируем результат!
         if all_jobs:
@@ -1532,7 +1532,7 @@ class GlobalJobAggregator:
         
         return all_jobs
     
-    def _perform_search(self, preferences: Dict, progress_callback=None, partial_callback=None) -> List[JobVacancy]:
+    def _perform_search(self, preferences: Dict, progress_callback=None) -> List[JobVacancy]:
         """Выполнение поиска через API с поддержкой НЕСКОЛЬКИХ городов (через запятую)"""
         all_jobs: List[JobVacancy] = []
 
@@ -1581,11 +1581,6 @@ class GlobalJobAggregator:
                 if jobs:
                     all_jobs.extend(jobs)
                     print(f"     ✅ Найдено: {len(jobs)} вакансий (страна={country}, город={city or '—'})")
-                    if partial_callback:
-                        try:
-                            partial_callback(jobs)
-                        except Exception as e:
-                            print(f"⚠️ Ошибка в partial_callback: {e}")
                 else:
                     print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем со следующими городами/терминами")
 
