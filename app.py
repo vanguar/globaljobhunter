@@ -151,6 +151,8 @@ if ADDITIONAL_SOURCES_AVAILABLE:
 
 # В файле app.py найдите функцию index() и замените её на эту версию:
 
+# app.py
+
 @app.route('/')
 def index():
     """Главная страница с современным дизайном"""
@@ -158,17 +160,10 @@ def index():
         return render_template('error.html', 
                              error="API ключи не настроены. Обратитесь к администратору.")
     
+    # Получаем категории напрямую из агрегатора
     job_categories = aggregator.specific_jobs
     
-    # ИСПРАВЛЕНИЕ: Добавляем недостающую категорию "Офис и управление"
-    # Это решит проблему с кнопкой "Офис и управление"
-    if 'Офис и управление' not in job_categories:
-        job_categories['Офис и управление'] = [
-            'Менеджер',
-            'Администратор', 
-            'Координатор',
-            'Аналитик'
-        ]
+    # ❌ ПРОБЛЕМНЫЙ БЛОК УДАЛЁН ❌
     
     total_jobs = sum(len(jobs) for jobs in job_categories.values())
     

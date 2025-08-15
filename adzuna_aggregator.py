@@ -1246,7 +1246,7 @@ class GlobalJobAggregator:
                     'správce systému', 'sysadmin', 'technická podpora'
                 ],
             
-            'Тестировщик': [
+                'Тестировщик': [
                     # Английский  
                     'QA engineer', 'software tester', 'quality assurance',
                     # Немецкий
