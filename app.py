@@ -2367,3 +2367,14 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port, debug=debug)
 
 
+@app.route('/results/data/<job_id>')
+def results_data(job_id):
+    store = aggregator.search_cache.get(job_id, {})
+    items = list(store.values())
+    # Сортируем по дате, чтобы новые были сверху
+    items_sorted = sorted(items, key=lambda x: x.get('posted_date', ''), reverse=True)
+    return jsonify({
+        'items': items_sorted, 
+        'total': len(items), 
+        'done': PROGRESS.get(job_id, {}).get('done', True)
+    })
