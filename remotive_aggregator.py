@@ -85,7 +85,7 @@ class RemotiveAggregator(BaseJobAggregator):
             return []
 
         # общий тайм-бюджет для Remotive
-        MAX_RUNTIME_SEC = int(os.getenv("REMOTIVE_MAX_RUNTIME", "50"))
+        MAX_RUNTIME_SEC = int(os.getenv("REMOTIVE_MAX_RUNTIME", "15"))
         started_at = time.time()
 
         for russian_job_title in selected_jobs:
@@ -163,8 +163,10 @@ class RemotiveAggregator(BaseJobAggregator):
 
             # кооперативный rate-limit (может вернуть False, если отменили)
             if hasattr(self, 'rate_limiter'):
-                ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
-                if ok is False or (cancel_check and cancel_check()):
+                ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
+                if cancel_check and cancel_check():
+                    return []
+                if ok is False:
                     return []
 
             try:

@@ -202,29 +202,15 @@ class RateLimiter:
         self.requests = []
 
     def wait_if_needed(self, cancel_check=None) -> bool:
-        """Ждём по чуть-чуть и проверяем отмену. Вернёт False, если отменили."""
-        now = time.time()
-        # вычищаем старые записи
-        self.requests = [t for t in self.requests if now - t < 60]
-
-        if len(self.requests) >= self.requests_per_minute:
-            oldest = min(self.requests)
-            wait_time = max(0.0, 60.0 - (now - oldest) + 1)  # +1с запас
-            if wait_time > 0:
-                print(f"⏱️ Rate limit: ожидание {wait_time:.1f} секунд...")
-                end = time.time() + wait_time
-                while True:
-                    # кооперативная проверка отмены
-                    if cancel_check and cancel_check():
-                        return False
-                    remain = end - time.time()
-                    if remain <= 0:
-                        break
-                    time.sleep(min(0.2, remain))
-        # записываем текущий запрос
-        self.requests.append(time.time())
+        """FAST MODE: не ждём вообще (всегда сразу продолжаем)."""
+        # просто фиксируем «запрос», чтобы статистика не ломалась
+        try:
+            now = time.time()
+            self.requests = [t for t in getattr(self, "requests", []) if now - t < 60]
+            self.requests.append(now)
+        except Exception:
+            pass
         return True
-
 
 
 class GlobalJobAggregator:
@@ -1548,6 +1534,9 @@ class GlobalJobAggregator:
         отдаёт «батчи» вакансий наружу через progress_callback(list[JobVacancy]),
         уважает мягкую отмену через cancel_check().
         """
+        MAX_RUNTIME_SEC = int(os.getenv("ADZUNA_MAX_RUNTIME", "25"))
+        started_at = time.time()
+
         all_jobs: List[JobVacancy] = []
 
         selected_jobs = preferences['selected_jobs']
