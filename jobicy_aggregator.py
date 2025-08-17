@@ -35,29 +35,37 @@ class JobicyAggregator:
         self.cache_file = "shared_jobicy_cache.json"  # Общий для всех
         self.cache_duration_hours = 12  # Кешируем на 12 часов
         
-    def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
-        """ЕДИНСТВЕННЫЙ ПОИСК с кешированием - соблюдаем rate limits"""
-        print(f"🔄 {self.source_name}: начинаем поиск удаленных вакансий")
-        
+    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        ЕДИНСТВЕННЫЙ запрос к Jobicy (почитаем из кеша/сохраним), потом
+        фильтруем под выбранные профессии.
+        Добавлены:
+        - progress_callback(list[JobVacancy]) — отдаём порциями по мере фильтрации,
+        - cancel_check() — мягкая остановка.
+        """
+        print(f"🔄 {self.source_name}: начинаем поиск удалённых вакансий")
+
         selected_jobs = preferences.get('selected_jobs', [])
-        
-        # Проверяем, подходят ли профессии для удаленной работы
         it_jobs = [job for job in selected_jobs if self._is_it_related(job)]
-        
         if not it_jobs:
-            print(f"ℹ️ {self.source_name}: выбранные профессии не подходят для удаленной работы")
+            print(f"ℹ️ {self.source_name}: выбранные профессии не подходят для удалённой работы")
             return []
-        
+
         try:
-            # ОДИН запрос для ВСЕХ профессий
+            if cancel_check and cancel_check():
+                return []
+
+            # один запрос (или кеш)
             all_jobs = self._fetch_jobs_cached()
-            relevant_jobs = self._filter_relevant_jobs(all_jobs, it_jobs)
+            # фильтровать и одновременно отдавать батчи
+            relevant_jobs = self._filter_relevant_jobs(all_jobs, it_jobs, progress_callback=progress_callback, cancel_check=cancel_check)
             print(f"✅ {self.source_name}: найдено {len(relevant_jobs)} релевантных вакансий")
             return relevant_jobs
-            
+
         except Exception as e:
             print(f"❌ {self.source_name} ошибка: {e}")
             return []
+
     
     def _is_it_related(self, job_name: str) -> bool:
         """Проверяем, подходит ли профессия для удаленной работы"""
@@ -140,11 +148,13 @@ class JobicyAggregator:
         except Exception as e:
             print(f"⚠️ Jobicy: ошибка сохранения кеша: {e}")
     
-    def _filter_relevant_jobs(self, jobs_data: List[Dict], selected_jobs: List[str]) -> List[JobVacancy]:
-        """Фильтруем релевантные вакансии ПО ВЫБРАННЫМ ПРОФЕССИЯМ"""
-        relevant_jobs = []
-        
-        # Словарь ключевых слов для каждой профессии
+    def _filter_relevant_jobs(self, jobs_data: List[Dict], selected_jobs: List[str], progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        Фильтрация релевантных вакансий по выбранным профессиям.
+        Отдаёт батчи (по 5 штук) через progress_callback, уважает cancel_check().
+        """
+        relevant_jobs: List[JobVacancy] = []
+
         job_keywords = {
             'дата-аналитик': ['data analyst', 'business analyst', 'analytics', 'bi analyst', 'reporting analyst', 'data scientist'],
             'системный администратор': ['system administrator', 'sysadmin', 'system admin', 'infrastructure engineer', 'devops engineer', 'network admin', 'it admin', 'site reliability'],
@@ -153,17 +163,15 @@ class JobicyAggregator:
             'программист': ['software developer', 'software engineer', 'programmer', 'developer', 'engineer'],
             'тестировщик': ['qa engineer', 'qa tester', 'test engineer', 'quality assurance', 'automation tester']
         }
-        
-        # ДОБАВЛЯЕМ НЕГАТИВНЫЕ КЛЮЧЕВЫЕ СЛОВА (исключения)
         negative_keywords = [
-            'sales', 'marketing', 'customer service', 'support representative', 
+            'sales', 'marketing', 'customer service', 'support representative',
             'account executive', 'business development', 'product manager',
-            'program manager', 'project manager', 'marketing expert', 
+            'program manager', 'project manager', 'marketing expert',
             'sales specialist', 'customer success', 'account manager',
             'technical product manager', 'solutions sales'
         ]
-        
-        # Собираем ключевые слова для выбранных профессий
+
+        # собрать ключи для выбранных профессий
         search_keywords = []
         for job in selected_jobs:
             job_lower = job.lower()
@@ -173,37 +181,53 @@ class JobicyAggregator:
                     search_keywords.extend(keywords)
                     found = True
                     break
-            
             if not found:
-                search_keywords.append(job_lower.replace(' ', ' '))
-        
-        print(f"🔍 Jobicy: ищем по словам: {search_keywords}")
-        print(f"🚫 Jobicy: исключаем слова: {negative_keywords}")
-        
+                search_keywords.append(job_lower)
+
+        print(f"🔍 {self.source_name}: ищем по словам: {search_keywords}")
+        print(f"🚫 {self.source_name}: исключаем слова: {negative_keywords}")
+
+        batch: List[JobVacancy] = []
         for job_data in jobs_data:
+            if cancel_check and cancel_check():
+                # отдадим накопившийся батч перед выходом
+                if progress_callback and batch:
+                    try:
+                        progress_callback(batch)
+                    except Exception:
+                        pass
+                return relevant_jobs
+
             title = job_data.get('jobTitle', '').lower()
             description = job_data.get('jobExcerpt', '').lower()
             combined_text = f"{title} {description}"
-            
-            # Проверяем позитивные ключевые слова
+
             has_positive = any(keyword in combined_text for keyword in search_keywords)
-            
-            # Проверяем негативные ключевые слова
             has_negative = any(negative in combined_text for negative in negative_keywords)
-            
+
             if has_positive and not has_negative:
                 job = self._normalize_job(job_data)
                 if job:
-                    print(f"✅ Релевантная: {job.title}")
                     relevant_jobs.append(job)
-                    if len(relevant_jobs) >= 10:
-                        break
-            elif has_positive and has_negative:
-                print(f"❌ Исключено (негативные слова): {job_data.get('jobTitle', 'No title')}")
-            else:
-                print(f"❌ Нерелевантная: {job_data.get('jobTitle', 'No title')}")
-        
+                    batch.append(job)
+                    # отдаём батч каждые 5 позиций для "живого" счётчика
+                    if progress_callback and len(batch) >= 5:
+                        try:
+                            progress_callback(batch)
+                        except Exception:
+                            pass
+                        batch = []
+            # при has_positive & has_negative — просто пропускаем
+
+        # добросим хвост батча
+        if progress_callback and batch:
+            try:
+                progress_callback(batch)
+            except Exception:
+                pass
+
         return relevant_jobs
+
     
         
     def _normalize_job(self, raw_job: Dict) -> Optional[JobVacancy]:

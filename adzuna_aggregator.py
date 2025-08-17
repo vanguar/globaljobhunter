@@ -196,29 +196,34 @@ class CacheManager:
 
 class RateLimiter:
     """Ограничитель скорости запросов к API"""
-    
-    def __init__(self, requests_per_minute: int = 20):  # Немного меньше лимита Adzuna (25)
+
+    def __init__(self, requests_per_minute: int = 20):
         self.requests_per_minute = requests_per_minute
         self.requests = []
-    
-    def wait_if_needed(self):
-        """Ожидание при превышении лимита"""
+
+    def wait_if_needed(self, cancel_check=None) -> bool:
+        """Ждём по чуть-чуть с проверкой отмены. Возвращаем False, если отменено."""
         now = time.time()
-        
-        # Удаляем старые запросы (старше минуты)
-        self.requests = [req_time for req_time in self.requests if now - req_time < 60]
-        
+        # вычищаем старые записи
+        self.requests = [t for t in self.requests if now - t < 60]
+
         if len(self.requests) >= self.requests_per_minute:
-            # Нужно подождать
-            oldest_request = min(self.requests)
-            wait_time = 60 - (now - oldest_request) + 1  # +1 секунда запас
-            
+            oldest = min(self.requests)
+            wait_time = max(0.0, 60.0 - (now - oldest))
             if wait_time > 0:
                 print(f"⏱️ Rate limit: ожидание {wait_time:.1f} секунд...")
-                time.sleep(wait_time)
-        
-        # Записываем текущий запрос
-        self.requests.append(now)
+                end = time.time() + wait_time
+                while True:
+                    if cancel_check and cancel_check():
+                        return False
+                    remain = end - time.time()
+                    if remain <= 0:
+                        break
+                    time.sleep(min(0.2, remain))
+        # записываем текущий запрос
+        self.requests.append(time.time())
+        return True
+
 
 class GlobalJobAggregator:
     def __init__(self, cache_duration_hours: int = 2):
@@ -1443,32 +1448,25 @@ class GlobalJobAggregator:
         
             '🔍 ДРУГОЕ': {
                 "Другие вакансии": [
-                    # Английские термины (оставлены только самые общие)
-                    'general worker', 'manual worker', 'unskilled', 'labourer', 'janitor', 
-                    'general operative', 'general assistant',
-                    
-                    # Немецкие термины (самые общие для неквалифицированной работы)
-                    'helfer', 'aushilfe', 'ungelernt', 'hilfsarbeiter', 'hilfstätigkeit', 
-                    'allrounder', 'mitarbeiter',
-                    
-                    # Французские термины
-                    'manoeuvre', 'ouvrier polyvalent', 'agent polyvalent', 'aide général',
-                    
-                    # Испанские термины
-                    'peón', 'operario', 'trabajador general', 'auxiliar', 'trabajo manual',
-                    
-                    # Итальянские термины
-                    'operaio generico', 'lavoratore generico', 'tuttofare', 'ausiliario',
-                    
-                    # Нидерландские термины
-                    'algemeen medewerker', 'hulpkracht', 'handwerker',
-                    
-                    # Польские термины
-                    'pracownik fizyczny', 'pracownik ogólnobudowlany', 'robotnik',
-                    
-                    # Чешские термины
-                    'dělník', 'pomocný pracovník', 'manuální pracovník'
-                ]
+                    # Английский
+                    'general worker', 'manual worker', 'unskilled', 'labourer', 'warehouse worker',
+                    'cleaner', 'janitor', 'kitchen assistant', 'waiter', 'shop assistant', 'packer',
+                    # Немецкий
+                    'helfer', 'aushilfe', 'ungelernt', 'hilfsarbeiter', 'lagerarbeiter', 'reiniger',
+                    'küchenhilfe', 'servicekraft', 'verkaufsmitarbeiter', 'packer',
+                    # Французский
+                    'manutentionnaire', 'ouvrier', 'agent de nettoyage', 'agent d\'entretien', 'magasinier',
+                    # Испанский
+                    'trabajador general', 'peón', 'limpiador', 'mozo de almacén', 'camarero', 'ayudante de cocina',
+                    # Итальянский
+                    'operaio', 'lavoratore generico', 'addetto pulizie', 'magazziniere', 'cameriere',
+                    # Нидерландский
+                    'algemene werknemer', 'magazijnmedewerker', 'schoonmaker', 'keukenhulp',
+                    # Польский
+                    'pracownik fizyczny', 'magazynier', 'sprzątacz', 'pomoc kuchenna', 'kelner',
+                    # Чешский
+                    'dělník', 'skladník', 'uklízeč', 'pomocná síla', 'číšník'
+                ],
 
             }
         }
@@ -1516,113 +1514,140 @@ class GlobalJobAggregator:
 
         
     
-    def search_specific_jobs(self, preferences: Dict, progress_callback=None) -> List[JobVacancy]:
-        """Поиск конкретных профессий С КЕШИРОВАНИЕМ"""
-        
-        # Проверяем кеш
+    def search_specific_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        Поиск конкретных профессий С КЕШИРОВАНИЕМ + поддержка живого прогресса (progress_callback)
+        и мягкой отмены (cancel_check).
+        """
+        # 1) КЕШ — оставляем как было
         cached_jobs = self.cache_manager.get_cached_result(preferences)
         if cached_jobs:
             self.stats['cache_hits'] += 1
             print(f"🎯 Результат из кеша: {len(cached_jobs)} вакансий")
             return cached_jobs
-        
+
         self.stats['cache_misses'] += 1
         print("🔍 Кеш пуст, выполняем поиск через API...")
-        
-        # Выполняем поиск
-        all_jobs = self._perform_search(preferences, progress_callback)
-        
-        # Кешируем результат!
+
+        # 2) Поиск с порционной отдачей результатов наружу
+        all_jobs = self._perform_search(preferences, progress_callback=progress_callback, cancel_check=cancel_check)
+
+        # 3) КЕШИРУЕМ итог
         if all_jobs:
             self.cache_manager.cache_result(preferences, all_jobs)
             self.stats['total_jobs_found'] += len(all_jobs)
-        
+
         return all_jobs
+
     
-    def _perform_search(self, preferences: Dict, progress_callback=None) -> List[JobVacancy]:
-        """Выполнение поиска через API с поддержкой НЕСКОЛЬКИХ городов (через запятую)"""
+    def _perform_search(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        Выполняет поиск через API с поддержкой НЕСКОЛЬКИХ городов (через запятую),
+        отдаёт «батчи» вакансий наружу через progress_callback(list[JobVacancy]),
+        уважает мягкую отмену через cancel_check().
+        """
         all_jobs: List[JobVacancy] = []
 
         selected_jobs = preferences['selected_jobs']
         countries = preferences['countries']
 
-        # Собираем список городов:
-        #  - если передан preferences['cities'] (из /search), используем его,
-        #  - иначе берём одиночный preferences['city'] (обратная совместимость),
-        #  - если ничего не передано — ищем по стране (без города).
+        # Собираем города (как у тебя было)
         raw_cities = preferences.get('cities') or []
         if not raw_cities and preferences.get('city'):
             raw_cities = [preferences.get('city')]
 
-        # Автокоррекция каждого города по словарю CITY_CORRECTIONS
-        cities: List[str] = []
+        cities = []
         for c in raw_cities:
-            if not c:
-                continue
-            c_stripped = c.strip()
+            c_stripped = (c or '').strip()
             if not c_stripped:
                 continue
-            c_key = c_stripped.lower()
-            corrected = self.CITY_CORRECTIONS.get(c_key, c_stripped)
+            corrected = self._auto_correct_city(c_stripped) if hasattr(self, '_auto_correct_city') else c_stripped
             if corrected != c_stripped:
                 print(f"📍 Город '{c_stripped}' автоматически исправлен на '{corrected}'")
             cities.append(corrected)
 
         # Планируем задачи поиска по странам и профессиям
         tasks = self._optimize_search_tasks(selected_jobs, countries)
+        # (total_searches/current_search оставляю, если ты их используешь для логов)
         total_searches = sum(len(t['terms']) for t in tasks)
         current_search = 0
 
         for task in tasks:
+            if cancel_check and cancel_check():
+                return self._deduplicate_jobs(all_jobs)
+
             country = task['country']
             terms = task['terms']
 
-            # Список городов для прохода; если пусто — один проход без города
+            # Если города не заданы — один проход без города
             cities_to_use = cities if cities else [None]
 
             for city in cities_to_use:
-                # Выполняем батч-поиск по терминам для одной страны+города
-                jobs = self._batch_search_jobs(terms, country, city or '', 25)
+                if cancel_check and cancel_check():
+                    return self._deduplicate_jobs(all_jobs)
+
+                # Запрос порцией; размер 25 как у тебя — при желании подкорректируй
+                try:
+                    jobs = self._batch_search_jobs(terms, country, city or '', 25)
+                except TypeError:
+                    # на случай другой сигнатуры
+                    jobs = self._batch_search_jobs(terms, country, city or '')
+
                 current_search += 1
 
                 if jobs:
+                    # добавляем в общий пул
                     all_jobs.extend(jobs)
-                    print(f"     ✅ Найдено: {len(jobs)} вакансий (страна={country}, город={city or '—'})")
+                    # ⬇️ вот ключ: отдаём найденный батч наружу для ЖИВОГО счётчика
+                    if progress_callback:
+                        try:
+                            progress_callback(jobs)
+                        except Exception:
+                            pass
                 else:
-                    print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем со следующими городами/терминами")
+                    print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем")
 
-                if progress_callback:
-                    progress_callback(min(current_search, total_searches), total_searches)
+                if cancel_check and cancel_check():
+                    return self._deduplicate_jobs(all_jobs)
 
         return self._deduplicate_jobs(all_jobs)
 
-    
-    # adzuna_aggregator.py
 
+    
     def _optimize_search_tasks(self, selected_jobs: List[str], countries: List[str]) -> List[Dict]:
-        """
-        Оптимизация поисковых задач с учетом языков (ИСПРАВЛЕННАЯ ВЕРСИЯ)
-        """
+        """Оптимизация поисковых задач с учетом языков"""
         tasks = []
+        
+        search_other_jobs = 'Другие вакансии' in selected_jobs
         
         # Группируем все термины по странам для локализованного поиска
         for country in countries:
             country_terms = []
             
-            # Собираем термины для ВСЕХ выбранных профессий, включая "Другие вакансии"
+            # Собираем все термины для обычных профессий
             for job_name in selected_jobs:
-                # Больше нет специальной обработки или пропуска для "Другие вакансии"
+                if job_name == 'Другие вакансии':
+                    continue
+                    
                 for category, jobs in self.specific_jobs.items():
                     if job_name in jobs:
                         # Используем ВСЕ термины для локализации
                         country_terms.extend(jobs[job_name])
                         break
             
-            # Добавляем одну общую задачу для всех найденных терминов в стране
+            # Добавляем задачу для обычных профессий
             if country_terms:
                 tasks.append({
                     'job_name': 'Combined Localized Search',
-                    'terms': list(set(country_terms)),  # Используем set для удаления дубликатов терминов
+                    'terms': country_terms,  # Все термины для локализации
+                    'country': country
+                })
+            
+            # Добавляем поиск "других вакансий"
+            if search_other_jobs:
+                tasks.append({
+                    'job_name': 'Другие вакансии',
+                    'terms': ['search_for_other_jobs'],
                     'country': country
                 })
         

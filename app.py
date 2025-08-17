@@ -31,6 +31,11 @@ import schedule
 from adzuna_aggregator import GlobalJobAggregator, JobVacancy
 from careerjet_aggregator import CareerjetAggregator
 from remotive_aggregator import RemotiveAggregator
+# === Live progress state (для живого прогресса/остановки) ===
+active_searches = {}  # sid -> state dict
+
+import threading, inspect
+from dataclasses import asdict
 
 # Rate limiting
 RATE_LIMIT_FILE = "rate_limits.json"
@@ -78,7 +83,9 @@ def check_rate_limit(ip_address):
     
     # Проверяем лимит
     if len(recent_searches) >= MAX_SEARCHES_PER_DAY:
-        return False, MAX_SEARCHES_PER_DAY - len(recent_searches)
+        # TEMP OFF: отключили суточный лимит
+        #return False, MAX_SEARCHES_PER_DAY - len(recent_searches)
+        pass
     
     # Добавляем текущий поиск
     limits[ip_address].append(now)
@@ -271,6 +278,201 @@ def search_jobs():
    except Exception as e:
        app.logger.error(f"❌ Ошибка поиска: {e}", exc_info=True)
        return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+
+# ---- LIVE SEARCH: старт → прогресс → стоп ---------------------------------
+
+def _sources_iter():
+    # Имя для UI -> объект
+    yield ("Adzuna", aggregator)
+    try:
+        if additional_aggregators:
+            if 'careerjet' in additional_aggregators:
+                yield ("Careerjet", additional_aggregators['careerjet'])
+            if 'remotive' in additional_aggregators:
+                yield ("Remotive", additional_aggregators['remotive'])
+            if 'jobicy' in additional_aggregators:
+                yield ("Jobicy", additional_aggregators['jobicy'])
+    except NameError:
+        pass
+
+@app.route('/search/start', methods=['POST'])
+def search_start():
+    """Старт фонового поиска с живым прогрессом."""
+    if not aggregator:
+        return jsonify({'error': 'Сервис временно недоступен'}), 500
+
+    # rate limit — как в /search
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
+    allowed, remaining = check_rate_limit(client_ip)
+    if not allowed:
+        return jsonify({
+            'error': f'Превышен лимит поисков. Максимум {MAX_SEARCHES_PER_DAY} поисков в день.',
+            'remaining_searches': 0,
+            'reset_time': '24 часа'
+        }), 429
+
+    form_data = request.json or request.form.to_dict()
+    raw_city = (form_data.get('city') or '').strip()
+    cities = [c.strip() for c in raw_city.split(',') if c.strip()] if raw_city else []
+
+    preferences = {
+        'is_refugee': form_data.get('is_refugee') == 'true',
+        'selected_jobs': form_data.get('selected_jobs', []),
+        'countries': form_data.get('countries', ['de']),
+        'city': None,
+        'cities': cities
+    }
+    if isinstance(preferences['selected_jobs'], str):
+        preferences['selected_jobs'] = [preferences['selected_jobs']]
+    if not preferences['selected_jobs']:
+        return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
+
+    sid = str(uuid.uuid4())
+    active_searches[sid] = {
+        'sid': sid,
+        'started_at': time.time(),
+        'cancel': False,
+        'current_source': None,
+        'completed_sources': [],
+        'sites_status': {},            # name -> pending|active|done|error
+        'job_map': {},                 # id -> job dict
+        'jobs_count': 0,
+        'results_id': None,
+        'status': 'running',
+        'preferences': preferences,
+    }
+
+    t = Thread(target=_search_worker, args=(sid,), daemon=True)
+    t.start()
+    return jsonify({'ok': True, 'search_id': sid, 'remaining_searches': remaining})
+
+def _search_worker(sid: str):
+    """Фоновый поток: проходит по источникам и наполняет active_searches[sid]['job_map'].
+       ВАЖНО: НИЧЕГО не пишем в flask.session (нет request context)!
+    """
+    st = active_searches.get(sid)
+    if not st:
+        return
+    prefs = st['preferences']
+
+    for name, src in _sources_iter():
+        if st.get('cancel'):
+            break
+
+        st['current_source'] = name
+        st['sites_status'][name] = 'active'
+        try:
+            def cancel_check():
+                s = active_searches.get(sid)
+                return (s is None) or s.get('cancel', False)
+
+            def progress_callback(batch_jobs):
+                if not batch_jobs:
+                    return
+                s = active_searches.get(sid)
+                if not s or s.get('cancel'):
+                    return
+                added = 0
+                for j in batch_jobs:
+                    jid = getattr(j, 'id', None)
+                    if not jid:
+                        continue
+                    if jid not in s['job_map']:
+                        s['job_map'][jid] = asdict(j)
+                        added += 1
+                if added:
+                    s['jobs_count'] = len(s['job_map'])
+                    s['current_source'] = name
+
+            # Вызываем с поддержкой прогресса/отмены, если сигнатура позволяет
+            jobs = None
+            try:
+                jobs = src.search_specific_jobs(prefs, progress_callback=progress_callback, cancel_check=cancel_check)
+            except Exception:
+                try:
+                    jobs = src.search_jobs(prefs, progress_callback=progress_callback, cancel_check=cancel_check)
+                except TypeError:
+                    jobs = src.search_jobs(prefs)
+
+            if jobs:
+                for j in jobs:
+                    jid = getattr(j, 'id', None)
+                    if not jid:
+                        continue
+                    if jid not in st['job_map']:
+                        st['job_map'][jid] = asdict(j)
+                st['jobs_count'] = len(st['job_map'])
+
+            st['sites_status'][name] = 'done'
+            st['completed_sources'].append(name)
+
+        except Exception as e:
+            app.logger.warning(f"{name} error: {e}")
+            st['sites_status'][name] = 'error'
+            st['completed_sources'].append(name)
+
+    # ФИНАЛИЗАЦИЯ БЕЗ session: просто запишем в кэш и отметим результат
+    if st['job_map']:
+        st['results_id'] = str(uuid.uuid4())
+        aggregator.search_cache[st['results_id']] = st['job_map']
+    st['status'] = 'done'
+
+@app.route('/search/progress')
+def search_progress():
+    sid = request.args.get('id')
+    st = active_searches.get(sid)
+    if not sid or not st:
+        return jsonify({'error': 'search_id not found'}), 404
+
+    # КОГДА всё готово — теперь МОЖНО положить в session (мы в request context)
+    if st['status'] == 'done' and st.get('results_id'):
+        session['results_id'] = st['results_id']
+        session['last_search_preferences'] = st['preferences']
+
+    payload = {
+        'status': st['status'],
+        'search_id': sid,
+        'jobs_found': st['jobs_count'],
+        'current_source': st['current_source'],
+        'completed_sources': st['completed_sources'],
+        'sites_status': st['sites_status'],
+    }
+    if st['status'] == 'done':
+        payload['redirect_url'] = url_for('results')
+    return jsonify(payload)
+
+
+@app.route('/search/stop', methods=['POST'])
+def search_stop():
+    """Мягкая остановка: сразу финализируем, чтобы UI мгновенно ушёл на /results."""
+    payload = request.get_json(silent=True) or {}
+    sid = payload.get('search_id') or request.args.get('id')
+    if not sid:
+        return jsonify({'error': 'search_id is required'}), 400
+    st = active_searches.get(sid)
+    if not st:
+        return jsonify({'error': 'search_id not found'}), 404
+
+    # Ставим флаг отмены
+    st['cancel'] = True
+
+    # Финализируем прямо здесь (даже если поток где-то ждёт rate-limit)
+    if not st.get('results_id') and st['job_map']:
+        st['results_id'] = str(uuid.uuid4())
+        aggregator.search_cache[st['results_id']] = st['job_map']
+
+    st['status'] = 'done'
+
+    # Здесь можно работать с session (есть request context)
+    if st.get('results_id'):
+        session['results_id'] = st['results_id']
+        session['last_search_preferences'] = st['preferences']
+        return jsonify({'ok': True, 'redirect_url': url_for('results')})
+    else:
+        # Ничего не нашли — пошлём на results, пусть покажет "0"
+        return jsonify({'ok': True, 'redirect_url': url_for('results')})
+
+# ---------------------------------------------------------------------------
 
 
 # ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ПОЛНОСТЬЮ БЕЗ ИЗМЕНЕНИЙ

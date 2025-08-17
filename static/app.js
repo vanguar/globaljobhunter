@@ -2591,3 +2591,118 @@ function checkSystemStatus() {
             alert('❌ Ошибка загрузки статуса: ' + error.message);
         });
 }
+
+let SEARCH_ID = null;
+let PROGRESS_TIMER = null;
+
+function ensureStopButton() {
+  const form = document.getElementById('job-search-form');
+  if (!form) return;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  let stopBtn = document.getElementById('stop-search-btn');
+  if (!stopBtn) {
+    stopBtn = document.createElement('button');
+    stopBtn.id = 'stop-search-btn';
+    stopBtn.type = 'button';
+    stopBtn.className = 'btn-stop-live';
+    stopBtn.textContent = 'Остановить поиск и показать найденные вакансии';
+    submitBtn.insertAdjacentElement('afterend', stopBtn);
+  }
+  stopBtn.style.display = 'inline-flex';
+  stopBtn.onclick = async () => {
+  if (!SEARCH_ID) return;
+  stopBtn.disabled = true;
+  try {
+    const resp = await fetch('/search/stop', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ search_id: SEARCH_ID })
+    });
+    const data = await resp.json();
+    if (data && data.redirect_url) {
+      window.location.href = data.redirect_url; // уходим сразу
+      return;
+    }
+    // если редиректа нет — просто ждём прогресса 'done'
+  } catch (e) {
+    console.error(e);
+  } finally {
+    stopBtn.disabled = false;
+  }
+};
+
+}
+
+function renderLiveButton({ jobs_found = 0, current_source = 'Инициализация', completed_sources = [] }) {
+  const form = document.getElementById('job-search-form');
+  if (!form) return;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.classList.add('btn-live');
+  submitBtn.innerHTML = `
+    <div class="live-wrap">
+      <div class="live-count">Найдено вакансий: <span id="live-jobs">${jobs_found}</span></div>
+      <div class="live-source">Идёт поиск на: <span class="blink">${current_source}</span><span class="dots"></span></div>
+      <div class="live-done">${completed_sources.length ? ('Проверено: ' + completed_sources.join(', ')) : '&nbsp;'}</div>
+    </div>
+  `;
+}
+
+async function startLiveSearch(e) {
+  e.preventDefault();
+  const form = document.getElementById('job-search-form');
+  const formData = new FormData(form);
+  const payload = {
+    is_refugee: formData.get('is_refugee'),
+    selected_jobs: formData.getAll('selected_jobs'),
+    countries: formData.getAll('countries'),
+    city: formData.get('city') || ''
+  };
+  if (!payload.selected_jobs.length) { alert('Выберите хотя бы одну профессию'); return; }
+  if (!payload.countries.length) { alert('Выберите хотя бы одну страну'); return; }
+
+  renderLiveButton({ jobs_found: 0, current_source: 'Старт', completed_sources: [] });
+  ensureStopButton();
+
+  const res = await fetch('/search/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) {
+    alert(data.error || 'Ошибка запуска поиска');
+    return;
+  }
+  SEARCH_ID = data.search_id;
+
+  const poll = async () => {
+    try {
+      const r = await fetch(`/search/progress?id=${SEARCH_ID}`);
+      const p = await r.json();
+      if (p.error) return;
+
+      renderLiveButton({
+        jobs_found: p.jobs_found || 0,
+        current_source: p.current_source || '—',
+        completed_sources: p.completed_sources || []
+      });
+
+      if (p.status === 'done') {
+        clearInterval(PROGRESS_TIMER);
+        window.location.href = p.redirect_url;
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  };
+  await poll();
+  PROGRESS_TIMER = setInterval(poll, 600);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('job-search-form');
+  if (form) {
+    form.addEventListener('submit', startLiveSearch);
+  }
+});

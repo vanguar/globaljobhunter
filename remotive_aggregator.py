@@ -73,45 +73,53 @@ class RemotiveAggregator(BaseJobAggregator):
     def get_supported_countries(self) -> Dict[str, Dict]:
         return {}
 
-    def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
+    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
         """
-        Основной метод поиска. Выполняет один поиск для каждой выбранной профессии.
+        Основной метод поиска Remotive.
+        Добавлены:
+        - progress_callback(list[JobVacancy]) — отдаём батчи,
+        - cancel_check() — мягкая отмена.
         """
-        print(f"📡 {self.source_name}: Начинаем поиск удаленных вакансий...")
+        print(f"📡 {self.source_name}: Начинаем поиск удалённых вакансий...")
         all_jobs: List[JobVacancy] = []
-        
         selected_jobs = preferences.get('selected_jobs', [])
 
         if not selected_jobs:
             return []
 
         for russian_job_title in selected_jobs:
-            # --- НОВОЕ: Проверяем, есть ли профессия в черном списке ---
+            if cancel_check and cancel_check():
+                return self._deduplicate_jobs(all_jobs)
+
+            # чёрный список (как было)
             if russian_job_title in self.NON_REMOTE_JOBS:
-                print(f"    - Пропускаем '{russian_job_title}', т.к. не является удаленной.")
+                print(f"    - Пропускаем '{russian_job_title}' (не remote)")
                 continue
-            # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
             english_keywords = self._get_english_keywords(russian_job_title)
-            
             if not english_keywords:
                 continue
 
             primary_keyword = english_keywords[0]
             category = self.job_to_category_map.get(primary_keyword.lower())
-            
+
             if category:
                 print(f"    - Ищем по категории '{category}' для '{russian_job_title}'")
-                jobs = self._fetch_jobs(params={'category': category})
-                all_jobs.extend(jobs)
+                jobs = self._fetch_jobs(params={'category': category}, progress_callback=progress_callback, cancel_check=cancel_check)
             else:
                 search_query = " ".join(english_keywords)
                 print(f"    - Ищем по ключевым словам: '{search_query}'")
-                jobs = self._fetch_jobs(params={'search': search_query})
+                jobs = self._fetch_jobs(params={'search': search_query}, progress_callback=progress_callback, cancel_check=cancel_check)
+
+            if jobs:
                 all_jobs.extend(jobs)
-        
-        print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(all_jobs)} вакансий.")
+
+            if cancel_check and cancel_check():
+                return self._deduplicate_jobs(all_jobs)
+
+        print(f"✅ {self.source_name}: Поиск завершён. Найдено всего: {len(all_jobs)}.")
         return self._deduplicate_jobs(all_jobs)
+
 
     def _get_english_keywords(self, russian_job_title: str) -> List[str]:
         for category in self.specific_jobs_map.values():
@@ -119,41 +127,74 @@ class RemotiveAggregator(BaseJobAggregator):
                 return [term for term in category[russian_job_title][:3] if term]
         return []
 
-    def _fetch_jobs(self, params: Dict) -> List[JobVacancy]:
+    def _fetch_jobs(self, params: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        Один запрос к API Remotive.
+        Сначала пытается взять из кеша; после нормализации отдаёт батч через progress_callback.
+        Уважает cancel_check().
+        """
+        if cancel_check and cancel_check():
+            return []
+
         cached_result = self.cache_manager.get_cached_result(params)
         if cached_result:
             search_term_log = params.get('search') or params.get('category')
             print(f"    - Cache HIT для '{search_term_log}'. Найдено: {len(cached_result)}.")
+            # батч из кеша
+            if progress_callback and cached_result:
+                try:
+                    progress_callback(cached_result)
+                except Exception:
+                    pass
             return cached_result
 
-        self.rate_limiter.wait_if_needed()
-        
+        if hasattr(self, 'rate_limiter'):
+            ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
+            if cancel_check and cancel_check():
+                return total_jobs
+            if ok is False:
+                return total_jobs
+
+
         try:
+            if cancel_check and cancel_check():
+                return []
             response = requests.get(self.base_url, params=params, timeout=15)
-            
             if response.status_code != 200:
                 print(f"❌ {self.source_name} API ошибка {response.status_code}: {response.text}")
                 return []
 
             data = response.json()
             jobs_raw = data.get('jobs', [])
-            
             search_term = params.get('search') or params.get('category')
-            normalized_jobs = [
-                job for job_data in jobs_raw 
-                if (job := self._normalize_job_data(job_data, search_term)) is not None
-            ]
+
+            normalized_jobs: List[JobVacancy] = []
+            for job_data in jobs_raw:
+                if cancel_check and cancel_check():
+                    break
+                job = self._normalize_job_data(job_data, search_term)
+                if job:
+                    normalized_jobs.append(job)
 
             self.cache_manager.cache_result(params, normalized_jobs)
-            print(f"    - Найдено и закешировано: {len(normalized_jobs)} вакансий для '{search_term}'.")
+            print(f"    - Найдено и закешировано: {len(normalized_jobs)} для '{search_term}'.")
+
+            # батч наружу — весь список этого запроса
+            if progress_callback and normalized_jobs:
+                try:
+                    progress_callback(normalized_jobs)
+                except Exception:
+                    pass
+
             return normalized_jobs
 
         except requests.Timeout:
-            print(f"⚠️ {self.source_name}: Таймаут запроса для '{params}'.")
+            print(f"⚠️ {self.source_name}: таймаут для '{params}'.")
             return []
         except Exception as e:
-            print(f"❌ {self.source_name}: Критическая ошибка при запросе: {e}")
+            print(f"❌ {self.source_name}: критическая ошибка: {e}")
             return []
+
 
     def _normalize_job_data(self, raw_job: Dict, search_term: str) -> Optional[JobVacancy]:
         try:
