@@ -157,12 +157,10 @@ class RemotiveAggregator(BaseJobAggregator):
     max_runtime_sec: int = 20
 ) -> List[JobVacancy]:
         """
-        Один запрос к API Remotive в быстром режиме:
-        - Сначала пробуем кеш.
-        - Кооперативный rate-limit (но у тебя он уже «моментальный» после правки в Adzuna).
-        - Короткий HTTP-таймаут (6s).
-        - Без ретраев по умолчанию (можно задать через env REMOTIVE_RETRIES).
-        - Отдаём весь найденный список батчем через progress_callback.
+        Один запрос к API Remotive (быстрый режим):
+        - Cache → отдать батч.
+        - Короткий HTTP-таймаут.
+        - 429/timeout: микропауза 150–400мс и сразу дальше (без долгих ожиданий и ретраев).
         """
         if cancel_check and cancel_check():
             return []
@@ -181,29 +179,18 @@ class RemotiveAggregator(BaseJobAggregator):
                     pass
             return cached_result
 
-        # 1) кооперативный rate-limit (но после твоей правки он мгновенный)
+        # 1) кооперативный "лимитер" (у тебя он уже быстрый)
         ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
         if ok is False or (cancel_check and cancel_check()):
             return []
         if started_at and (time.time() - started_at > max_runtime_sec):
             return []
 
-        # 2) запрос с коротким таймаутом и ограниченными ретраями
         HTTP_TIMEOUT = int(os.getenv("REMOTIVE_HTTP_TIMEOUT", "6"))
-        RETRIES = int(os.getenv("REMOTIVE_RETRIES", "0"))
 
-        for attempt in range(RETRIES + 1):
-            if cancel_check and cancel_check():
-                return []
-            if started_at and (time.time() - started_at > max_runtime_sec):
-                return []
-
-            try:
-                response = requests.get(self.base_url, params=params, timeout=HTTP_TIMEOUT)
-                if response.status_code != 200:
-                    print(f"❌ {self.source_name} API ошибка {response.status_code}: {response.text[:200]}")
-                    return []
-
+        try:
+            response = requests.get(self.base_url, params=params, timeout=HTTP_TIMEOUT)
+            if response.status_code == 200:
                 data = response.json()
                 jobs_raw = data.get('jobs', [])
                 tag = params.get('search') or params.get('category')
@@ -227,17 +214,25 @@ class RemotiveAggregator(BaseJobAggregator):
 
                 return normalized_jobs
 
-            except requests.Timeout:
+            if response.status_code == 429:
                 tag = params.get('search') or params.get('category')
-                print(f"⚠️ {self.source_name}: таймаут для '{tag}' (попытка {attempt+1}/{RETRIES+1}).")
-                # без долгих бэкоффов — сразу к след. попытке
-
-            except Exception as e:
-                print(f"❌ {self.source_name}: критическая ошибка: {e}")
+                backoff_ms = 200 + random.randint(0, 200)  # 200–400мс
+                print(f"⛔ Remotive: 429 Too Many Requests — микропауза {backoff_ms} мс для '{tag}' и двигаемся дальше")
+                yield_briefly(base_ms=backoff_ms, jitter_ms=0, cancel_check=cancel_check)
                 return []
 
-        return []
+            print(f"❌ {self.source_name} API ошибка {response.status_code}: {response.text[:200]}")
+            return []
 
+        except requests.Timeout:
+            tag = params.get('search') or params.get('category')
+            backoff_ms = 150 + random.randint(0, 200)  # 150–350мс
+            print(f"⚠️ {self.source_name}: таймаут для '{tag}' — микропауза {backoff_ms} мс и дальше")
+            yield_briefly(base_ms=backoff_ms, jitter_ms=0, cancel_check=cancel_check)
+            return []
+        except Exception as e:
+            print(f"❌ {self.source_name}: критическая ошибка: {e}")
+            return []
 
 
 

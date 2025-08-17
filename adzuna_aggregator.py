@@ -14,6 +14,27 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
 import pickle
+import random
+
+def yield_briefly(base_ms: int = 200, jitter_ms: int = 120, cancel_check=None) -> bool:
+    """
+    Короткая «микро-пауза» (например, после 429), чтобы не забивать API.
+    Ждём base_ms + random(0..jitter_ms) миллисекунд мелкими шагами,
+    проверяя cancel_check() — т.е. Стоп сработает мгновенно.
+    Вернёт False, если отменили во время ожидания.
+    """
+    delay = (base_ms + (random.randint(0, jitter_ms) if jitter_ms > 0 else 0)) / 1000.0
+    end = time.time() + delay
+    while True:
+        if cancel_check and cancel_check():
+            return False
+        remain = end - time.time()
+        if remain <= 0:
+            break
+        time.sleep(min(0.05, remain))  # шаг 50мс
+    return True
+
+
 
 # Попытка импорта Redis (опционально)
 try:
@@ -1884,13 +1905,11 @@ class GlobalJobAggregator:
     filter_term: str = None,
     cancel_check=None
 ) -> List[JobVacancy]:
-        """Поиск по одному термину с rate limiting и уважением мягкой отмены."""
-
+        """Поиск по одному термину с кооперативной отменой и мгновенной обработкой 429."""
         if cancel_check and cancel_check():
             return []
 
         url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
-
         params = {
             'app_id': self.app_id,
             'app_key': self.app_key,
@@ -1898,7 +1917,6 @@ class GlobalJobAggregator:
             'results_per_page': min(max_results, 50),
             'sort_by': 'date'
         }
-
         if location:
             normalized_location = self.normalize_city_name(location, country)
             params['where'] = normalized_location
@@ -1911,7 +1929,7 @@ class GlobalJobAggregator:
             return []
 
         try:
-            response = requests.get(url, params=params, timeout=15)
+            response = requests.get(url, params=params, timeout=12)
             self.stats['api_requests'] += 1
             print(f"     📡 API ответ: {response.status_code}")
 
@@ -1929,28 +1947,33 @@ class GlobalJobAggregator:
                         jobs.append(job)
                 return jobs
 
-            else:
-                try:
-                    data = response.json()
-                except Exception:
-                    data = {}
-                exc = (data or {}).get("exception", "")
-                if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
-                    print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем…")
-                    return []
-                print(f"❌ API вернул {response.status_code}: {response.text[:200]}")
+            if response.status_code == 429:
+                backoff_ms = 180 + random.randint(0, 220)  # 180–400мс
+                print(f"⛔ Adzuna: 429 Too Many Requests — микропауза {backoff_ms} мс и продолжаем дальше")
+                yield_briefly(base_ms=backoff_ms, jitter_ms=0, cancel_check=cancel_check)
                 return []
 
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+            exc = (data or {}).get("exception", "")
+            if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
+                print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем…")
+                return []
+            print(f"❌ API вернул {response.status_code}: {response.text[:200]}")
+            return []
+
         except requests.Timeout:
-            print("⚠️ Adzuna: таймаут запроса, пропускаем этот терм")
+            backoff_ms = 120 + random.randint(0, 180)  # 120–300мс
+            print(f"⚠️ Adzuna: таймаут запроса — микропауза {backoff_ms} мс и продолжаем")
+            yield_briefly(base_ms=backoff_ms, jitter_ms=0, cancel_check=cancel_check)
             return []
         except Exception as e:
             print(f"❌ Adzuna: критическая ошибка: {e}")
             return []
 
 
-
-    
     # Остальные методы остаются без изменений...
     def _normalize_job_data(self, raw_job: Dict, country: str, search_term: str) -> Optional[JobVacancy]:
         """Нормализация данных С ПРОВЕРКОЙ РЕЛЕВАНТНОСТИ"""
