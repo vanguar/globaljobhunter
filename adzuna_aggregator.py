@@ -202,18 +202,19 @@ class RateLimiter:
         self.requests = []
 
     def wait_if_needed(self, cancel_check=None) -> bool:
-        """Ждём по чуть-чуть с проверкой отмены. Возвращаем False, если отменено."""
+        """Ждём по чуть-чуть и проверяем отмену. Вернёт False, если отменили."""
         now = time.time()
         # вычищаем старые записи
         self.requests = [t for t in self.requests if now - t < 60]
 
         if len(self.requests) >= self.requests_per_minute:
             oldest = min(self.requests)
-            wait_time = max(0.0, 60.0 - (now - oldest))
+            wait_time = max(0.0, 60.0 - (now - oldest) + 1)  # +1с запас
             if wait_time > 0:
                 print(f"⏱️ Rate limit: ожидание {wait_time:.1f} секунд...")
                 end = time.time() + wait_time
                 while True:
+                    # кооперативная проверка отмены
                     if cancel_check and cancel_check():
                         return False
                     remain = end - time.time()
@@ -223,6 +224,7 @@ class RateLimiter:
         # записываем текущий запрос
         self.requests.append(time.time())
         return True
+
 
 
 class GlobalJobAggregator:
@@ -1684,7 +1686,7 @@ class GlobalJobAggregator:
         
         # Для специального случая "других вакансий"
         if len(terms) == 1 and terms[0] == 'search_for_other_jobs':
-            return self._search_single_term('job work position', country, location, max_results, 'search_for_other_jobs')
+            return self._search_single_term('job work position', country, location, max_results, 'search_for_other_jobs', cancel_check=cancel_check)
         
         # 🌍 УМНЫЙ ВЫБОР ТЕРМИНОВ ПО ЯЗЫКУ СТРАНЫ
         localized_terms = self._get_localized_terms(terms, country)
@@ -1697,7 +1699,7 @@ class GlobalJobAggregator:
         for i, term in enumerate(localized_terms):  # Максимум 3 запроса
             print(f"     🔍 Запрос {i+1}: '{term}'")
             
-            jobs = self._search_single_term(term, country, location, 10)  # По 10 на термин
+            jobs = self._search_single_term(term, country, location, 10, cancel_check=cancel_check)
             
             if jobs:
                 print(f"     📊 Найдено для '{term}': {len(jobs)} вакансий")
@@ -1901,9 +1903,14 @@ class GlobalJobAggregator:
     country: str,
     location: str = '',
     max_results: int = 25,
-    filter_term: str = None
+    filter_term: str = None,
+    cancel_check=None
 ) -> List[JobVacancy]:
-        """Поиск по одному термину с rate limiting. Спокойно пропускает неподдерживаемые страны."""
+        """Поиск по одному термину с rate limiting и уважением мягкой отмены."""
+
+        # ранний выход при отмене
+        if cancel_check and cancel_check():
+            return []
 
         url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
 
@@ -1916,15 +1923,19 @@ class GlobalJobAggregator:
         }
 
         if location:
-            # Нормализуем название города
             normalized_location = self.normalize_city_name(location, country)
             params['where'] = normalized_location
 
         print(f"     🌐 API URL: {url}")
         print(f"     📝 Параметры: what='{keywords}', where='{location}'")
 
-        # Rate limiting
-        self.rate_limiter.wait_if_needed()
+        # Rate limiting — кооперативно
+        ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
+        if cancel_check and cancel_check():
+            return total_jobs
+        if ok is False:
+            return total_jobs
+
 
         try:
             response = requests.get(url, params=params, timeout=15)
@@ -1938,14 +1949,14 @@ class GlobalJobAggregator:
 
                 jobs: List[JobVacancy] = []
                 for job_data in results:
+                    if cancel_check and cancel_check():
+                        break
                     job = self._normalize_job_data(job_data, country, filter_term or keywords)
                     if job:
                         jobs.append(job)
                 return jobs
 
-            # Обработка 404/прочих кодов с проверкой на неподдерживаемую страну
             else:
-                # Пытаемся разобрать JSON и понять причину
                 try:
                     data = response.json()
                 except Exception:
@@ -1954,18 +1965,17 @@ class GlobalJobAggregator:
                 exc = (data or {}).get("exception", "")
                 if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
                     print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем и продолжаем…")
-                    return []  # просто пропускаем страну
-
-                # Любая другая ошибка — логируем и идём дальше
-                print(f"⚠️ API ошибка {response.status_code}: {response.text}")
+                    return []
+                print(f"❌ API вернул {response.status_code}: {response.text[:200]}")
                 return []
 
         except requests.Timeout:
-            print("⚠️ Таймаут запроса к Adzuna API")
+            print("⚠️ Adzuna: таймаут запроса, пропускаем этот терм")
             return []
         except Exception as e:
-            print(f"⚠️ Ошибка запроса: {e}")
+            print(f"❌ Adzuna: критическая ошибка: {e}")
             return []
+
 
     
     # Остальные методы остаются без изменений...

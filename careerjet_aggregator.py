@@ -177,11 +177,12 @@ class CareerjetAggregator(BaseJobAggregator):
                 continue
 
             if hasattr(self, 'rate_limiter'):
-                ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
+                ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
                 if cancel_check and cancel_check():
                     return total_jobs
                 if ok is False:
                     return total_jobs
+
 
 
             try:
