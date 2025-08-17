@@ -1550,8 +1550,8 @@ class GlobalJobAggregator:
         return all_jobs
 
     
-    def _perform_search(self, preferences: Dict, progress_callback=None) -> List[JobVacancy]:
-        """Выполнение поиска через API с поддержкой нескольких городов + circuit breaker."""
+    def _perform_search(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """Выполнение поиска через API с поддержкой нескольких городов + circuit breaker + cancel_check."""
         all_jobs: List[JobVacancy] = []
 
         # если источник в cooldown — выходим сразу
@@ -1564,7 +1564,7 @@ class GlobalJobAggregator:
         selected_jobs = preferences['selected_jobs']
         countries = preferences['countries']
 
-        # города (как у тебя было)
+        # города из preferences (как у тебя было)
         raw_cities = preferences.get('cities') or []
         if not raw_cities and preferences.get('city'):
             raw_cities = [preferences.get('city')]
@@ -1588,14 +1588,18 @@ class GlobalJobAggregator:
 
         try:
             for task in tasks:
+                if cancel_check and cancel_check():
+                    break
                 country = task['country']
                 terms = task['terms']
 
                 cities_to_use = cities if cities else [None]
-
                 for city in cities_to_use:
-                    # ключевой вызов — может поднять RateLimitedError
-                    jobs = self._batch_search_jobs(terms, country, city or '', 25)
+                    if cancel_check and cancel_check():
+                        break
+
+                    # ⚠️ прокидываем cancel_check вниз
+                    jobs = self._batch_search_jobs(terms, country, city or '', 25, cancel_check=cancel_check)
                     current_search += 1
 
                     if jobs:
@@ -1608,11 +1612,10 @@ class GlobalJobAggregator:
                         progress_callback(min(current_search, total_searches), total_searches)
 
         except RateLimitedError:
-            # как только поймали 429 — завершаем этот источник немедленно
             print("⛔ Adzuna: источник переведён в cooldown, завершаем поиск по Adzuna.")
-            return self._deduplicate_jobs(all_jobs) if hasattr(self, '_deduplicate_jobs') else all_jobs
 
-        return self._deduplicate_jobs(all_jobs)
+        return self._deduplicate_jobs(all_jobs) if hasattr(self, '_deduplicate_jobs') else all_jobs
+
 
     
     def _optimize_search_tasks(self, selected_jobs: List[str], countries: List[str]) -> List[Dict]:
@@ -1676,22 +1679,25 @@ class GlobalJobAggregator:
         # Возвращаем максимум 6 терминов
         return selected_terms[:6]
     
-    def _batch_search_jobs(self, terms: List[str], country: str, location: str = '', max_results: int = 25) -> List[JobVacancy]:
-        """Поиск с локализацией + прерывание при 429 (через RateLimitedError)."""
-        if country not in self.countries:
+    def _batch_search_jobs(self, terms: List[str], country: str, location: str = '', max_results: int = 25, cancel_check=None) -> List[JobVacancy]:
+        """Поиск по списку терминов для одной страны/города + прерывание при 429/cancel."""
+        if cancel_check and cancel_check():
             return []
 
-        # если Adzuna уже в cooldown — сразу выходим
+        # если уже в cooldown — не ходим
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             left = int(self.cooldown_until - now)
             print(f"⛔ Adzuna: cooldown ещё {left}s — пропускаем batch.")
+            raise RateLimitedError("ADZUNA_COOLDOWN")
+
+        if country not in self.countries:
             return []
 
-        all_jobs = []
+        all_jobs: List[JobVacancy] = []
 
         if len(terms) == 1 and terms[0] == 'search_for_other_jobs':
-            return self._search_single_term('job work position', country, location, max_results, 'search_for_other_jobs')
+            return self._search_single_term('job work position', country, location, max_results, 'search_for_other_jobs', cancel_check=cancel_check)
 
         localized_terms = self._get_localized_terms(terms, country)
 
@@ -1700,11 +1706,14 @@ class GlobalJobAggregator:
         print(f"\n     🌍 Страна: {country_name}, языки поиска: {languages}")
 
         for i, term in enumerate(localized_terms):
+            if cancel_check and cancel_check():
+                break
             print(f"     🔍 Запрос {i+1}: '{term}'")
             try:
-                jobs = self._search_single_term(term, country, location, 10)
+                # ⚠️ прокидываем cancel_check в одиночный запрос
+                jobs = self._search_single_term(term, country, location, 10, cancel_check=cancel_check)
             except RateLimitedError:
-                # пробрасываем выше, чтобы _perform_search завершил источник
+                # наверх, чтобы _perform_search завершил источник
                 raise
 
             if jobs:
@@ -1714,9 +1723,10 @@ class GlobalJobAggregator:
                 print(f"     ❌ Ничего не найдено для '{term}'")
 
             if i < len(localized_terms) - 1:
-                time.sleep(0.15)  # маленькая пауза между термами (можно 0)
+                time.sleep(0.15)  # небольшая пауза между термами
 
         return all_jobs
+
 
 
     
@@ -1901,10 +1911,14 @@ class GlobalJobAggregator:
     country: str,
     location: str = '',
     max_results: int = 25,
-    filter_term: str = None
+    filter_term: str = None,
+    cancel_check=None
 ) -> List[JobVacancy]:
-        """По одному термину. При 429 сразу включаем cooldown и роняем RateLimitedError, чтобы уйти на другой источник."""
-        # если уже в cooldown — не ходим вообще
+        """По одному термину. При 429 — включаем cooldown и роняем RateLimitedError; поддерживаем cancel_check."""
+        if cancel_check and cancel_check():
+            return []
+
+        # если уже в cooldown — не ходим
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             left = int(self.cooldown_until - now)
@@ -1912,7 +1926,6 @@ class GlobalJobAggregator:
             raise RateLimitedError("ADZUNA_COOLDOWN")
 
         url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
-
         params = {
             'app_id': self.app_id,
             'app_key': self.app_key,
@@ -1927,8 +1940,9 @@ class GlobalJobAggregator:
         print(f"     🌐 API URL: {url}")
         print(f"     📝 Параметры: what='{keywords}', where='{location}'")
 
-        # локальный лимитер — оставь как есть или сделай быстрым, но тут не ждём долго
-        self.rate_limiter.wait_if_needed()
+        ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
+        if ok is False or (cancel_check and cancel_check()):
+            return []
 
         try:
             response = requests.get(url, params=params, timeout=12)
@@ -1942,6 +1956,8 @@ class GlobalJobAggregator:
 
                 jobs: List[JobVacancy] = []
                 for job_data in results:
+                    if cancel_check and cancel_check():
+                        break
                     job = self._normalize_job_data(job_data, country, filter_term or keywords)
                     if job:
                         jobs.append(job)
@@ -1951,8 +1967,7 @@ class GlobalJobAggregator:
                 cooldown = int(os.getenv("ADZUNA_COOLDOWN_SEC", "180"))
                 self.cooldown_until = time.time() + cooldown
                 print(f"⛔ Adzuna: 429 Too Many Requests — включаем cooldown {cooldown}s и переключаемся на другой источник")
-                # маленький «yield», чтобы UI успевал обновиться
-                yield_briefly(base_ms=180, jitter_ms=120)
+                yield_briefly(base_ms=180, jitter_ms=120, cancel_check=cancel_check)
                 raise RateLimitedError("ADZUNA_RATE_LIMITED")
 
             # прочие статусы — без ретраев
@@ -1968,13 +1983,14 @@ class GlobalJobAggregator:
             return []
 
         except requests.Timeout:
-            print("⚠️ Adzuna: таймаут запроса — просто пропускаем этот term")
+            print("⚠️ Adzuna: таймаут запроса — пропускаем term")
             return []
         except RateLimitedError:
             raise
         except Exception as e:
             print(f"❌ Adzuna: критическая ошибка: {e}")
             return []
+
 
 
 
