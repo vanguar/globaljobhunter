@@ -1553,7 +1553,7 @@ class GlobalJobAggregator:
         selected_jobs = preferences['selected_jobs']
         countries = preferences['countries']
 
-        # Собираем города (как у тебя было)
+        # Собираем города
         raw_cities = preferences.get('cities') or []
         if not raw_cities and preferences.get('city'):
             raw_cities = [preferences.get('city')]
@@ -1568,12 +1568,7 @@ class GlobalJobAggregator:
                 print(f"📍 Город '{c_stripped}' автоматически исправлен на '{corrected}'")
             cities.append(corrected)
 
-        # Планируем задачи поиска по странам и профессиям
         tasks = self._optimize_search_tasks(selected_jobs, countries)
-        # (total_searches/current_search оставляю, если ты их используешь для логов)
-        total_searches = sum(len(t['terms']) for t in tasks)
-        current_search = 0
-
         for task in tasks:
             if cancel_check and cancel_check():
                 return self._deduplicate_jobs(all_jobs)
@@ -1581,38 +1576,33 @@ class GlobalJobAggregator:
             country = task['country']
             terms = task['terms']
 
-            # Если города не заданы — один проход без города
             cities_to_use = cities if cities else [None]
 
             for city in cities_to_use:
                 if cancel_check and cancel_check():
                     return self._deduplicate_jobs(all_jobs)
 
-                # Запрос порцией; размер 25 как у тебя — при желании подкорректируй
+                # ⬇️ ВАЖНО: пробрасываем progress_callback и cancel_check
                 try:
-                    jobs = self._batch_search_jobs(terms, country, city or '', 25)
+                    page_jobs = self._batch_search_jobs(
+                        terms, country, city or '', 25,
+                        progress_callback=progress_callback,
+                        cancel_check=cancel_check
+                    )
                 except TypeError:
-                    # на случай другой сигнатуры
-                    jobs = self._batch_search_jobs(terms, country, city or '')
+                    # если у тебя другая сигнатура — но мы её как раз ниже заменим
+                    page_jobs = self._batch_search_jobs(
+                        terms, country, city or '', 25
+                    )
 
-                current_search += 1
-
-                if jobs:
-                    # добавляем в общий пул
-                    all_jobs.extend(jobs)
-                    # ⬇️ вот ключ: отдаём найденный батч наружу для ЖИВОГО счётчика
-                    if progress_callback:
-                        try:
-                            progress_callback(jobs)
-                        except Exception:
-                            pass
-                else:
-                    print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем")
+                if page_jobs:
+                    all_jobs.extend(page_jobs)
 
                 if cancel_check and cancel_check():
                     return self._deduplicate_jobs(all_jobs)
 
         return self._deduplicate_jobs(all_jobs)
+
 
 
     
@@ -1677,50 +1667,49 @@ class GlobalJobAggregator:
         # Возвращаем максимум 6 терминов
         return selected_terms[:6]
     
-    def _batch_search_jobs(self, terms: List[str], country: str, location: str = '', max_results: int = 25) -> List[JobVacancy]:
-        """Поиск с автоматическим выбором языка по стране"""
-        if country not in self.countries:
-            return []
-        
-        all_jobs = []
-        
-        # Для специального случая "других вакансий"
-        if len(terms) == 1 and terms[0] == 'search_for_other_jobs':
-            return self._search_single_term('job work position', country, location, max_results, 'search_for_other_jobs', cancel_check=cancel_check)
-        
-        # 🌍 УМНЫЙ ВЫБОР ТЕРМИНОВ ПО ЯЗЫКУ СТРАНЫ
-        localized_terms = self._get_localized_terms(terms, country)
-        
-        country_name = self.countries[country]['name']
-        languages = ', '.join(self.COUNTRY_LANGUAGES.get(country, ['english']))
-        print(f"     🌍 Страна: {country_name}, языки поиска: {languages}")
-        
-        # Делаем отдельные запросы для каждого термина
-        for i, term in enumerate(localized_terms):  # Максимум 3 запроса
-            print(f"     🔍 Запрос {i+1}: '{term}'")
-            
-            jobs = self._search_single_term(term, country, location, 10, cancel_check=cancel_check)
-            
+    def _batch_search_jobs(
+    self,
+    terms: List[str],
+    country: str,
+    location: str = '',
+    per_term_limit: int = 25,
+    progress_callback=None,
+    cancel_check=None
+) -> List[JobVacancy]:
+        """
+        Выполняет поиск для списка terms по одной стране/локации.
+        На КАЖДЫЙ term вызывает _search_single_term(..., cancel_check=cancel_check),
+        а также отдаёт найденные вакансии батчами через progress_callback.
+        """
+        aggregated: List[JobVacancy] = []
+
+        for term in terms:
+            if cancel_check and cancel_check():
+                break
+
+            # сколько брать для одного терма (можешь подстроить логику)
+            per_term = max(1, min(50, per_term_limit if isinstance(per_term_limit, int) else 25))
+
+            jobs = self._search_single_term(
+                term, country, location, per_term,
+                cancel_check=cancel_check
+            )
+
             if jobs:
-                print(f"     📊 Найдено для '{term}': {len(jobs)} вакансий")
-                all_jobs.extend(jobs)
-            else:
-                print(f"     ❌ Ничего не найдено для '{term}'")
-            
-            # Пауза между запросами
-            if i < len(localized_terms) - 1:
-                time.sleep(0.3)
-        
-        # Дедупликация на уровне батча
-        unique_jobs = []
-        seen_ids = set()
-        for job in all_jobs:
-            if job.id not in seen_ids:
-                unique_jobs.append(job)
-                seen_ids.add(job.id)
-        
-        print(f"     ✅ Итого уникальных: {len(unique_jobs)} вакансий")
-        return unique_jobs
+                aggregated.extend(jobs)
+                # живой батч наружу
+                if progress_callback:
+                    try:
+                        progress_callback(jobs)
+                    except Exception:
+                        pass
+
+            if cancel_check and cancel_check():
+                break
+
+        # если есть метод дедупликации — применим
+        return self._deduplicate_jobs(aggregated) if hasattr(self, '_deduplicate_jobs') else aggregated
+
     
     def normalize_city_name(self, city, country_code):
         """
@@ -1908,7 +1897,6 @@ class GlobalJobAggregator:
 ) -> List[JobVacancy]:
         """Поиск по одному термину с rate limiting и уважением мягкой отмены."""
 
-        # ранний выход при отмене
         if cancel_check and cancel_check():
             return []
 
@@ -1929,13 +1917,9 @@ class GlobalJobAggregator:
         print(f"     🌐 API URL: {url}")
         print(f"     📝 Параметры: what='{keywords}', where='{location}'")
 
-        # Rate limiting — кооперативно!
-        ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
-        if cancel_check and cancel_check():
-            return total_jobs
-        if ok is False:
-            return total_jobs
-
+        ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
+        if ok is False or (cancel_check and cancel_check()):
+            return []
 
         try:
             response = requests.get(url, params=params, timeout=15)
@@ -1961,10 +1945,9 @@ class GlobalJobAggregator:
                     data = response.json()
                 except Exception:
                     data = {}
-
                 exc = (data or {}).get("exception", "")
                 if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
-                    print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем и продолжаем…")
+                    print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем…")
                     return []
                 print(f"❌ API вернул {response.status_code}: {response.text[:200]}")
                 return []
@@ -1975,6 +1958,7 @@ class GlobalJobAggregator:
         except Exception as e:
             print(f"❌ Adzuna: критическая ошибка: {e}")
             return []
+
 
 
     
