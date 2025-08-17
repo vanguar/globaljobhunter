@@ -16,6 +16,23 @@ from adzuna_aggregator import JobVacancy, CacheManager, RateLimiter
 # --- Базовый класс для соблюдения архитектуры ---
 from base_aggregator import BaseJobAggregator
 
+try:
+    from adzuna_aggregator import RateLimitedError, yield_briefly
+except Exception:
+    class RateLimitedError(Exception):
+        pass
+    import random, time
+    def yield_briefly(base_ms: int = 200, jitter_ms: int = 120, cancel_check=None) -> bool:
+        delay = (base_ms + (random.randint(0, jitter_ms) if jitter_ms > 0 else 0)) / 1000.0
+        end = time.time() + delay
+        while True:
+            remain = end - time.time()
+            if remain <= 0:
+                break
+            time.sleep(min(0.05, remain))
+        return True
+
+
 class RemotiveAggregator(BaseJobAggregator):
     """
     Агрегатор для поиска удаленных вакансий через Remotive API.
@@ -53,7 +70,9 @@ class RemotiveAggregator(BaseJobAggregator):
         """
         Инициализация агрегатора.
         """
+        
         super().__init__(source_name='Remotive')
+        self.cooldown_until = 0
         self.base_url = "https://remotive.com/api/remote-jobs"
         self.specific_jobs_map = specific_jobs_map
         self.cache_manager = CacheManager(cache_duration_hours=cache_duration_hours)
@@ -73,71 +92,52 @@ class RemotiveAggregator(BaseJobAggregator):
     def get_supported_countries(self) -> Dict[str, Dict]:
         return {}
 
-    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
-        """
-        Remotive: быстрый режим.
-        - Поддержка progress_callback(list[JobVacancy]) — отдаём батчи.
-        - Поддержка cancel_check() — мягкая остановка.
-        - Общий тайм-бюджет на источник (по умолчанию 20с, можно менять REMOTIVE_MAX_RUNTIME).
-        """
-        print(f"📡 {self.source_name}: Начинаем поиск удалённых вакансий...")
+    def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
+        """Remotive с circuit breaker: при 429 выключаем источник и идём дальше."""
+        print(f"📡 {self.source_name}: Начинаем поиск удаленных вакансий...")
         all_jobs: List[JobVacancy] = []
+
+        # если источник в cooldown — пропускаем
+        now = time.time()
+        if getattr(self, "cooldown_until", 0) > now:
+            left = int(self.cooldown_until - now)
+            print(f"⛔ {self.source_name}: на cooldown ещё {left}s — пропускаем источник.")
+            return []
 
         selected_jobs = preferences.get('selected_jobs', [])
         if not selected_jobs:
             return []
 
-        # общий бюджет времени на Remotive
-        MAX_RUNTIME_SEC = int(os.getenv("REMOTIVE_MAX_RUNTIME", "20"))
-        started_at = time.time()
+        try:
+            for russian_job_title in selected_jobs:
+                # чёрный список «не remote» как у тебя было
+                if russian_job_title in self.NON_REMOTE_JOBS:
+                    print(f"    - Пропускаем '{russian_job_title}', т.к. не является удаленной.")
+                    continue
 
-        for russian_job_title in selected_jobs:
-            if cancel_check and cancel_check():
-                return self._deduplicate_jobs(all_jobs)
-            if time.time() - started_at > MAX_RUNTIME_SEC:
-                print(f"⏳ {self.source_name}: превышен тайм-бюджет {MAX_RUNTIME_SEC}s — прерываем оставшиеся запросы")
-                break
+                english_keywords = self._get_english_keywords(russian_job_title)
+                if not english_keywords:
+                    continue
 
-            # Игнорируем явные «не-удалённые» профессии
-            if russian_job_title in self.NON_REMOTE_JOBS:
-                print(f"    - Пропускаем '{russian_job_title}' (не remote)")
-                continue
+                primary_keyword = english_keywords[0]
+                category = self.job_to_category_map.get(primary_keyword.lower())
 
-            english_keywords = self._get_english_keywords(russian_job_title)
-            if not english_keywords:
-                continue
+                if category:
+                    print(f"    - Ищем по категории '{category}' для '{russian_job_title}'")
+                    jobs = self._fetch_jobs(params={'category': category})
+                    all_jobs.extend(jobs)
+                else:
+                    search_query = " ".join(english_keywords)
+                    print(f"    - Ищем по ключевым словам: '{search_query}'")
+                    jobs = self._fetch_jobs(params={'search': search_query})
+                    all_jobs.extend(jobs)
 
-            primary_keyword = english_keywords[0]
-            category = self.job_to_category_map.get(primary_keyword.lower())
+        except RateLimitedError:
+            print(f"⛔ {self.source_name}: источник переведён в cooldown — завершаем Remotive.")
 
-            if category:
-                print(f"    - Ищем по категории '{category}' для '{russian_job_title}'")
-                jobs = self._fetch_jobs(
-                    params={'category': category},
-                    progress_callback=progress_callback,
-                    cancel_check=cancel_check,
-                    started_at=started_at,
-                    max_runtime_sec=MAX_RUNTIME_SEC
-                )
-            else:
-                search_query = " ".join(english_keywords)
-                print(f"    - Ищем по ключевым словам: '{search_query}'")
-                jobs = self._fetch_jobs(
-                    params={'search': search_query},
-                    progress_callback=progress_callback,
-                    cancel_check=cancel_check,
-                    started_at=started_at,
-                    max_runtime_sec=MAX_RUNTIME_SEC
-                )
-
-            if jobs:
-                all_jobs.extend(jobs)
-
-            if cancel_check and cancel_check():
-                return self._deduplicate_jobs(all_jobs)
-
-        print(f"✅ {self.source_name}: Поиск завершён. Найдено всего: {len(all_jobs)}.")
+        print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(all_jobs)} вакансий.")
         return self._deduplicate_jobs(all_jobs)
+
 
 
 
@@ -148,91 +148,60 @@ class RemotiveAggregator(BaseJobAggregator):
                 return [term for term in category[russian_job_title][:3] if term]
         return []
 
-    def _fetch_jobs(
-    self,
-    params: Dict,
-    progress_callback=None,
-    cancel_check=None,
-    started_at: float = None,
-    max_runtime_sec: int = 20
-) -> List[JobVacancy]:
-        """
-        Один запрос к API Remotive (быстрый режим):
-        - Cache → отдать батч.
-        - Короткий HTTP-таймаут.
-        - 429/timeout: микропауза 150–400мс и сразу дальше (без долгих ожиданий и ретраев).
-        """
-        if cancel_check and cancel_check():
-            return []
-        if started_at and (time.time() - started_at > max_runtime_sec):
-            return []
+    def _fetch_jobs(self, params: Dict) -> List[JobVacancy]:
+    # если уже в cooldown — не ходим
+        now = time.time()
+        if getattr(self, "cooldown_until", 0) > now:
+            left = int(self.cooldown_until - now)
+            print(f"⛔ {self.source_name}: cooldown ещё {left}s — пропускаем запрос {params}.")
+            raise RateLimitedError("REMOTIVE_COOLDOWN")
 
-        # 0) кеш
+        # КЕШ
         cached_result = self.cache_manager.get_cached_result(params)
         if cached_result:
-            tag = params.get('search') or params.get('category')
-            print(f"    - Cache HIT для '{tag}'. Найдено: {len(cached_result)}.")
-            if progress_callback and cached_result:
-                try:
-                    progress_callback(cached_result)
-                except Exception:
-                    pass
+            search_term_log = params.get('search') or params.get('category')
+            print(f"    - Cache HIT для '{search_term_log}'. Найдено: {len(cached_result)}.")
             return cached_result
 
-        # 1) кооперативный "лимитер" (у тебя он уже быстрый)
-        ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
-        if ok is False or (cancel_check and cancel_check()):
-            return []
-        if started_at and (time.time() - started_at > max_runtime_sec):
-            return []
-
-        HTTP_TIMEOUT = int(os.getenv("REMOTIVE_HTTP_TIMEOUT", "6"))
+        # твой локальный лимитер
+        self.rate_limiter.wait_if_needed()
 
         try:
-            response = requests.get(self.base_url, params=params, timeout=HTTP_TIMEOUT)
+            response = requests.get(self.base_url, params=params, timeout=8)
             if response.status_code == 200:
                 data = response.json()
                 jobs_raw = data.get('jobs', [])
-                tag = params.get('search') or params.get('category')
 
-                normalized_jobs: List[JobVacancy] = []
-                for job_data in jobs_raw:
-                    if cancel_check and cancel_check():
-                        break
-                    job = self._normalize_job_data(job_data, tag)
-                    if job:
-                        normalized_jobs.append(job)
+                search_term = params.get('search') or params.get('category')
+                normalized_jobs = [
+                    job for job_data in jobs_raw
+                    if (job := self._normalize_job_data(job_data, search_term)) is not None
+                ]
 
                 self.cache_manager.cache_result(params, normalized_jobs)
-                print(f"    - Найдено и закешировано: {len(normalized_jobs)} для '{tag}'.")
-
-                if progress_callback and normalized_jobs:
-                    try:
-                        progress_callback(normalized_jobs)
-                    except Exception:
-                        pass
-
+                print(f"    - Найдено и закешировано: {len(normalized_jobs)} вакансий для '{search_term}'.")
                 return normalized_jobs
 
             if response.status_code == 429:
+                cooldown = int(os.getenv("REMOTIVE_COOLDOWN_SEC", "120"))
+                self.cooldown_until = time.time() + cooldown
                 tag = params.get('search') or params.get('category')
-                backoff_ms = 200 + random.randint(0, 200)  # 200–400мс
-                print(f"⛔ Remotive: 429 Too Many Requests — микропауза {backoff_ms} мс для '{tag}' и двигаемся дальше")
-                yield_briefly(base_ms=backoff_ms, jitter_ms=0, cancel_check=cancel_check)
-                return []
+                print(f"⛔ Remotive: 429 Too Many Requests — включаем cooldown {cooldown}s для '{tag}' и выходим из источника")
+                yield_briefly(base_ms=200, jitter_ms=200)
+                raise RateLimitedError("REMOTIVE_RATE_LIMITED")
 
             print(f"❌ {self.source_name} API ошибка {response.status_code}: {response.text[:200]}")
             return []
 
         except requests.Timeout:
-            tag = params.get('search') or params.get('category')
-            backoff_ms = 150 + random.randint(0, 200)  # 150–350мс
-            print(f"⚠️ {self.source_name}: таймаут для '{tag}' — микропауза {backoff_ms} мс и дальше")
-            yield_briefly(base_ms=backoff_ms, jitter_ms=0, cancel_check=cancel_check)
+            print(f"⚠️ {self.source_name}: Таймаут запроса для '{params}'.")
             return []
+        except RateLimitedError:
+            raise
         except Exception as e:
-            print(f"❌ {self.source_name}: критическая ошибка: {e}")
+            print(f"❌ {self.source_name}: Критическая ошибка при запросе: {e}")
             return []
+
 
 
 
