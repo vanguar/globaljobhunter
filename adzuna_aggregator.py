@@ -1929,7 +1929,7 @@ class GlobalJobAggregator:
         print(f"     🌐 API URL: {url}")
         print(f"     📝 Параметры: what='{keywords}', where='{location}'")
 
-        # Rate limiting — кооперативно
+        # Rate limiting — кооперативно!
         ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
         if cancel_check and cancel_check():
             return total_jobs
