@@ -92,55 +92,45 @@ class RemotiveAggregator(BaseJobAggregator):
     def get_supported_countries(self) -> Dict[str, Dict]:
         return {}
 
-    def search_jobs(self, preferences: Dict) -> List[JobVacancy]:
-        """Remotive с circuit breaker: при 429 выключаем источник и идём дальше."""
+    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        Основной метод поиска. Выполняет один поиск для каждой выбранной профессии.
+        """
         print(f"📡 {self.source_name}: Начинаем поиск удаленных вакансий...")
         all_jobs: List[JobVacancy] = []
-
-        # если источник в cooldown — пропускаем
-        now = time.time()
-        if getattr(self, "cooldown_until", 0) > now:
-            left = int(self.cooldown_until - now)
-            print(f"⛔ {self.source_name}: на cooldown ещё {left}s — пропускаем источник.")
-            return []
-
+        
         selected_jobs = preferences.get('selected_jobs', [])
+
         if not selected_jobs:
             return []
 
-        try:
-            for russian_job_title in selected_jobs:
-                # чёрный список «не remote» как у тебя было
-                if russian_job_title in self.NON_REMOTE_JOBS:
-                    print(f"    - Пропускаем '{russian_job_title}', т.к. не является удаленной.")
-                    continue
+        for russian_job_title in selected_jobs:
+            if russian_job_title in self.NON_REMOTE_JOBS:
+                print(f"    - Пропускаем '{russian_job_title}' (не remote)")
+                continue
 
-                english_keywords = self._get_english_keywords(russian_job_title)
-                if not english_keywords:
-                    continue
-
-                primary_keyword = english_keywords[0]
-                category = self.job_to_category_map.get(primary_keyword.lower())
-
+            english_keywords = self._get_english_keywords(russian_job_title)
+            if not english_keywords:
+                category = self._find_category_for(russian_job_title)
                 if category:
                     print(f"    - Ищем по категории '{category}' для '{russian_job_title}'")
                     jobs = self._fetch_jobs(params={'category': category})
                     all_jobs.extend(jobs)
-                else:
-                    search_query = " ".join(english_keywords)
-                    print(f"    - Ищем по ключевым словам: '{search_query}'")
-                    jobs = self._fetch_jobs(params={'search': search_query})
-                    all_jobs.extend(jobs)
+                    if progress_callback and jobs:
+                        try: progress_callback(jobs)
+                        except Exception: pass
+                continue
 
-        except RateLimitedError:
-            print(f"⛔ {self.source_name}: источник переведён в cooldown — завершаем Remotive.")
-
+            search_query = " ".join(english_keywords)
+            print(f"    - Ищем по ключевым словам: '{search_query}'")
+            jobs = self._fetch_jobs(params={'search': search_query})
+            all_jobs.extend(jobs)
+            if progress_callback and jobs:
+                try: progress_callback(jobs)
+                except Exception: pass
+        
         print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(all_jobs)} вакансий.")
         return self._deduplicate_jobs(all_jobs)
-
-
-
-
 
     def _get_english_keywords(self, russian_job_title: str) -> List[str]:
         for category in self.specific_jobs_map.values():
@@ -148,61 +138,49 @@ class RemotiveAggregator(BaseJobAggregator):
                 return [term for term in category[russian_job_title][:3] if term]
         return []
 
-    def _fetch_jobs(self, params: Dict) -> List[JobVacancy]:
-    # если уже в cooldown — не ходим
-        now = time.time()
-        if getattr(self, "cooldown_until", 0) > now:
-            left = int(self.cooldown_until - now)
-            print(f"⛔ {self.source_name}: cooldown ещё {left}s — пропускаем запрос {params}.")
-            raise RateLimitedError("REMOTIVE_COOLDOWN")
-
-        # КЕШ
+    def _fetch_jobs(self, params: Dict, progress_callback=None) -> List[JobVacancy]:
         cached_result = self.cache_manager.get_cached_result(params)
         if cached_result:
             search_term_log = params.get('search') or params.get('category')
             print(f"    - Cache HIT для '{search_term_log}'. Найдено: {len(cached_result)}.")
             return cached_result
 
-        # твой локальный лимитер
         self.rate_limiter.wait_if_needed()
-
+        
         try:
-            response = requests.get(self.base_url, params=params, timeout=8)
-            if response.status_code == 200:
-                data = response.json()
-                jobs_raw = data.get('jobs', [])
+            response = requests.get(self.base_url, params=params, timeout=15)
+            
+            if response.status_code != 200:
+                print(f"❌ {self.source_name} API ошибка {response.status_code}: {response.text}")
+                return []
+            
+            data = response.json()
+            results = data.get('jobs', [])
 
-                search_term = params.get('search') or params.get('category')
-                normalized_jobs = [
-                    job for job_data in jobs_raw
-                    if (job := self._normalize_job_data(job_data, search_term)) is not None
-                ]
+            search_term = params.get('search') or params.get('category') or 'unknown'
+            normalized_jobs = [
+                self._normalize_job_data(job, search_term)
+                for job in results
+                if (self._normalize_job_data(job, search_term) is not None)
+            ]
 
-                self.cache_manager.cache_result(params, normalized_jobs)
-                print(f"    - Найдено и закешировано: {len(normalized_jobs)} вакансий для '{search_term}'.")
-                return normalized_jobs
+            self.cache_manager.cache_result(params, normalized_jobs)
+            print(f"    - Найдено и закешировано: {len(normalized_jobs)} вакансий для '{search_term}'.")
 
-            if response.status_code == 429:
-                cooldown = int(os.getenv("REMOTIVE_COOLDOWN_SEC", "120"))
-                self.cooldown_until = time.time() + cooldown
-                tag = params.get('search') or params.get('category')
-                print(f"⛔ Remotive: 429 Too Many Requests — включаем cooldown {cooldown}s для '{tag}' и выходим из источника")
-                yield_briefly(base_ms=200, jitter_ms=200)
-                raise RateLimitedError("REMOTIVE_RATE_LIMITED")
+            if progress_callback and normalized_jobs:
+                try:
+                    progress_callback(normalized_jobs)
+                except Exception:
+                    pass
 
-            print(f"❌ {self.source_name} API ошибка {response.status_code}: {response.text[:200]}")
-            return []
+            return normalized_jobs
 
         except requests.Timeout:
             print(f"⚠️ {self.source_name}: Таймаут запроса для '{params}'.")
             return []
-        except RateLimitedError:
-            raise
         except Exception as e:
             print(f"❌ {self.source_name}: Критическая ошибка при запросе: {e}")
             return []
-
-
 
 
     def _normalize_job_data(self, raw_job: Dict, search_term: str) -> Optional[JobVacancy]:

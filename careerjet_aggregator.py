@@ -59,16 +59,10 @@ class CareerjetAggregator(BaseJobAggregator):
         return {}
 
     def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
-        """
-        Основной метод поиска. Ищет по стране, и если указан город — уточняет поиск.
-        Выполняет поиск для каждой профессии отдельно.
-        Поддерживает:
-        - progress_callback(list[JobVacancy]) для "живого" счётчика
-        - cancel_check() для мягкой остановки
-        """
+        """Ищем по каждой выбранной профессии/стране/городу. Прогресс и отмена поддерживаются."""
         print(f"📡 {self.source_name}: начинаем поиск...")
         all_jobs: List[JobVacancy] = []
-        
+
         selected_jobs = preferences.get('selected_jobs', [])
         countries = preferences.get('countries', [])
         cities = preferences.get('cities', [])
@@ -77,71 +71,38 @@ class CareerjetAggregator(BaseJobAggregator):
             return []
 
         for russian_job_title in selected_jobs:
-            # 1) найдём англ. ключи из specific_jobs_map
-            english_keywords = []
-            found = False
-            for category in self.specific_jobs_map.values():
-                if russian_job_title in category:
-                    terms = category[russian_job_title][:3]
-                    english_keywords.extend([t for t in terms if t])
-                    found = True
-                    break
-            if not found:
-                english_keywords.append(russian_job_title)
-
+            english_keywords = self._get_english_keywords(russian_job_title)
             if not english_keywords:
+                print(f"⚠️ {self.source_name}: нет словаря для '{russian_job_title}', пропускаем")
                 continue
 
             keywords = " ".join(sorted(set(english_keywords)))
             print(f"ℹ️ {self.source_name}: '{russian_job_title}' → '{keywords}'")
 
             for country_code in countries:
-                if cancel_check and cancel_check():
-                    return self._deduplicate_jobs(all_jobs)
-
                 country_name_for_api = self.country_map.get(country_code)
                 if not country_name_for_api:
                     continue
 
                 if cities:
                     for city in cities:
-                        if cancel_check and cancel_check():
-                            return self._deduplicate_jobs(all_jobs)
-
                         search_location = f"{city}, {country_name_for_api}"
-                        page_jobs = self._fetch_all_pages(
-                            keywords, search_location, country_code,
-                            progress_callback=progress_callback, cancel_check=cancel_check
-                        )
-                        if page_jobs:
-                            all_jobs.extend(page_jobs)
+                        jobs = self._fetch_all_pages(keywords, search_location, country_code, progress_callback=progress_callback, cancel_check=cancel_check)
+                        if jobs:
+                            all_jobs.extend(jobs)
                 else:
                     search_location = country_name_for_api
-                    page_jobs = self._fetch_all_pages(
-                        keywords, search_location, country_code,
-                        progress_callback=progress_callback, cancel_check=cancel_check
-                    )
-                    if page_jobs:
-                        all_jobs.extend(page_jobs)
+                    jobs = self._fetch_all_pages(keywords, search_location, country_code, progress_callback=progress_callback, cancel_check=cancel_check)
+                    if jobs:
+                        all_jobs.extend(jobs)
 
         print(f"✅ {self.source_name}: завершено. Всего: {len(all_jobs)}")
         return self._deduplicate_jobs(all_jobs)
 
 
-    def _fetch_all_pages(
-    self,
-    keywords: str,
-    location: str,
-    country_code: str,
-    progress_callback=None,
-    cancel_check=None
-) -> List[JobVacancy]:
-        """
-        Получает вакансии со всех страниц пагинации.
-        КАЖДУЮ страницу отдаёт батчем через progress_callback(normalized_jobs).
-        Уважает cancel_check() для мягкой остановки.
-        Сохраняет покомпонентный кеш (страница → список нормализованных вакансий).
-        """
+
+    def _fetch_all_pages(self, keywords: str, location: str, country_code: str, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """Получает вакансии со всех страниц пагинации, отдавая прогресс порциями."""
         page = 1
         total_jobs: List[JobVacancy] = []
 
@@ -156,84 +117,55 @@ class CareerjetAggregator(BaseJobAggregator):
                 'page': page,
                 'sort': 'date',
                 'user_ip': '127.0.0.1',
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
             }
-            # ключ кеша — без user_* полей
-            cache_key_params = {k: v for k, v in search_params.items() if k not in ['user_ip', 'user_agent']}
-
-            cached_result = self.cache_manager.get_cached_result(cache_key_params)
-            if cached_result:
-                total_jobs.extend(cached_result)
-                # отдать батч из кеша для живого счётчика
-                if progress_callback and cached_result:
-                    try:
-                        progress_callback(cached_result)
-                    except Exception:
-                        pass
-                # эвристика окончания пагинации
-                if len(cached_result) < 50:
-                    break
-                page += 1
-                continue
-
-            if hasattr(self, 'rate_limiter'):
-                ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
-                if cancel_check and cancel_check():
-                    return total_jobs
-                if ok is False:
-                    return total_jobs
-
-
 
             try:
                 response = requests.get(self.base_url, params=search_params, timeout=15)
-                if response.status_code != 200:
-                    print(f"❌ {self.source_name} API {response.status_code}: {response.text}")
-                    break
-
-                data = response.json()
-                if data.get('type') == 'ERROR':
-                    print(f"❌ {self.source_name} API error: {data.get('error')}")
-                    break
-
-                jobs_on_page_raw = data.get('jobs', [])
-                if not jobs_on_page_raw:
-                    break
-
-                normalized_jobs: List[JobVacancy] = []
-                country_name = self._get_country_name_by_code(country_code)
-                for job_data in jobs_on_page_raw:
-                    job = self._normalize_job_data(job_data, country_name, keywords)
-                    if job:
-                        normalized_jobs.append(job)
-
-                total_jobs.extend(normalized_jobs)
-                # кешируем именно нормализованный список этой страницы
-                self.cache_manager.cache_result(cache_key_params, normalized_jobs)
-                print(f"📄 {self.source_name}: {location} — стр. {page}, найдено: {len(normalized_jobs)}")
-
-                # ОТДАЁМ БАТЧ ДЛЯ ЖИВОГО ПРОГРЕССА
-                if progress_callback and normalized_jobs:
-                    try:
-                        progress_callback(normalized_jobs)
-                    except Exception:
-                        pass
-
-                # конец пагинации?
-                if len(jobs_on_page_raw) < data.get('pagesize', 50):
-                    break
-
-                page += 1
-                time.sleep(0.5)
-
-            except requests.Timeout:
-                print(f"⚠️ {self.source_name}: таймаут, прекращаем для '{location}'")
-                break
             except Exception as e:
-                print(f"❌ {self.source_name}: критическая ошибка: {e}")
+                print(f"❌ {self.source_name}: ошибка запроса: {e}")
                 break
+
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+
+            if data.get('type') == 'ERROR':
+                print(f"❌ {self.source_name} API вернуло ошибку: {data.get('error')}")
+                break
+
+            jobs_on_page_raw = (data or {}).get('jobs', []) or []
+            if not jobs_on_page_raw:
+                break
+
+            normalized_jobs: List[JobVacancy] = []
+            for job_data in jobs_on_page_raw:
+                country_name = self._get_country_name_by_code(country_code)
+                job = self._normalize_job_data(job_data, country_name, keywords)
+                if job:
+                    normalized_jobs.append(job)
+
+            total_jobs.extend(normalized_jobs)
+
+            # Кладём порцию в кеш и пушим прогресс на UI
+            cache_key_params = {'keywords': keywords, 'location': location, 'country_code': country_code, 'page': page}
+            self.cache_manager.cache_result(cache_key_params, normalized_jobs)
+            print(f"📄 {self.source_name}: {location} — стр. {page}, найдено: {len(normalized_jobs)}")
+
+            if progress_callback and normalized_jobs:
+                try:
+                    progress_callback(normalized_jobs)
+                except Exception:
+                    pass
+
+            # Пагинация
+            if len(jobs_on_page_raw) < (data.get('pagesize') or 50):
+                break
+            page += 1
+            time.sleep(0.3)
 
         return total_jobs
+
 
 
     def _normalize_job_data(self, raw_job: Dict, country_name: str, search_term: str) -> Optional[JobVacancy]:
