@@ -125,36 +125,48 @@ db.init_app(app)
 mail.init_app(app)
 migrate = Migrate(app, db)
 
-# Инициализация основного агрегатора (БЕЗ ИЗМЕНЕНИЙ)
+# Инициализация основного агрегатора
 try:
-    aggregator = GlobalJobAggregator(cache_duration_hours=12)  # Увеличили до 12 часов
+    adzuna_ttl = int(os.getenv('ADZUNA_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
+    aggregator = GlobalJobAggregator(cache_duration_hours=adzuna_ttl)
     aggregator.search_cache = {}
-    app.logger.info("✅ GlobalJobAggregator с кешированием инициализирован")
+    app.logger.info(f"✅ GlobalJobAggregator инициализирован (TTL={adzuna_ttl}ч)")
 except Exception as e:
-    app.logger.error(f"❌ Ошибка инициализации: {e}")
+    app.logger.error(f"❌ Ошибка инициализации GlobalJobAggregator: {e}")
     aggregator = None
+
 
 # ДОБАВЛЕНИЕ: инициализация дополнительных источников
 additional_aggregators = {}
-if ADDITIONAL_SOURCES_AVAILABLE:
+if ADDITIONAL_SOURCES_AVAILABLE and aggregator:
     try:
-        additional_aggregators['jobicy'] = JobicyAggregator()
-        # additional_aggregators['usajobs'] = USAJobsAggregator()  # Нужен API ключ
-        
-        # Передаем оба справочника из основного агрегатора
-        additional_aggregators['careerjet'] = CareerjetAggregator(
-            adzuna_countries=aggregator.countries, 
+        # Jobicy
+        jobicy = JobicyAggregator()
+        # ← ВАЖНАЯ СТРОКА: отдаём ту же карту терминов, что использует Adzuna/основной агрегатор
+        jobicy.specific_jobs_map = aggregator.specific_jobs
+
+        # Careerjet — уже получает карту в конструкторе
+        careerjet = CareerjetAggregator(
+            adzuna_countries=aggregator.countries,
             specific_jobs_map=aggregator.specific_jobs
         )
 
-        # ДОБАВИТЬ ЭТИ 3 СТРОКИ
-        additional_aggregators['remotive'] = RemotiveAggregator(
+        # Remotive — тоже фильтруется той же картой
+        remotive = RemotiveAggregator(
             specific_jobs_map=aggregator.specific_jobs
         )
 
-        app.logger.info(f"✅ Дополнительные источники: {list(additional_aggregators.keys())}")
+        additional_aggregators['jobicy'] = jobicy
+        additional_aggregators['careerjet'] = careerjet
+        additional_aggregators['remotive'] = remotive
+
+        app.logger.info("✅ Дополнительные агрегаторы инициализированы: Jobicy, Careerjet, Remotive")
     except Exception as e:
-        app.logger.warning(f"⚠️ Дополнительные источники недоступны: {e}")
+        app.logger.warning(f"⚠️ Не удалось инициализировать дополнительные агрегаторы: {e}")
+else:
+    app.logger.info("ℹ️ Дополнительные источники отключены или основной агрегатор не инициализирован")
+
+
 
 # В файле app.py найдите функцию index() и замените её на эту версию:
 

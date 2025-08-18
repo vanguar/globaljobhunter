@@ -27,20 +27,30 @@ class CareerjetAggregator(BaseJobAggregator):
     - Поддерживает поиск как по стране, так и по городу.
     - **Новая логика:** Выполняет отдельные запросы для каждой профессии для большей точности.
     """
-    def __init__(self, adzuna_countries: Dict, specific_jobs_map: Dict, cache_duration_hours: int = 12):
+    def __init__(self, adzuna_countries: Dict, specific_jobs_map: Dict, cache_duration_hours: Optional[int] = None):
         """
-        Инициализация агрегатора.
+        Инициализация агрегатора Careerjet.
+        TTL: CAREERJET_CACHE_HOURS > CACHE_TTL_HOURS > 24 (по умолчанию).
         """
         super().__init__(source_name='Careerjet')
         self.base_url = "http://public.api.careerjet.net/search"
-        
+
         self.affid = os.getenv('CAREERJET_AFFID')
         if not self.affid:
             raise ValueError("CAREERJET_AFFID не найден в .env файле!")
 
+        # TTL кеша (часы)
+        if cache_duration_hours is None:
+            try:
+                cache_duration_hours = int(os.getenv('CAREERJET_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
+            except Exception:
+                cache_duration_hours = 24
+
         self.cache_manager = CacheManager(cache_duration_hours=cache_duration_hours)
         self.rate_limiter = RateLimiter(requests_per_minute=25)
-        
+        self.cooldown_until = 0  # глобальный кулдаун при 429
+
+        # Страны и названия (оставляем, как у вас было)
         self.country_map = {
             'gb': 'United Kingdom', 'us': 'United States', 'de': 'Germany',
             'fr': 'France', 'es': 'Spain', 'it': 'Italy', 'nl': 'Netherlands',
@@ -49,83 +59,317 @@ class CareerjetAggregator(BaseJobAggregator):
             'dk': 'Denmark', 'cz': 'Czech Republic', 'sk': 'Slovakia'
         }
 
+        # Мапа locale_code, которая действительно нужна Careerjet
+        self.locale_map = {
+            'gb': 'en_GB', 'us': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR',
+            'es': 'es_ES', 'it': 'it_IT', 'nl': 'nl_NL', 'pl': 'pl_PL',
+            'ca': 'en_CA', 'au': 'en_AU', 'at': 'de_AT', 'ch': 'de_CH',
+            'be': 'nl_BE', 'se': 'sv_SE', 'no': 'no_NO', 'dk': 'da_DK',
+            'cz': 'cs_CZ', 'sk': 'sk_SK'
+        }
+
         self.adzuna_countries = adzuna_countries
         self.specific_jobs_map = specific_jobs_map
 
         print(f"✅ Careerjet Aggregator инициализирован (affid: ...{self.affid[-4:]})")
 
+
+    from typing import List
+
+    def _terms_from_ru(self, ru_title: str) -> List[str]:
+        """
+        Возвращает список поисковых термов (EN и др.) для русского названия профессии.
+        Работает с разными формами specific_jobs_map:
+        - { <category>: { <ru_title>: [ "term1", "term2", ... ] } }
+        - { <category>: { <ru_title>: { 'en': [...], 'keywords': { 'en': [...], 'de': [...], ... }, 'terms': [...] } } }
+        """
+        terms: List[str] = []
+
+        # где лежит карта
+        sj = getattr(self, "specific_jobs_map", None) or getattr(self, "specific_jobs", None) or {}
+
+        # 1) прямое совпадение ключа ru_title
+        if isinstance(sj, dict):
+            for _cat, ru_map in sj.items():
+                if not isinstance(ru_map, dict):
+                    continue
+                if ru_title in ru_map:
+                    val = ru_map[ru_title]
+                    if isinstance(val, list):
+                        terms.extend(val)
+                    elif isinstance(val, dict):
+                        # возможные поля
+                        if isinstance(val.get("en"), list):
+                            terms.extend(val["en"])
+                        kw = val.get("keywords")
+                        if isinstance(kw, dict):
+                            for lst in kw.values():
+                                if isinstance(lst, list):
+                                    terms.extend(lst)
+                        elif isinstance(kw, list):
+                            terms.extend(kw)
+                        if isinstance(val.get("terms"), list):
+                            terms.extend(val["terms"])
+                    break
+
+        # 2) fallback: если ru_title могли хранить в списке val['ru'] и т.п.
+        if not terms and isinstance(sj, dict):
+            for _cat, ru_map in sj.items():
+                if not isinstance(ru_map, dict):
+                    continue
+                for _ru_key, val in ru_map.items():
+                    if not isinstance(val, dict):
+                        continue
+                    ru_list = val.get("ru") or val.get("ru_terms")
+                    if isinstance(ru_list, list) and ru_title in ru_list:
+                        kw = val.get("keywords") or {}
+                        if isinstance(kw, dict):
+                            for lst in kw.values():
+                                if isinstance(lst, list):
+                                    terms.extend(lst)
+                        if isinstance(val.get("en"), list):
+                            terms.extend(val["en"])
+                        if isinstance(val.get("terms"), list):
+                            terms.extend(val["terms"])
+                        break
+
+        # нормализуем и уникализируем, сохраняя порядок
+        seen = set()
+        uniq = []
+        for t in terms:
+            t = (t or "").strip()
+            if not t:
+                continue
+            key = t.lower()
+            if key not in seen:
+                uniq.append(t)
+                seen.add(key)
+        return uniq
+    
     def get_supported_countries(self) -> Dict[str, Dict]:
         """Возвращает словарь стран, поддерживаемых этим агрегатором."""
         return {}
 
-    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None,
+                user_ip: str = '0.0.0.0', user_agent: str = 'Mozilla/5.0') -> List[JobVacancy]:
         """
-        Основной метод поиска. Ищет по стране, и если указан город — уточняет поиск.
-        Выполняет поиск для каждой профессии отдельно.
-        Поддерживает:
-        - progress_callback(list[JobVacancy]) для "живого" счётчика
-        - cancel_check() для мягкой остановки
+        Поиск на Careerjet ПО КАЖДОМУ ТЕРМИНУ отдельно.
+        - Жёстко уважаем выбранные профессии из preferences['selected_jobs'].
+        - Не кешируем пустые результаты (чтобы не «застывали нули»).
+        - Пагинация с ограничением по количеству страниц и защитой от дубликатов.
+        - cancel_check() мягко прерывает цикл и возвращает уже найденное.
         """
-        print(f"📡 {self.source_name}: начинаем поиск...")
         all_jobs: List[JobVacancy] = []
-        
-        selected_jobs = preferences.get('selected_jobs', [])
-        countries = preferences.get('countries', [])
-        cities = preferences.get('cities', [])
+
+        # глобальный кулдаун источника
+        now = time.time()
+        if getattr(self, "cooldown_until", 0) > now:
+            left = int(self.cooldown_until - now)
+            print(f"⛔ Careerjet: на cooldown ещё {left}s — источник временно пропущен.")
+            return []
+
+        # входные предпочтения
+        selected_jobs: List[str] = preferences.get('selected_jobs', []) or []
+        countries: List[str] = preferences.get('countries', []) or []
+        cities: List[str] = preferences.get('cities', []) or []
 
         if not selected_jobs or not countries:
             return []
 
-        for russian_job_title in selected_jobs:
-            # 1) найдём англ. ключи из specific_jobs_map
-            english_keywords = []
-            found = False
-            for category in self.specific_jobs_map.values():
-                if russian_job_title in category:
-                    terms = category[russian_job_title][:3]
-                    english_keywords.extend([t for t in terms if t])
-                    found = True
-                    break
-            if not found:
-                english_keywords.append(russian_job_title)
+        # лимит страниц на один term
+        try:
+            max_pages = int(os.getenv("CAREERJET_MAX_PAGES_PER_TERM", "15"))
+        except Exception:
+            max_pages = 15
 
-            if not english_keywords:
+        # маппинг из RU-названия профессии в англ. термы
+        def _terms_from_ru(ru_title: str) -> List[str]:
+            for cat in self.specific_jobs_map.values():
+                if ru_title in cat:
+                    return [t for t in cat[ru_title] if t]
+            return []
+
+        # основной цикл
+        for ru_title in selected_jobs:
+            if cancel_check and cancel_check():
+                break
+
+            # === ВАЖНО: берём только термы этой профессии; если маппинга нет — пропускаем ===
+            en_terms = list(dict.fromkeys([t for t in _terms_from_ru(ru_title) if t]))
+            if not en_terms:
+                # нет маппинга — вообще не трогаем этот ru_title
                 continue
 
-            keywords = " ".join(sorted(set(english_keywords)))
-            print(f"ℹ️ {self.source_name}: '{russian_job_title}' → '{keywords}'")
+            print(f"📡 Careerjet: '{ru_title}' → термы: {', '.join(en_terms)}")
 
-            for country_code in countries:
+            for cc in countries:
                 if cancel_check and cancel_check():
-                    return self._deduplicate_jobs(all_jobs)
+                    break
 
-                country_name_for_api = self.country_map.get(country_code)
-                if not country_name_for_api:
+                country_name = self.country_map.get(cc)
+                if not country_name:
                     continue
+                locale_code = self._get_locale_code(cc)
 
-                if cities:
-                    for city in cities:
+                locations = [f"{city}, {country_name}" for city in cities] if cities else [country_name]
+                for loc in locations:
+                    if cancel_check and cancel_check():
+                        break
+
+                    for idx, term in enumerate(en_terms, 1):
                         if cancel_check and cancel_check():
-                            return self._deduplicate_jobs(all_jobs)
+                            break
 
-                        search_location = f"{city}, {country_name_for_api}"
-                        page_jobs = self._fetch_all_pages(
-                            keywords, search_location, country_code,
-                            progress_callback=progress_callback, cancel_check=cancel_check
-                        )
-                        if page_jobs:
-                            all_jobs.extend(page_jobs)
-                else:
-                    search_location = country_name_for_api
-                    page_jobs = self._fetch_all_pages(
-                        keywords, search_location, country_code,
-                        progress_callback=progress_callback, cancel_check=cancel_check
-                    )
-                    if page_jobs:
-                        all_jobs.extend(page_jobs)
+                        # 1) Попытка из субкеша (пустые мы там не храним)
+                        cached = self.cache_manager.get_term_cached_result(cc, loc, term)
+                        if cached is not None:
+                            print(f"    💾 Subcache HIT Careerjet [{cc}/{loc}] term='{term}': {len(cached)}")
+                            if cached and progress_callback:
+                                try:
+                                    progress_callback(cached)
+                                except Exception:
+                                    pass
+                            all_jobs.extend(cached or [])
+                            continue
 
-        print(f"✅ {self.source_name}: завершено. Всего: {len(all_jobs)}")
+                        print(f"    🔍 Careerjet [{cc}/{loc}] term {idx}/{len(en_terms)}: '{term}'")
+                        page = 1
+                        collected_for_term: List[JobVacancy] = []
+                        seen_urls_for_term: set[str] = set()
+
+                        while True:
+                            if cancel_check and cancel_check():
+                                break
+
+                            batch = self._request_page(
+                                term=term,
+                                location=loc,
+                                country_name=country_name,
+                                locale_code=locale_code,
+                                page=page,
+                                user_ip=user_ip,
+                                user_agent=user_agent
+                            )
+
+                            # None → 429/cooldown — прекращаем по этому term
+                            if batch is None:
+                                break
+
+                            # пустая страница — конец пагинации
+                            if not batch:
+                                if page == 1:
+                                    print(f"    📄 Careerjet: {loc} term='{term}' page 1: +0")
+                                break
+
+                            # фильтрация дубликатов в рамках term
+                            new_batch: List[JobVacancy] = []
+                            for j in batch:
+                                url_or_id = getattr(j, "apply_url", None) or getattr(j, "id", None)
+                                if not url_or_id or url_or_id in seen_urls_for_term:
+                                    continue
+                                seen_urls_for_term.add(url_or_id)
+                                new_batch.append(j)
+
+                            if not new_batch:
+                                print(f"🔁 Careerjet: {loc} term='{term}' page {page}: только дубликаты — стоп.")
+                                break
+
+                            # прогресс наружу
+                            if progress_callback:
+                                try:
+                                    progress_callback(new_batch)
+                                except Exception:
+                                    pass
+
+                            collected_for_term.extend(new_batch)
+                            all_jobs.extend(new_batch)
+
+                            page += 1
+                            if page > max_pages:
+                                print(f"⏹ Careerjet: достигнут лимит страниц {max_pages} для term='{term}' [{loc}]")
+                                break
+
+                        # 2) кешируем ТОЛЬКО если что-то нашли
+                        if collected_for_term:
+                            try:
+                                self.cache_manager.cache_term_result(cc, loc, term, collected_for_term)
+                            except Exception:
+                                pass
+
         return self._deduplicate_jobs(all_jobs)
+
+
+
+
+    
+    def _request_page(self, term: str, location: str, country_name: str, locale_code: str, page: int,
+                  *, user_ip: str, user_agent: str) -> Optional[List[JobVacancy]]:
+        """
+        Один запрос к Careerjet.
+        Возвращает:
+            - list[JobVacancy] — если страница содержит вакансии,
+            - [] — если вакансий нет/страниц больше нет,
+            - None — если получен 429 и включён cooldown.
+        """
+        # если уже в cooldown — не ходим
+        now = time.time()
+        if getattr(self, "cooldown_until", 0) > now:
+            return []
+
+        params = {
+            'keywords': term,         # ВАЖНО: ОДИН терм
+            'location': location,     # напр. "Rostock, Germany"
+            'affid': self.affid,
+            'page': page,
+            'pagesize': 20,
+            'sort': 'date',
+            'locale_code': locale_code,
+            'user_ip': user_ip,
+            'user_agent': user_agent
+        }
+
+        headers = {'User-Agent': user_agent}
+
+        try:
+            self.rate_limiter.wait_if_needed()
+            r = requests.get(self.base_url, params=params, headers=headers, timeout=15)
+
+            if r.status_code == 429:
+                cd = float(os.getenv('CAREERJET_COOLDOWN_SEC', '150'))
+                self.cooldown_until = time.time() + cd
+                print(f"⛔ Careerjet: HTTP 429 → cooldown {int(cd)}s (term='{term}', loc='{location}')")
+                return None
+
+            if r.status_code != 200:
+                print(f"❌ Careerjet: HTTP {r.status_code} page={page} [{location}] term='{term}'")
+                return []
+
+            data = r.json() or {}
+            jobs_raw = data.get('jobs') or []
+            batch: List[JobVacancy] = []
+            for raw in jobs_raw:
+                # ⬇️ _normalize_job_data ожидает country_name и search_term
+                job = self._normalize_job_data(raw, country_name, term)
+                if job:
+                    batch.append(job)
+
+            print(f"📄 Careerjet: {location} term='{term}' page {page}: +{len(batch)}")
+            return batch
+
+        except requests.Timeout:
+            print(f"⚠️ Careerjet: таймаут page={page} [{location}] term='{term}'")
+            return []
+        except Exception as e:
+            print(f"❌ Careerjet: ошибка page={page} [{location}] term='{term}': {e}")
+            return []
+
+            
+
+    def _get_locale_code(self, country_code: str) -> str:
+        """Возвращает корректный locale_code для Careerjet."""
+        return self.locale_map.get(country_code.lower(), 'en_GB')
+        
+
 
 
     def _fetch_all_pages(
@@ -136,12 +380,6 @@ class CareerjetAggregator(BaseJobAggregator):
     progress_callback=None,
     cancel_check=None
 ) -> List[JobVacancy]:
-        """
-        Получает вакансии со всех страниц пагинации.
-        КАЖДУЮ страницу отдаёт батчем через progress_callback(normalized_jobs).
-        Уважает cancel_check() для мягкой остановки.
-        Сохраняет покомпонентный кеш (страница → список нормализованных вакансий).
-        """
         page = 1
         total_jobs: List[JobVacancy] = []
 
@@ -158,32 +396,24 @@ class CareerjetAggregator(BaseJobAggregator):
                 'user_ip': '127.0.0.1',
                 'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
             }
-            # ключ кеша — без user_* полей
             cache_key_params = {k: v for k, v in search_params.items() if k not in ['user_ip', 'user_agent']}
 
             cached_result = self.cache_manager.get_cached_result(cache_key_params)
             if cached_result:
                 total_jobs.extend(cached_result)
-                # отдать батч из кеша для живого счётчика
                 if progress_callback and cached_result:
                     try:
                         progress_callback(cached_result)
                     except Exception:
                         pass
-                # эвристика окончания пагинации
                 if len(cached_result) < 50:
                     break
                 page += 1
                 continue
 
-            if hasattr(self, 'rate_limiter'):
-                ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check) if hasattr(self, 'rate_limiter') else True
-                if cancel_check and cancel_check():
-                    return total_jobs
-                if ok is False:
-                    return total_jobs
-
-
+            self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
+            if cancel_check and cancel_check():
+                return total_jobs
 
             try:
                 response = requests.get(self.base_url, params=search_params, timeout=15)
@@ -208,23 +438,24 @@ class CareerjetAggregator(BaseJobAggregator):
                         normalized_jobs.append(job)
 
                 total_jobs.extend(normalized_jobs)
-                # кешируем именно нормализованный список этой страницы
-                self.cache_manager.cache_result(cache_key_params, normalized_jobs)
+                # ⬇️ КЕШИРУЕМ ТОЛЬКО НЕПУСТЫЕ СТРАНИЦЫ
+                if normalized_jobs:
+                    self.cache_manager.cache_result(cache_key_params, normalized_jobs)
+
                 print(f"📄 {self.source_name}: {location} — стр. {page}, найдено: {len(normalized_jobs)}")
 
-                # ОТДАЁМ БАТЧ ДЛЯ ЖИВОГО ПРОГРЕССА
                 if progress_callback and normalized_jobs:
                     try:
                         progress_callback(normalized_jobs)
                     except Exception:
                         pass
 
-                # конец пагинации?
-                if len(jobs_on_page_raw) < data.get('pagesize', 50):
+                pagesize = data.get('pagesize') or len(jobs_on_page_raw)
+                if len(jobs_on_page_raw) < pagesize:
                     break
 
                 page += 1
-                time.sleep(0.5)
+                time.sleep(0.3)
 
             except requests.Timeout:
                 print(f"⚠️ {self.source_name}: таймаут, прекращаем для '{location}'")
@@ -234,6 +465,7 @@ class CareerjetAggregator(BaseJobAggregator):
                 break
 
         return total_jobs
+
 
 
     def _normalize_job_data(self, raw_job: Dict, country_name: str, search_term: str) -> Optional[JobVacancy]:

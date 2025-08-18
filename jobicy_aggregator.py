@@ -9,7 +9,7 @@ import time
 import json
 import os
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 @dataclass
@@ -29,217 +29,222 @@ class JobVacancy:
     refugee_friendly: bool = False
 
 class JobicyAggregator:
+    """
+    Jobicy — один общий дамп удалённых вакансий.
+    Логика:
+      - Кешируем JSON-дамп на N часов (JOBICY_CACHE_HOURS > CACHE_TTL_HOURS > 24).
+      - На каждом поиске фильтруем по выбранным профессиям.
+      - Отдаём прогресс батчами по 5 шт., уважаем cancel_check().
+    """
     def __init__(self):
         self.source_name = "Jobicy"
         self.base_url = "https://jobicy.com/api/v2/remote-jobs"
-        self.cache_file = "shared_jobicy_cache.json"  # Общий для всех
-        self.cache_duration_hours = 12  # Кешируем на 12 часов
-        
+        self.cache_file = "shared_jobicy_cache.json"
+
+        # TTL кеша
+        try:
+            self.cache_duration_hours = int(os.getenv('JOBICY_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
+        except Exception:
+            self.cache_duration_hours = 24
+
+    # === ПУБЛИЧНЫЙ ПОИСК ===
     def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
         """
-        ЕДИНСТВЕННЫЙ запрос к Jobicy (почитаем из кеша/сохраним), потом
-        фильтруем под выбранные профессии.
-        Добавлены:
-        - progress_callback(list[JobVacancy]) — отдаём порциями по мере фильтрации,
-        - cancel_check() — мягкая остановка.
+        Jobicy: берём общий дамп, но фильтруем ТОЛЬКО по выбранным профессиям.
+        Профессии и их англ. термы берём из self.specific_jobs_map (если есть).
         """
-        print(f"🔄 {self.source_name}: начинаем поиск удалённых вакансий")
-
-        selected_jobs = preferences.get('selected_jobs', [])
-        it_jobs = [job for job in selected_jobs if self._is_it_related(job)]
-        if not it_jobs:
-            print(f"ℹ️ {self.source_name}: выбранные профессии не подходят для удалённой работы")
+        selected = preferences.get('selected_jobs') or []
+        if not selected:
             return []
 
         try:
             if cancel_check and cancel_check():
                 return []
-
-            # один запрос (или кеш)
-            all_jobs = self._fetch_jobs_cached()
-            # фильтровать и одновременно отдавать батчи
-            relevant_jobs = self._filter_relevant_jobs(all_jobs, it_jobs, progress_callback=progress_callback, cancel_check=cancel_check)
-            print(f"✅ {self.source_name}: найдено {len(relevant_jobs)} релевантных вакансий")
-            return relevant_jobs
-
+            all_jobs_raw = self._fetch_jobs_cached()
+            filtered = self._filter_relevant_jobs(
+                jobs_data=all_jobs_raw,
+                preferences=preferences,
+                progress_callback=progress_callback,
+                cancel_check=cancel_check,
+            )
+            print(f"✅ {self.source_name}: релевантных вакансий — {len(filtered)}")
+            return filtered
         except Exception as e:
-            print(f"❌ {self.source_name} ошибка: {e}")
+            print(f"❌ {self.source_name}: ошибка — {e}")
             return []
 
-    
+        
+    def _filter_relevant_jobs(
+    self,
+    jobs_data: List[Dict[str, Any]],
+    preferences: Dict,
+    progress_callback=None,
+    cancel_check=None
+) -> List[JobVacancy]:
+        """
+        Жёсткий фильтр релевантности под выбранные профессии:
+        - Берём только те записи, в title/description которых встречается хоть один терм
+        из мапы для ЛЮБОГО ru_title из preferences['selected_jobs'].
+        - Никаких посторонних категорий (IT/менеджеры и пр.), если их нет в selected_jobs.
+        """
+        selected_jobs: List[str] = preferences.get("selected_jobs") or []
+        if not selected_jobs:
+            return []
+
+        # Собираем позитивные термы
+        positive_terms: set[str] = set()
+        specific_map: Dict[str, List[str]] = getattr(self, "specific_jobs_map", {}) or {}
+        for ru_title in selected_jobs:
+            terms = specific_map.get(ru_title) or []
+            if terms:
+                for t in terms:
+                    t = (t or "").strip().lower()
+                    if t:
+                        positive_terms.add(t)
+            else:
+                # Фолбэк: если мапы нет — используем сам ru_title как терм (лучше чем ничего)
+                rt = (ru_title or "").strip().lower()
+                if rt:
+                    positive_terms.add(rt)
+
+        if not positive_terms:
+            return []
+
+        relevant: List[JobVacancy] = []
+        batch: List[JobVacancy] = []
+
+        for raw in jobs_data:
+            if cancel_check and cancel_check():
+                break
+
+            title = (raw.get("jobTitle") or raw.get("title") or "").strip()
+            desc = (raw.get("jobDescription") or raw.get("description") or "").strip()
+            tl = title.lower()
+            dl = desc.lower()
+
+            # матч по любому терму
+            if not any(term in tl or term in dl for term in positive_terms):
+                continue
+
+            job = self._normalize_job(raw)
+            if not job:
+                continue
+
+            relevant.append(job)
+            batch.append(job)
+
+            # отдаём прогресс порциями
+            if progress_callback and len(batch) >= 5:
+                try:
+                    progress_callback(f"✅ Jobicy: релевантных вакансий — {len(relevant)}")
+                except Exception:
+                    pass
+                batch.clear()
+
+        # докинем хвост
+        if progress_callback and batch:
+            try:
+                progress_callback(f"✅ Jobicy: релевантных вакансий — {len(relevant)}")
+            except Exception:
+                pass
+
+        return relevant
+
+
+
+
+    # === КЕШ/АПИ ===
+    def _fetch_jobs_cached(self) -> List[Dict]:
+        cached = self._load_cache()
+        if cached is not None:
+            print(f"💾 {self.source_name}: Cache HIT, записей {len(cached)}")
+            return cached
+
+        print(f"🌐 {self.source_name}: Cache MISS — запрашиваем дамп")
+        try:
+            r = requests.get(self.base_url, timeout=15)
+            if r.status_code != 200:
+                print(f"❌ {self.source_name}: HTTP {r.status_code}")
+                return []
+            data = r.json() or {}
+            jobs = data.get('jobs') or []
+            self._save_cache(jobs)
+            print(f"📥 {self.source_name}: получено {len(jobs)}, сохранено в кеш")
+            return jobs
+        except requests.Timeout:
+            print(f"⚠️ {self.source_name}: таймаут запроса")
+            return []
+        except Exception as e:
+            print(f"❌ {self.source_name}: ошибка API: {e}")
+            return []
+
+    def _load_cache(self) -> Optional[List[Dict]]:
+        """Чтение кеша с проверкой TTL."""
+        try:
+            if not os.path.exists(self.cache_file):
+                return None
+            with open(self.cache_file, 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+            ts = datetime.fromisoformat(cache.get('timestamp'))
+            if datetime.now() - ts < timedelta(hours=self.cache_duration_hours):
+                return cache.get('jobs') or []
+            print(f"⏰ {self.source_name}: кеш устарел ({ts}), потребуется обновление")
+            return None
+        except Exception as e:
+            print(f"⚠️ {self.source_name}: ошибка чтения кеша: {e}")
+            return None
+
+    def _save_cache(self, jobs: List[Dict]) -> None:
+        try:
+            payload = {'timestamp': datetime.now().isoformat(), 'jobs': jobs}
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump(payload, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"⚠️ {self.source_name}: ошибка записи кеша: {e}")
+
+    # === УТИЛИТЫ ФИЛЬТРА ===
     def _is_it_related(self, job_name: str) -> bool:
-        """Проверяем, подходит ли профессия для удаленной работы"""
-        remote_friendly_keywords = [
+        remote_friendly = [
             # IT
-            'python', 'программист', 'разработчик', 'веб-разработчик', 
+            'python', 'программист', 'разработчик', 'веб-разработчик',
             'дата-аналитик', 'системный администратор', 'тестировщик',
             'it', 'технологии',
-            
-            # Офисные (могут быть удаленными)
+            # Офисные (часто удалённые)
             'менеджер', 'маркетинг', 'дизайн', 'контент', 'сео',
             'переводчик', 'копирайтер', 'аналитик', 'консультант',
             'hr', 'рекрутер', 'финансы', 'бухгалтер', 'поддержка',
             'продажи', 'координатор', 'ассистент', 'секретарь',
             'журналист', 'редактор', 'smm', 'pr', 'реклама'
         ]
-        return any(keyword in job_name.lower() for keyword in remote_friendly_keywords)
-    
-    def _fetch_jobs_cached(self) -> List[Dict]:
-        """ОДИН запрос с кешированием - соблюдаем rate limits"""
-        # Проверяем кеш
-        cached_data = self._load_cache()
-        if cached_data:
-            print(f"🎯 Jobicy: используем кешированные данные ({len(cached_data)} вакансий)")
-            return cached_data
-        
-        # Кеш устарел - делаем ОДИН запрос
-        print(f"🔍 Jobicy: кеш пуст, делаем ЕДИНСТВЕННЫЙ запрос к API")
-        print(f"⏱️ Jobicy: соблюдаем rate limit - только 1 запрос на 2 часа")
-        
-        try:
-            response = requests.get(self.base_url, timeout=15)
-            
-            if response.status_code == 200:
-                data = response.json()
-                jobs = data.get('jobs', [])
-                print(f"🟢 Jobicy: получено {len(jobs)} вакансий с API")
-                
-                # Сохраняем в кеш
-                self._save_cache(jobs)
-                return jobs
-            else:
-                print(f"🔴 Jobicy ошибка {response.status_code}: {response.text}")
-                return []
-        except Exception as e:
-            print(f"🔴 Jobicy ошибка: {e}")
-            return []
-    
-    def _load_cache(self) -> Optional[List[Dict]]:
-        """Загрузка данных из кеша"""
-        try:
-            if not os.path.exists(self.cache_file):
-                return None
-                
-            with open(self.cache_file, 'r', encoding='utf-8') as f:
-                cache_data = json.load(f)
-            
-            # Проверяем срок действия кеша
-            cache_time = datetime.fromisoformat(cache_data['timestamp'])
-            if datetime.now() - cache_time < timedelta(hours=self.cache_duration_hours):
-                return cache_data['jobs']
-            else:
-                print(f"⏰ Jobicy: кеш устарел ({cache_time})")
-                return None
-                
-        except Exception as e:
-            print(f"⚠️ Jobicy: ошибка загрузки кеша: {e}")
-            return None
-    
-    def _save_cache(self, jobs: List[Dict]):
-        """Сохранение данных в кеш"""
-        try:
-            cache_data = {
-                'timestamp': datetime.now().isoformat(),
-                'jobs': jobs
-            }
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
-                json.dump(cache_data, f, ensure_ascii=False, indent=2)
-            print(f"💾 Jobicy: данные сохранены в кеш")
-        except Exception as e:
-            print(f"⚠️ Jobicy: ошибка сохранения кеша: {e}")
-    
-    def _filter_relevant_jobs(self, jobs_data: List[Dict], selected_jobs: List[str], progress_callback=None, cancel_check=None) -> List[JobVacancy]:
-        """
-        Фильтрация релевантных вакансий по выбранным профессиям.
-        Отдаёт батчи (по 5 штук) через progress_callback, уважает cancel_check().
-        """
-        relevant_jobs: List[JobVacancy] = []
+        return any(k in job_name.lower() for k in remote_friendly)
 
-        job_keywords = {
-            'дата-аналитик': ['data analyst', 'business analyst', 'analytics', 'bi analyst', 'reporting analyst', 'data scientist'],
-            'системный администратор': ['system administrator', 'sysadmin', 'system admin', 'infrastructure engineer', 'devops engineer', 'network admin', 'it admin', 'site reliability'],
-            'python разработчик': ['python developer', 'python engineer', 'python programmer', 'django', 'flask'],
-            'веб-разработчик': ['web developer', 'frontend developer', 'backend developer', 'fullstack developer', 'react', 'angular', 'vue'],
-            'программист': ['software developer', 'software engineer', 'programmer', 'developer', 'engineer'],
-            'тестировщик': ['qa engineer', 'qa tester', 'test engineer', 'quality assurance', 'automation tester']
-        }
-        negative_keywords = [
+    def _build_keywords(self, it_jobs: List[str]) -> tuple[list[str], list[str]]:
+        """
+        ВСЕГДА возвращаем пару (include, exclude), даже если пусто.
+        """
+        include: list[str] = []
+        exclude: list[str] = [
             'sales', 'marketing', 'customer service', 'support representative',
-            'account executive', 'business development', 'product manager',
-            'program manager', 'project manager', 'marketing expert',
-            'sales specialist', 'customer success', 'account manager',
-            'technical product manager', 'solutions sales'
+            'account executive', 'business development'
         ]
+        for name in it_jobs:
+            nl = name.lower().strip()
+            if nl:
+                include.append(nl)
+        if not include:
+            include = ['developer']
+        return include, exclude
 
-        # собрать ключи для выбранных профессий
-        search_keywords = []
-        for job in selected_jobs:
-            job_lower = job.lower()
-            found = False
-            for key, keywords in job_keywords.items():
-                if key in job_lower or job_lower in key:
-                    search_keywords.extend(keywords)
-                    found = True
-                    break
-            if not found:
-                search_keywords.append(job_lower)
-
-        print(f"🔍 {self.source_name}: ищем по словам: {search_keywords}")
-        print(f"🚫 {self.source_name}: исключаем слова: {negative_keywords}")
-
-        batch: List[JobVacancy] = []
-        for job_data in jobs_data:
-            if cancel_check and cancel_check():
-                # отдадим накопившийся батч перед выходом
-                if progress_callback and batch:
-                    try:
-                        progress_callback(batch)
-                    except Exception:
-                        pass
-                return relevant_jobs
-
-            title = job_data.get('jobTitle', '').lower()
-            description = job_data.get('jobExcerpt', '').lower()
-            combined_text = f"{title} {description}"
-
-            has_positive = any(keyword in combined_text for keyword in search_keywords)
-            has_negative = any(negative in combined_text for negative in negative_keywords)
-
-            if has_positive and not has_negative:
-                job = self._normalize_job(job_data)
-                if job:
-                    relevant_jobs.append(job)
-                    batch.append(job)
-                    # отдаём батч каждые 5 позиций для "живого" счётчика
-                    if progress_callback and len(batch) >= 5:
-                        try:
-                            progress_callback(batch)
-                        except Exception:
-                            pass
-                        batch = []
-            # при has_positive & has_negative — просто пропускаем
-
-        # добросим хвост батча
-        if progress_callback and batch:
-            try:
-                progress_callback(batch)
-            except Exception:
-                pass
-
-        return relevant_jobs
-
-    
-        
+    # === НОРМАЛИЗАЦИЯ ===
     def _normalize_job(self, raw_job: Dict) -> Optional[JobVacancy]:
-        """Нормализация данных"""
         try:
-            job_id = str(raw_job.get('id', ''))
-            title = raw_job.get('jobTitle', 'No title')
-            company = raw_job.get('companyName', 'No company')
-            description = raw_job.get('jobExcerpt', 'No description')
-            apply_url = raw_job.get('url', '')
-            posted_date = raw_job.get('pubDate', 'Unknown')
-            
+            job_id = str(raw_job.get('id', '') or '')
+            title = raw_job.get('jobTitle', '') or 'No title'
+            company = raw_job.get('companyName', '') or 'No company'
+            description = raw_job.get('jobExcerpt', '') or ''
+            apply_url = raw_job.get('url', '') or ''
+            posted_date = raw_job.get('pubDate', '') or 'Unknown'
+
             return JobVacancy(
                 id=f"jobicy_{job_id}",
                 title=title,
@@ -248,14 +253,13 @@ class JobicyAggregator:
                 salary=None,
                 description=description,
                 apply_url=apply_url,
-                source="Jobicy",
+                source=self.source_name,
                 posted_date=posted_date,
                 country="Remote",
                 job_type="Remote",
                 language_requirement="unknown",
                 refugee_friendly=False
             )
-            
         except Exception as e:
-            print(f"❌ Jobicy нормализация ошибка: {e}")
+            print(f"❌ {self.source_name}: ошибка нормализации: {e}")
             return None

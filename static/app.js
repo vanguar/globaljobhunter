@@ -2274,52 +2274,59 @@ function setupAutoSave() {
     });
 }
 
-// ИСПРАВЛЕНО: Полностью переписана логика быстрого выбора
 function selectJobCategory(category, buttonElement) {
-    const allCheckboxes = document.querySelectorAll('.job-checkbox');
-    const quickSelectButtons = document.querySelectorAll('.quick-select-btn');
+  const quickSelectButtons = document.querySelectorAll('.quick-select-btn');
+  const allCheckboxes = document.querySelectorAll('.job-checkbox');
 
-    const categoryMapping = {
-        'transport': '🚗 ТРАНСПОРТ И ДОСТАВКА',
-        'restaurant': '🍽️ ОБЩЕПИТ И СЕРВИС',
-        'construction': '🏗️ СТРОИТЕЛЬСТВО И ПРОИЗВОДСТВО',
-        'care': '👥 УХОД И МЕДИЦИНА',
-        'it': '💻 IT И ТЕХНОЛОГИИ',
-        'office': '👔 ОФИС И УПРАВЛЕНИЕ',
-        'refugee': '🇺🇦 ДЛЯ УКРАИНСКИХ БЕЖЕНЦЕВ',
-        'autoservice': '🔧 АВТОСЕРВИС И ТЕХОБСЛУЖИВАНИЕ',
-        'fuel': '⛽ АЗС И ТОПЛИВО',
-        'oilgas': '🛢️ НЕФТЬ И ГАЗ',
+  // карта "короткий ключ → заголовок блока" (должен совпадать с data-category в index.html)
+  const categoryMapping = {
+    'transport':   '🚗 ТРАНСПОРТ И ДОСТАВКА',
+    'restaurant':  '🍽️ ОБЩЕПИТ И СЕРВИС',
+    'construction':'🏗️ СТРОИТЕЛЬСТВО И ПРОИЗВОДСТВО',
+    'care':        '👥 УХОД И МЕДИЦИНА',
+    'it':          '💻 IT И ТЕХНОЛОГИИ',
+    'office':      '👔 ОФИС И УПРАВЛЕНИЕ',
+    'refugee':     '🇺🇦 ДЛЯ УКРАИНСКИХ БЕЖЕНЦЕВ',
+    'autoservice': '🔧 АВТОСЕРВИС И ТЕХОБСЛУЖИВАНИЕ',
+    'fuel':        '⛽ АЗС И ТОПЛИВО',
+    'oilgas':      '🛢️ НЕФТЬ И ГАЗ'
+  };
+  const targetHeader = categoryMapping[category];
 
-    };
-    
-    const targetCategory = categoryMapping[category];
-    const categoryBlock = document.querySelector(`div[data-category="${targetCategory}"]`);
-    const categoryCheckboxes = categoryBlock ? categoryBlock.querySelectorAll('.job-checkbox') : [];
+  // 1) список профессий категории из categories.js
+  const cat = (window.categoryMap && window.categoryMap[category]);
+  const jobsFromCat = cat && (cat['ru'] || cat['ua'] || cat['uk'] || cat['ru-RU']) || [];
+  if (!jobsFromCat.length) {
+    alert(`В categories.js нет списка профессий для категории: ${category}`);
+    return;
+  }
 
-    // Проверяем, активна ли уже эта кнопка
-    const isAlreadyActive = buttonElement.classList.contains('active');
+  // 2) деактивируем остальные кнопки и чистим все галки
+  quickSelectButtons.forEach(btn => btn.classList.remove('active'));
+  allCheckboxes.forEach(cb => cb.checked = false);
 
-    // Снимаем активность со всех кнопок
-    quickSelectButtons.forEach(btn => btn.classList.remove('active'));
-    // Снимаем все галочки
-    allCheckboxes.forEach(checkbox => checkbox.checked = false);
+  // 3) активируем выбранную кнопку
+  buttonElement.classList.add('active');
 
-    if (isAlreadyActive) {
-        // Если кнопка была активна, мы просто деактивируем ее и оставляем все галочки снятыми.
-        showAlert(`Выбор категории "${targetCategory.substring(2)}" отменен`, 'info');
-    } else {
-        // Если кнопка не была активна, делаем ее активной и выбираем соответствующие чекбоксы.
-        buttonElement.classList.add('active');
-        categoryCheckboxes.forEach(checkbox => {
-            checkbox.checked = true;
-        });
-        showAlert(`✅ Выбраны профессии из категории: ${targetCategory.substring(2)}`, 'success');
+  // 4) отметим чекбоксы ТОЛЬКО из этой категории
+  const categoryBlock = document.querySelector(`div[data-category="${targetHeader}"]`);
+  const categoryCheckboxes = categoryBlock ? categoryBlock.querySelectorAll('.job-checkbox') : [];
+  let selectedCount = 0;
+  categoryCheckboxes.forEach(cb => {
+    if (jobsFromCat.includes(cb.value)) {
+      cb.checked = true;
+      selectedCount++;
     }
-    
-    // Триггерим событие change для формы, чтобы автосохранение сработало
-    document.getElementById('job-search-form').dispatchEvent(new Event('change'));
+  });
+
+  if (!selectedCount) {
+    alert(`Не найдено совпадений чекбоксов для категории: ${targetHeader}`);
+  }
+
+  // триггерим событие — чтобы автосохранение/валидация сработали
+  document.getElementById('job-search-form').dispatchEvent(new Event('change'));
 }
+
 
 // Инициализация после полной загрузки
 window.addEventListener('load', function() {
@@ -2592,8 +2599,11 @@ function checkSystemStatus() {
         });
 }
 
-let SEARCH_ID = null;
 let PROGRESS_TIMER = null;
+let POLL_ABORTER = null;
+let SEARCH_ID = null;
+let STOP_PRESSED = false;
+
 
 function ensureStopButton() {
   const form = document.getElementById('job-search-form');
@@ -2611,6 +2621,12 @@ function ensureStopButton() {
   stopBtn.style.display = 'inline-flex';
   stopBtn.onclick = async () => {
   if (!SEARCH_ID) return;
+  STOP_PRESSED = true;
+
+  // мгновенно гасим опрос и любые висящие запросы
+  try { if (POLL_ABORTER) POLL_ABORTER.abort(); } catch(_) {}
+  clearInterval(PROGRESS_TIMER);
+
   stopBtn.disabled = true;
   try {
     const resp = await fetch('/search/stop', {
@@ -2620,10 +2636,8 @@ function ensureStopButton() {
     });
     const data = await resp.json();
     if (data && data.redirect_url) {
-      window.location.href = data.redirect_url; // уходим сразу
-      return;
+      return void (window.location.href = data.redirect_url);
     }
-    // если редиректа нет — просто ждём прогресса 'done'
   } catch (e) {
     console.error(e);
   } finally {
@@ -2631,9 +2645,10 @@ function ensureStopButton() {
   }
 };
 
+
 }
 
-function renderLiveButton({ jobs_found = 0, current_source = 'Инициализация', completed_sources = [] }) {
+function renderLiveButton({ jobs_found = 0, current_source = 'Старт', completed_sources = [] }) {
   const form = document.getElementById('job-search-form');
   if (!form) return;
   const submitBtn = form.querySelector('button[type="submit"]');
@@ -2650,16 +2665,26 @@ function renderLiveButton({ jobs_found = 0, current_source = 'Инициализ
 
 async function startLiveSearch(e) {
   e.preventDefault();
+  STOP_PRESSED = false;
+  if (POLL_ABORTER) { try { POLL_ABORTER.abort(); } catch(_){} }
+  POLL_ABORTER = new AbortController();
+
   const form = document.getElementById('job-search-form');
   const formData = new FormData(form);
+
+  // Сбор выбранных профессий ТОЛЬКО из отмеченных чекбоксов
+  const selected_jobs = [];
+  form.querySelectorAll('.job-checkbox:checked').forEach(cb => selected_jobs.push(cb.value));
+
   const payload = {
     is_refugee: formData.get('is_refugee'),
-    selected_jobs: formData.getAll('selected_jobs'),
+    selected_jobs,
     countries: formData.getAll('countries'),
     city: formData.get('city') || ''
   };
+
   if (!payload.selected_jobs.length) { alert('Выберите хотя бы одну профессию'); return; }
-  if (!payload.countries.length) { alert('Выберите хотя бы одну страну'); return; }
+  if (!payload.countries.length)    { alert('Выберите хотя бы одну страну');    return; }
 
   renderLiveButton({ jobs_found: 0, current_source: 'Старт', completed_sources: [] });
   ensureStopButton();
@@ -2677,27 +2702,27 @@ async function startLiveSearch(e) {
   SEARCH_ID = data.search_id;
 
   const poll = async () => {
+    if (STOP_PRESSED) return;
     try {
-      const r = await fetch(`/search/progress?id=${SEARCH_ID}`);
+      const r = await fetch(`/search/progress?id=${SEARCH_ID}`, { signal: POLL_ABORTER.signal });
+      if (!r.ok) return;
       const p = await r.json();
-      if (p.error) return;
-
       renderLiveButton({
         jobs_found: p.jobs_found || 0,
-        current_source: p.current_source || '—',
+        current_source: p.current_source || 'Идёт поиск',
         completed_sources: p.completed_sources || []
       });
-
-      if (p.status === 'done') {
+      if (p.status === 'done' && p.redirect_url) {
         clearInterval(PROGRESS_TIMER);
-        window.location.href = p.redirect_url;
+        return void (window.location.href = p.redirect_url);
       }
-    } catch(e) {
-      console.error(e);
+    } catch (e) {
+      // если отменили — не шумим
+      if (e.name !== 'AbortError') console.error(e);
     }
   };
   await poll();
-  PROGRESS_TIMER = setInterval(poll, 600);
+  PROGRESS_TIMER = setInterval(poll, 700);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

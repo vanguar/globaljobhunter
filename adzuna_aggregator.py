@@ -72,8 +72,18 @@ class CachedResult:
 class CacheManager:
     """Менеджер кеширования с поддержкой Redis и файлового кеша"""
     
-    def __init__(self, cache_duration_hours: int = 2):
-        self.cache_duration = timedelta(hours=cache_duration_hours)
+    def __init__(self, cache_duration_hours: Optional[int] = None):
+        """
+        TTL приоритет: явный аргумент > CACHE_TTL_HOURS > 24ч по умолчанию.
+        Один CacheManager используют все агрегаторы → единая политика протухания.
+        """
+        try:
+            default_hours = int(os.getenv('CACHE_TTL_HOURS', '24'))
+        except Exception:
+            default_hours = 24
+        hours = cache_duration_hours if cache_duration_hours is not None else default_hours
+
+        self.cache_duration = timedelta(hours=hours)
         self.file_cache_dir = "cache"
         
         # Инициализация Redis (если доступен)
@@ -95,6 +105,7 @@ class CacheManager:
         
         # Создаем директорию для файлового кеша
         os.makedirs(self.file_cache_dir, exist_ok=True)
+
     
     def _generate_cache_key(self, search_params: Dict) -> str:
         """Генерация уникального ключа кеша на основе параметров поиска"""
@@ -201,7 +212,11 @@ class CacheManager:
         return "job_term:" + hashlib.md5(payload.encode()).hexdigest()
 
     def get_term_cached_result(self, country: str, location: str, keywords: str) -> Optional[List['JobVacancy']]:
-        """Вернёт список вакансий ИЛИ [] (если закеширован пустой результат), ИЛИ None (если в кеше нет записи)."""
+        """
+        Вернёт:
+        - list[JobVacancy] — если в суб-кеше есть НЕПУСТОЙ свежий список,
+        - None — если записи нет/протухла/пустая (пустые записи при чтении удаляем).
+        """
         cache_key = self._term_cache_key(country, location, keywords)
 
         # Redis
@@ -210,14 +225,21 @@ class CacheManager:
                 cached_data = self.redis_client.get(cache_key)
                 if cached_data:
                     cached_result = pickle.loads(cached_data)
+                    # Если когда-то закешировали пустой список — не считаем хитом
+                    data_list = cached_result.data or []
+                    if not data_list:
+                        try:
+                            self.redis_client.delete(cache_key)
+                        except Exception:
+                            pass
+                        return None
                     if datetime.now() < cached_result.expires_at:
-                        return [JobVacancy(**job_data) for job_data in cached_result.data]
+                        return [JobVacancy(**job_data) for job_data in data_list]
                     else:
                         self.redis_client.delete(cache_key)
                         return None
             except Exception:
-                # безопасно падаем на файловый кеш
-                pass
+                pass  # безопасно падаем на файловый кеш
 
         # Файловый кеш
         cache_file = os.path.join(self.file_cache_dir, f"{cache_key}.pkl")
@@ -225,16 +247,32 @@ class CacheManager:
             try:
                 with open(cache_file, 'rb') as f:
                     cached_result = pickle.load(f)
+                data_list = cached_result.data or []
+                # Пустой — очищаем и считаем, что записи нет
+                if not data_list:
+                    try:
+                        os.remove(cache_file)
+                    except Exception:
+                        pass
+                    return None
                 if datetime.now() < cached_result.expires_at:
-                    return [JobVacancy(**job_data) for job_data in cached_result.data]
+                    return [JobVacancy(**job_data) for job_data in data_list]
                 else:
                     os.remove(cache_file)
             except Exception:
                 return None
         return None
 
+
     def cache_term_result(self, country: str, location: str, keywords: str, jobs: List['JobVacancy']) -> None:
-        """Сохраняет результат по одному термину в суб-кеш."""
+        """
+        Сохраняет результат по одному термину в суб-кеш.
+        ВАЖНО: пустые списки НЕ кешируем (чтобы не «застывали нули»).
+        """
+        if not jobs:
+            # тихо выходим — следующая попытка по этому термину снова пойдёт в API
+            return
+
         cache_key = self._term_cache_key(country, location, keywords)
         expires_at = datetime.now() + self.cache_duration
         cached_result = CachedResult(
@@ -260,6 +298,7 @@ class CacheManager:
                 pickle.dump(cached_result, f)
         except Exception:
             pass
+
         
     
     def cleanup_expired_cache(self):
@@ -306,19 +345,28 @@ class RateLimiter:
 
 
 class GlobalJobAggregator:
-    def __init__(self, cache_duration_hours: int = 2):
+    def __init__(self, cache_duration_hours: Optional[int] = None):
+        """
+        TTL для Adzuna берём из ADZUNA_CACHE_HOURS или из общего CACHE_TTL_HOURS (по умолчанию 24).
+        """
         self.cooldown_until = 0  # до этого времени Adzuna пропускается
 
         self.app_id = os.getenv('ADZUNA_APP_ID')
         self.app_key = os.getenv('ADZUNA_APP_KEY')
-        
         if not self.app_id or not self.app_key:
             raise ValueError("Adzuna API ключи не найдены!")
-        
-        # Инициализация кеша и rate limiter
+
+        # TTL
+        if cache_duration_hours is None:
+            try:
+                cache_duration_hours = int(os.getenv('ADZUNA_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
+            except Exception:
+                cache_duration_hours = 24
+
+        # Кеш и rate limiter
         self.cache_manager = CacheManager(cache_duration_hours)
         self.rate_limiter = RateLimiter()
-        
+
         # Статистика для мониторинга
         self.stats = {
             'cache_hits': 0,
