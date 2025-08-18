@@ -189,6 +189,78 @@ class CacheManager:
             print(f"💾 Cache SAVE (File): {cache_key[:8]}... ({len(cached_result.data)} jobs)")
         except Exception as e:
             print(f"⚠️ Ошибка сохранения файлового кеша: {e}")
+
+        # === СУБ-КЕШ по (country, location, keywords) ===
+    def _term_cache_key(self, country: str, location: str, keywords: str) -> str:
+        payload = json.dumps(
+            {'c': (country or '').strip().lower(),
+             'l': (location or '').strip(),
+             'k': (keywords or '').strip().lower()},
+            sort_keys=True
+        )
+        return "job_term:" + hashlib.md5(payload.encode()).hexdigest()
+
+    def get_term_cached_result(self, country: str, location: str, keywords: str) -> Optional[List['JobVacancy']]:
+        """Вернёт список вакансий ИЛИ [] (если закеширован пустой результат), ИЛИ None (если в кеше нет записи)."""
+        cache_key = self._term_cache_key(country, location, keywords)
+
+        # Redis
+        if self.redis_client:
+            try:
+                cached_data = self.redis_client.get(cache_key)
+                if cached_data:
+                    cached_result = pickle.loads(cached_data)
+                    if datetime.now() < cached_result.expires_at:
+                        return [JobVacancy(**job_data) for job_data in cached_result.data]
+                    else:
+                        self.redis_client.delete(cache_key)
+                        return None
+            except Exception:
+                # безопасно падаем на файловый кеш
+                pass
+
+        # Файловый кеш
+        cache_file = os.path.join(self.file_cache_dir, f"{cache_key}.pkl")
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, 'rb') as f:
+                    cached_result = pickle.load(f)
+                if datetime.now() < cached_result.expires_at:
+                    return [JobVacancy(**job_data) for job_data in cached_result.data]
+                else:
+                    os.remove(cache_file)
+            except Exception:
+                return None
+        return None
+
+    def cache_term_result(self, country: str, location: str, keywords: str, jobs: List['JobVacancy']) -> None:
+        """Сохраняет результат по одному термину в суб-кеш."""
+        cache_key = self._term_cache_key(country, location, keywords)
+        expires_at = datetime.now() + self.cache_duration
+        cached_result = CachedResult(
+            data=[asdict(job) for job in jobs],
+            timestamp=datetime.now(),
+            search_params={'c': country, 'l': location, 'k': keywords},
+            expires_at=expires_at
+        )
+        # Redis
+        if self.redis_client:
+            try:
+                self.redis_client.setex(
+                    cache_key,
+                    int(self.cache_duration.total_seconds()),
+                    pickle.dumps(cached_result)
+                )
+            except Exception:
+                pass
+        # File
+        try:
+            os.makedirs(self.file_cache_dir, exist_ok=True)
+            with open(os.path.join(self.file_cache_dir, f"{cache_key}.pkl"), 'wb') as f:
+                pickle.dump(cached_result, f)
+        except Exception:
+            pass
+        
     
     def cleanup_expired_cache(self):
         """Очистка истекшего кеша"""
@@ -1526,28 +1598,43 @@ class GlobalJobAggregator:
     
     def search_specific_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
         """
-        Поиск конкретных профессий С КЕШИРОВАНИЕМ + поддержка живого прогресса (progress_callback)
-        и мягкой отмены (cancel_check).
+        Поиск конкретных профессий:
+        - Если есть общий кеш по всему запросу — берём как стартовый набор (и можем отдать в progress_callback),
+        НО всё равно докачиваем недостающее через суб-кеш/онлайн.
+        - Никогда не «только кеш», если нет глобального cooldown.
         """
-        # 1) КЕШ — оставляем как было
-        cached_jobs = self.cache_manager.get_cached_result(preferences)
-        if cached_jobs:
-            self.stats['cache_hits'] += 1
-            print(f"🎯 Результат из кеша: {len(cached_jobs)} вакансий")
-            return cached_jobs
+        # 0) Стартовый набор из общего кеша (если есть)
+        job_map = {}
+        cached_full = self.cache_manager.get_cached_result(preferences)
+        if cached_full:
+            print(f"🎯 Общий кеш: {len(cached_full)} вакансий (стартовый набор)")
+            for j in cached_full:
+                url = getattr(j, 'apply_url', None)
+                if url:
+                    job_map[url] = j
+            # по желанию — шевельнём прогресс небольшой партией
+            if progress_callback and job_map:
+                try:
+                    progress_callback(list(job_map.values())[:10])
+                except Exception:
+                    pass
 
-        self.stats['cache_misses'] += 1
-        print("🔍 Кеш пуст, выполняем поиск через API...")
+        # 1) Реальный поиск с суб-кешем (внутри _batch_search_jobs())
+        all_jobs = self._perform_search(preferences, progress_callback=None, cancel_check=cancel_check)  # numeric progress нам не критичен
 
-        # 2) Поиск с порционной отдачей результатов наружу
-        all_jobs = self._perform_search(preferences, progress_callback=progress_callback, cancel_check=cancel_check)
+        # 2) Склейка и финальный общий кеш
+        for j in (all_jobs or []):
+            url = getattr(j, 'apply_url', None)
+            if url and url not in job_map:
+                job_map[url] = j
 
-        # 3) КЕШИРУЕМ итог
-        if all_jobs:
-            self.cache_manager.cache_result(preferences, all_jobs)
-            self.stats['total_jobs_found'] += len(all_jobs)
+        final_list = list(job_map.values())
+        if final_list:
+            self.cache_manager.cache_result(preferences, final_list)
+            self.stats['total_jobs_found'] = self.stats.get('total_jobs_found', 0) + len(final_list)
 
-        return all_jobs
+        return final_list
+
 
     
     def _perform_search(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
@@ -1679,12 +1766,18 @@ class GlobalJobAggregator:
         # Возвращаем максимум 6 терминов
         return selected_terms[:6]
     
-    def _batch_search_jobs(self, terms: List[str], country: str, location: str = '', max_results: int = 25, cancel_check=None) -> List[JobVacancy]:
-        """Поиск по списку терминов для одной страны/города + прерывание при 429/cancel."""
+    def _batch_search_jobs(self, terms: List[str], country: str, location: str, max_results: int = 25, cancel_check=None) -> List[JobVacancy]:
+        """
+        Поиск по списку терминов для одной страны/города:
+        1) Сначала берём из суб-кеша (country, location, term) — это мгновенно.
+        2) Для отсутствующих терминов — реальные запросы в API (_search_single_term).
+        3) Каждый успешный запрос кладём в суб-кеш.
+        4) Уважает cancel_check() и глобальный cooldown.
+        """
         if cancel_check and cancel_check():
             return []
 
-        # если уже в cooldown — не ходим
+        # глобальный cooldown по Adzuna
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             left = int(self.cooldown_until - now)
@@ -1695,37 +1788,70 @@ class GlobalJobAggregator:
             return []
 
         all_jobs: List[JobVacancy] = []
+        seen_urls = set()
+        location = location or ''
 
-        if len(terms) == 1 and terms[0] == 'search_for_other_jobs':
-            return self._search_single_term('job work position', country, location, max_results, 'search_for_other_jobs', cancel_check=cancel_check)
-
+        # какие именно термы реально пойдут в API для страны
         localized_terms = self._get_localized_terms(terms, country)
-
         country_name = self.countries[country]['name']
         languages = ', '.join(self.COUNTRY_LANGUAGES.get(country, ['english']))
         print(f"\n     🌍 Страна: {country_name}, языки поиска: {languages}")
 
-        for i, term in enumerate(localized_terms):
+        # 1) Сначала пытаемся вытащить из суб-кеша
+        terms_to_fetch: List[str] = []
+        for term in localized_terms:
             if cancel_check and cancel_check():
                 break
-            print(f"     🔍 Запрос {i+1}: '{term}'")
+            cached = self.cache_manager.get_term_cached_result(country, location, term)
+            if cached is None:
+                # нет записи — надо реально сходить в API
+                terms_to_fetch.append(term)
+                continue
+            # есть запись (в том числе пустая) — подмешиваем, но не идём в API
+            if cached:
+                print(f"     💾 Subcache HIT для '{term}': {len(cached)}")
+                for j in cached:
+                    url = getattr(j, 'apply_url', None)
+                    if not url or url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+                    all_jobs.append(j)
+            else:
+                print(f"     💾 Subcache HIT для '{term}': 0 (пропускаем запрос)")
+
+        # 2) Для отсутствующих терминов — реальный запрос в API
+        for i, term in enumerate(terms_to_fetch, 1):
+            if cancel_check and cancel_check():
+                break
+            print(f"     🔍 API-запрос {i}/{len(terms_to_fetch)}: '{term}'")
             try:
-                # ⚠️ прокидываем cancel_check в одиночный запрос
-                jobs = self._search_single_term(term, country, location, 10, cancel_check=cancel_check)
+                chunk = self._search_single_term(term, country, location, 10, cancel_check=cancel_check)
             except RateLimitedError:
-                # наверх, чтобы _perform_search завершил источник
+                # наверх — чтобы _perform_search завершил источник и включил переключение
                 raise
 
-            if jobs:
-                print(f"     📊 Найдено для '{term}': {len(jobs)} вакансий")
-                all_jobs.extend(jobs)
+            # Сохраняем в суб-кеш вне зависимости от результата (включая пустой список)
+            try:
+                self.cache_manager.cache_term_result(country, location, term, chunk or [])
+            except Exception:
+                pass
+
+            if chunk:
+                print(f"     📊 Найдено для '{term}': {len(chunk)} вакансий")
+                for j in chunk:
+                    url = getattr(j, 'apply_url', None)
+                    if not url or url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+                    all_jobs.append(j)
             else:
                 print(f"     ❌ Ничего не найдено для '{term}'")
 
-            if i < len(localized_terms) - 1:
-                time.sleep(0.15)  # небольшая пауза между термами
+            # Небольшая уступка UI (не «усыпляем» на минуты)
+            yield_briefly(base_ms=120, jitter_ms=80, cancel_check=cancel_check)
 
         return all_jobs
+
 
 
 
