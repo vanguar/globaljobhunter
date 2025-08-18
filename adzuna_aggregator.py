@@ -1522,87 +1522,99 @@ class GlobalJobAggregator:
 
     # Добавьте в класс GlobalJobAggregator после self.specific_jobs:
 
-
-        # ====== СУБ-КЕШ НА УРОВНЕ (страна, город, терм) ======
-    def _subcache_key(self, country: str, location: str, keywords: str) -> Dict:
-        return {'country': country or '', 'location': location or '', 'keywords': keywords or ''}
-
-    def _get_subcache(self, country: str, location: str, keywords: str) -> Optional[List[JobVacancy]]:
-        return self.cache_manager.get_cached_result(self._subcache_key(country, location, keywords)) or []
-
-    def _set_subcache(self, country: str, location: str, keywords: str, jobs: List[JobVacancy]) -> None:
-        if jobs:
-            self.cache_manager.cache_result(self._subcache_key(country, location, keywords), jobs)
-
-
         
     
     def search_specific_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
-        """Поиск конкретных профессий С КЕШЕМ + дозагрузка недостающих порций."""
-        # Полный кеш на весь запрос (как раньше)
+        """
+        Поиск конкретных профессий С КЕШИРОВАНИЕМ + поддержка живого прогресса (progress_callback)
+        и мягкой отмены (cancel_check).
+        """
+        # 1) КЕШ — оставляем как было
         cached_jobs = self.cache_manager.get_cached_result(preferences)
-        if cached_jobs and len(cached_jobs) > 0 and not preferences.get('force_refresh'):
+        if cached_jobs:
             self.stats['cache_hits'] += 1
-            print(f"🎯 Результат из кеша (полный): {len(cached_jobs)} вакансий")
+            print(f"🎯 Результат из кеша: {len(cached_jobs)} вакансий")
             return cached_jobs
 
-        # Кеш пуст/0 — идём в API и добираем недостающее
         self.stats['cache_misses'] += 1
-        print("🔍 Кеш пуст/неполный, выполняем поиск через API...")
+        print("🔍 Кеш пуст, выполняем поиск через API...")
 
+        # 2) Поиск с порционной отдачей результатов наружу
         all_jobs = self._perform_search(preferences, progress_callback=progress_callback, cancel_check=cancel_check)
 
+        # 3) КЕШИРУЕМ итог
         if all_jobs:
             self.cache_manager.cache_result(preferences, all_jobs)
             self.stats['total_jobs_found'] += len(all_jobs)
 
         return all_jobs
 
-
     
     def _perform_search(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
-        """Основной цикл по профессиям/странам/городам с поддержкой отмены."""
-        # Дадим доступ дочерним вызовам
-        self._progress_cb = progress_callback
-        self._cancel_check = cancel_check
+        """Выполнение поиска через API с поддержкой нескольких городов + circuit breaker + cancel_check."""
+        all_jobs: List[JobVacancy] = []
 
-        selected_jobs = preferences.get('selected_jobs') or []
-        countries = preferences.get('countries') or []
+        # если источник в cooldown — выходим сразу
+        now = time.time()
+        if getattr(self, "cooldown_until", 0) > now:
+            left = int(self.cooldown_until - now)
+            print(f"⛔ Adzuna: на cooldown ещё {left}s — пропускаем источник.")
+            return self._deduplicate_jobs(all_jobs) if hasattr(self, '_deduplicate_jobs') else all_jobs
+
+        selected_jobs = preferences['selected_jobs']
+        countries = preferences['countries']
+
+        # города из preferences (как у тебя было)
         raw_cities = preferences.get('cities') or []
         if not raw_cities and preferences.get('city'):
             raw_cities = [preferences.get('city')]
 
-        cities = [c for c in (raw_cities or []) if c]
-        all_jobs: List[JobVacancy] = []
+        cities: List[str] = []
+        for c in raw_cities:
+            if not c:
+                continue
+            c_stripped = c.strip()
+            if not c_stripped:
+                continue
+            c_key = c_stripped.lower()
+            corrected = self.CITY_CORRECTIONS.get(c_key, c_stripped)
+            if corrected != c_stripped:
+                print(f"📍 Город '{c_stripped}' автоматически исправлен на '{corrected}'")
+            cities.append(corrected)
 
-        # Подготовим термины: берём первые 3 английских синонима из словаря
-        terms_by_job = {}
-        for job_name in selected_jobs:
-            for category in self.specific_jobs_map.values():
-                if job_name in category:
-                    terms_by_job[job_name] = [t for t in category[job_name][:3] if t]
+        tasks = self._optimize_search_tasks(selected_jobs, countries)
+        total_searches = sum(len(t['terms']) for t in tasks)
+        current_search = 0
+
+        try:
+            for task in tasks:
+                if cancel_check and cancel_check():
                     break
+                country = task['country']
+                terms = task['terms']
 
-        for job_name, terms in terms_by_job.items():
-            for country in countries:
-                iter_cities = cities if cities else ['']  # '' = вся страна
-                for city in iter_cities:
-                    if self._cancel_check and self._cancel_check():
-                        print("⏹️ Отмена поиска пользователем")
-                        return self._deduplicate_jobs(all_jobs)
+                cities_to_use = cities if cities else [None]
+                for city in cities_to_use:
+                    if cancel_check and cancel_check():
+                        break
 
-                    # Ищем пакетно по терминам
-                    jobs = self._batch_search_jobs(terms, country, city or '', 10)
+                    # ⚠️ прокидываем cancel_check вниз
+                    jobs = self._batch_search_jobs(terms, country, city or '', 25, cancel_check=cancel_check)
+                    current_search += 1
+
                     if jobs:
                         all_jobs.extend(jobs)
-                        if self._progress_cb:
-                            try:
-                                self._progress_cb(jobs)  # сообщаем именно порции найденного
-                            except Exception:
-                                pass
+                        print(f"     ✅ Найдено: {len(jobs)} вакансий (страна={country}, город={city or '—'})")
+                    else:
+                        print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем")
 
-        return self._deduplicate_jobs(all_jobs)
+                    if progress_callback:
+                        progress_callback(min(current_search, total_searches), total_searches)
 
+        except RateLimitedError:
+            print("⛔ Adzuna: источник переведён в cooldown, завершаем поиск по Adzuna.")
+
+        return self._deduplicate_jobs(all_jobs) if hasattr(self, '_deduplicate_jobs') else all_jobs
 
 
     
@@ -1893,83 +1905,94 @@ class GlobalJobAggregator:
         print(f"⚠️ Город не найден в словаре: '{city}' для {country_code}, передаем как есть")
         return city
         
-    def _search_single_term(self, term: str, country: str, location: str, per_page: int = 10) -> List[JobVacancy]:
-        """Поиск по одному ключевому слову с суб-кешем и прогрессом."""
-        # 1) Проверка глобального cooldown (если был 429 ранее)
+    def _search_single_term(
+    self,
+    keywords: str,
+    country: str,
+    location: str = '',
+    max_results: int = 25,
+    filter_term: str = None,
+    cancel_check=None
+) -> List[JobVacancy]:
+        """По одному термину. При 429 — включаем cooldown и роняем RateLimitedError; поддерживаем cancel_check."""
+        if cancel_check and cancel_check():
+            return []
+
+        # если уже в cooldown — не ходим
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             left = int(self.cooldown_until - now)
-            print(f"⛔ Adzuna: на cooldown ещё {left}s — пропускаем API для '{term}'/{country}/{location}")
-            cached = self._get_subcache(country, location, term)
-            return cached or []
+            print(f"⛔ Adzuna: cooldown ещё {left}s — пропускаем term.")
+            raise RateLimitedError("ADZUNA_COOLDOWN")
 
-        # 2) Суб-кеш на уровне (страна, город, терм)
-        cached_chunk = self._get_subcache(country, location, term)
-        if cached_chunk:
-            if getattr(self, "_progress_cb", None):
-                try:
-                    self._progress_cb(cached_chunk)
-                except Exception:
-                    pass
-            return cached_chunk
-
-        # 3) Реальный запрос к API
         url = f"https://api.adzuna.com/v1/api/jobs/{country}/search/1"
         params = {
             'app_id': self.app_id,
             'app_key': self.app_key,
-            'what': term,
-            'where': location,
-            'results_per_page': per_page,
-            'content-type': 'application/json',
-            'sort_direction': 'down',
+            'what': keywords,
+            'results_per_page': min(max_results, 50),
+            'sort_by': 'date'
         }
+        if location:
+            normalized_location = self.normalize_city_name(location, country)
+            params['where'] = normalized_location
 
-        # быстрый вариант limiter'а, без длинных слипов
-        self.rate_limiter.wait_if_needed()
+        print(f"     🌐 API URL: {url}")
+        print(f"     📝 Параметры: what='{keywords}', where='{location}'")
+
+        ok = self.rate_limiter.wait_if_needed(cancel_check=cancel_check)
+        if ok is False or (cancel_check and cancel_check()):
+            return []
 
         try:
-            response = requests.get(url, params=params, timeout=15)
+            response = requests.get(url, params=params, timeout=12)
+            self.stats['api_requests'] += 1
+            print(f"     📡 API ответ: {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
+                print(f"     📊 Получено от API: {len(results)} вакансий")
+
+                jobs: List[JobVacancy] = []
+                for job_data in results:
+                    if cancel_check and cancel_check():
+                        break
+                    job = self._normalize_job_data(job_data, country, filter_term or keywords)
+                    if job:
+                        jobs.append(job)
+                return jobs
+
             if response.status_code == 429:
                 cooldown = int(os.getenv("ADZUNA_COOLDOWN_SEC", "180"))
                 self.cooldown_until = time.time() + cooldown
                 print(f"⛔ Adzuna: 429 Too Many Requests — включаем cooldown {cooldown}s и переключаемся на другой источник")
+                yield_briefly(base_ms=180, jitter_ms=120, cancel_check=cancel_check)
+                raise RateLimitedError("ADZUNA_RATE_LIMITED")
+
+            # прочие статусы — без ретраев
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+            exc = (data or {}).get("exception", "")
+            if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
+                print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем…")
                 return []
-
-            if response.status_code != 200:
-                try:
-                    data = response.json()
-                except Exception:
-                    data = {}
-                exc = (data or {}).get("exception", "")
-                if exc == "UNSUPPORTED_COUNTRY" or "UNSUPPORTED_COUNTRY" in response.text:
-                    print(f"⚠️ Страна '{country}' не поддерживается Adzuna API. Пропускаем…")
-                    return []
-                print(f"❌ API вернул {response.status_code}: {response.text[:200]}")
-                return []
-
-            data = response.json()
-            results = data.get('results', []) or []
-            jobs = [self._normalize_job(job, country, location) for job in results]
-            jobs = [j for j in jobs if j]
-
-            # 4) Сохраним суб-кеш и дёрнем прогресс
-            if jobs:
-                self._set_subcache(country, location, term, jobs)
-                if getattr(self, "_progress_cb", None):
-                    try:
-                        self._progress_cb(jobs)
-                    except Exception:
-                        pass
-
-            return jobs
+            print(f"❌ API вернул {response.status_code}: {response.text[:200]}")
+            return []
 
         except requests.Timeout:
-            print(f"⚠️ Adzuna: Таймаут запроса для '{term}'/{country}/{location}")
+            print("⚠️ Adzuna: таймаут запроса — пропускаем term")
             return []
+        except RateLimitedError:
+            raise
         except Exception as e:
-            print(f"❌ Adzuna: Критическая ошибка при запросе: {e}")
+            print(f"❌ Adzuna: критическая ошибка: {e}")
             return []
+
+
+
 
     # Остальные методы остаются без изменений...
     def _normalize_job_data(self, raw_job: Dict, country: str, search_term: str) -> Optional[JobVacancy]:

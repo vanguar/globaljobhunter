@@ -37,44 +37,34 @@ class JobicyAggregator:
         
     def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
         """
-        Основной метод поиска вакансий на Jobicy с учетом выбранных профессий.
+        ЕДИНСТВЕННЫЙ запрос к Jobicy (почитаем из кеша/сохраним), потом
+        фильтруем под выбранные профессии.
+        Добавлены:
+        - progress_callback(list[JobVacancy]) — отдаём порциями по мере фильтрации,
+        - cancel_check() — мягкая остановка.
         """
         print(f"🔄 {self.source_name}: начинаем поиск удалённых вакансий")
-        relevant_jobs: List[JobVacancy] = []
-
-        # Скачиваем/читаем общую ленту
-        raw_jobs = self._fetch_jobs_cached()
 
         selected_jobs = preferences.get('selected_jobs', [])
-        if not selected_jobs:
+        it_jobs = [job for job in selected_jobs if self._is_it_related(job)]
+        if not it_jobs:
+            print(f"ℹ️ {self.source_name}: выбранные профессии не подходят для удалённой работы")
             return []
 
-        # Фильтрация по ключевым словам
-        include_keywords, exclude_keywords = self._build_keywords(selected_jobs)
-        print(f"🔍 {self.source_name}: ищем по словам: {include_keywords}")
-        print(f"🚫 {self.source_name}: исключаем слова: {exclude_keywords}")
+        try:
+            if cancel_check and cancel_check():
+                return []
 
-        for job in raw_jobs:
-            normalized = self._normalize_job(job)
-            if not normalized:
-                continue
-            text = f"{normalized.title} {normalized.company}".lower()
-            if any(word in text for word in exclude_keywords):
-                continue
-            if not any(word in text for word in include_keywords):
-                continue
-            relevant_jobs.append(normalized)
+            # один запрос (или кеш)
+            all_jobs = self._fetch_jobs_cached()
+            # фильтровать и одновременно отдавать батчи
+            relevant_jobs = self._filter_relevant_jobs(all_jobs, it_jobs, progress_callback=progress_callback, cancel_check=cancel_check)
+            print(f"✅ {self.source_name}: найдено {len(relevant_jobs)} релевантных вакансий")
+            return relevant_jobs
 
-            # отдаём прогресс порциями по мере накопления
-            if progress_callback and len(relevant_jobs) % 10 == 0:
-                try:
-                    progress_callback(relevant_jobs[-10:])
-                except Exception:
-                    pass
-
-        print(f"✅ {self.source_name}: найдено {len(relevant_jobs)} релевантных вакансий")
-        return relevant_jobs
-
+        except Exception as e:
+            print(f"❌ {self.source_name} ошибка: {e}")
+            return []
 
     
     def _is_it_related(self, job_name: str) -> bool:
