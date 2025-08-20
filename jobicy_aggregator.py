@@ -82,30 +82,31 @@ class JobicyAggregator:
     cancel_check=None
 ) -> List[JobVacancy]:
         """
-        Жёсткий фильтр релевантности под выбранные профессии:
-        - Берём только те записи, в title/description которых встречается хоть один терм
-        из мапы для ЛЮБОГО ru_title из preferences['selected_jobs'].
-        - Никаких посторонних категорий (IT/менеджеры и пр.), если их нет в selected_jobs.
+        Фильтр релевантности под выбранные профессии:
+        • Берём EN-термы из nested self.specific_jobs_map (категория -> {RU: [EN...]}).
+        • Если EN-термов не нашли — выходим (Jobicy плохо матчится по RU).
+        • Прогресс отдаём порциями по 5 вакансий (списком JobVacancy).
         """
         selected_jobs: List[str] = preferences.get("selected_jobs") or []
         if not selected_jobs:
             return []
 
-        # Собираем позитивные термы
+        import re
         positive_terms: set[str] = set()
-        specific_map: Dict[str, List[str]] = getattr(self, "specific_jobs_map", {}) or {}
+        specific_map: Dict[str, Dict[str, List[str]]] = getattr(self, "specific_jobs_map", {}) or {}
+
+        # собираем англ. ключи для выбранных RU-профессий
         for ru_title in selected_jobs:
-            terms = specific_map.get(ru_title) or []
+            terms = None
+            for cat_dict in specific_map.values():
+                if isinstance(cat_dict, dict) and ru_title in cat_dict:
+                    terms = cat_dict.get(ru_title)
+                    break
             if terms:
                 for t in terms:
-                    t = (t or "").strip().lower()
-                    if t:
-                        positive_terms.add(t)
-            else:
-                # Фолбэк: если мапы нет — используем сам ru_title как терм (лучше чем ничего)
-                rt = (ru_title or "").strip().lower()
-                if rt:
-                    positive_terms.add(rt)
+                    t = (t or "").strip()
+                    if t and re.match(r'^[A-Za-z0-9 .,+\-]+$', t):
+                        positive_terms.add(t.lower())
 
         if not positive_terms:
             return []
@@ -118,11 +119,9 @@ class JobicyAggregator:
                 break
 
             title = (raw.get("jobTitle") or raw.get("title") or "").strip()
-            desc = (raw.get("jobDescription") or raw.get("description") or "").strip()
-            tl = title.lower()
-            dl = desc.lower()
+            desc  = (raw.get("jobDescription") or raw.get("description") or "").strip()
+            tl, dl = title.lower(), desc.lower()
 
-            # матч по любому терму
             if not any(term in tl or term in dl for term in positive_terms):
                 continue
 
@@ -133,18 +132,16 @@ class JobicyAggregator:
             relevant.append(job)
             batch.append(job)
 
-            # отдаём прогресс порциями
             if progress_callback and len(batch) >= 5:
                 try:
-                    progress_callback(f"✅ Jobicy: релевантных вакансий — {len(relevant)}")
+                    progress_callback(list(batch))  # важно: список JobVacancy
                 except Exception:
                     pass
                 batch.clear()
 
-        # докинем хвост
         if progress_callback and batch:
             try:
-                progress_callback(f"✅ Jobicy: релевантных вакансий — {len(relevant)}")
+                progress_callback(list(batch))
             except Exception:
                 pass
 
@@ -155,11 +152,22 @@ class JobicyAggregator:
 
     # === КЕШ/АПИ ===
     def _fetch_jobs_cached(self) -> List[Dict]:
+        """
+        Чтение дампа Jobicy с кешем.
+        Правила:
+        • если кеш есть и НЕ пустой → возвращаем его;
+        • если кеш пустой ([]) или устарел/отсутствует → идём в API;
+        • пустой ответ из API НЕ сохраняем.
+        """
         cached = self._load_cache()
-        if cached is not None:
-            print(f"💾 {self.source_name}: Cache HIT, записей {len(cached)}")
-            return cached
+        if isinstance(cached, list):
+            if cached:  # непустой кеш — используем
+                print(f"💾 {self.source_name}: Cache HIT, записей {len(cached)}")
+                return cached
+            else:
+                print(f"💾 {self.source_name}: Cache HIT (empty), пробуем обновить из API...")
 
+        # Cache MISS / empty → запрос в API
         print(f"🌐 {self.source_name}: Cache MISS — запрашиваем дамп")
         try:
             r = requests.get(self.base_url, timeout=15)
@@ -168,8 +176,14 @@ class JobicyAggregator:
                 return []
             data = r.json() or {}
             jobs = data.get('jobs') or []
-            self._save_cache(jobs)
-            print(f"📥 {self.source_name}: получено {len(jobs)}, сохранено в кеш")
+
+            # Важно: НЕ кешируем пустые ответы
+            if jobs:
+                self._save_cache(jobs)
+                print(f"📥 {self.source_name}: получено {len(jobs)}, сохранено в кеш")
+            else:
+                print(f"📥 {self.source_name}: получено 0 записей (not cached)")
+
             return jobs
         except requests.Timeout:
             print(f"⚠️ {self.source_name}: таймаут запроса")
@@ -177,6 +191,7 @@ class JobicyAggregator:
         except Exception as e:
             print(f"❌ {self.source_name}: ошибка API: {e}")
             return []
+
 
     def _load_cache(self) -> Optional[List[Dict]]:
         """Чтение кеша с проверкой TTL."""
