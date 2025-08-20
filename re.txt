@@ -59,5 +59,31 @@ git remote add origin https://github.com/vanguar/globaljobhunter.git
 git push -u origin main
 
 
+
+Полная последовательность команд, как мы прошли (Windows, ветка main)
+
+Цель: перезаписать локальную копию файлами из GitHub.
+
+# 0) Перейти в папку проекта (если ещё не в ней)
+cd C:\Users\tzvan\Desktop\JobHunterBot
+
+# 1) (Опционально) Привязать удалённый репозиторий
+# ⮕ Пропусти, если origin уже есть. У тебя он есть.
+git remote add origin https://github.com/vanguar/globaljobhunter.git
+
+# 2) Проверить привязку (fetch/push URL)
+git remote -v
+
+# 3) Подтянуть последние ссылки на коммиты и ветки из GitHub
+git fetch origin
+
+# 4) Жёстко сбросить локальную ветку к удалённой (ПОЛНОСТЬЮ перезапишет локальные изменения)
+git reset --hard origin/main
+# (Если у тебя главная ветка — master, то: git reset --hard origin/master)
+
+# 5) Проверить, что всё чисто и синхронизировано
+git status
+
+
 Тестовый домен
 https://web-production-2928e.up.railway.app/

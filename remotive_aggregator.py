@@ -65,7 +65,22 @@ class RemotiveAggregator(BaseJobAggregator):
         # Уход и медицина (требующие физического присутствия)
         'Медсестра', 'Сиделка', 'Няня', 'Гувернантка', 'Уход за пенсионерами'
     }
+    
+    # исправленный алиас для обратной совместимости
+    def _query_remotive(self, terms, progress_callback=None, cancel_check=None):
+        """
+        Реальный запрос в Remotive: через _fetch_jobs.
+        """
+        params = {}
+        if isinstance(terms, list):
+            # если список — склеиваем в строку
+            params['search'] = " ".join(terms)
+        else:
+            params['search'] = str(terms)
 
+        return self._fetch_jobs(params)
+
+    
     def __init__(self, specific_jobs_map: Dict, cache_duration_hours: Optional[int] = None):
         """
         Инициализация Remotive.

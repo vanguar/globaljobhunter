@@ -2197,76 +2197,86 @@ function setupAutoSave() {
     });
 }
 
+// Универсальный быстрый выбор с тостами и корректным "повторным кликом = отмена"
 function selectJobCategory(category, buttonElement) {
-  const quickSelectButtons = document.querySelectorAll('.quick-select-btn');
-  const allCheckboxes = document.querySelectorAll('.job-checkbox');
+  const form = document.getElementById('job-search-form');
+  const buttons = document.querySelectorAll('.quick-select-btn');
+  const checkboxes = document.querySelectorAll('.job-checkbox');
 
-  // карта "короткий ключ → заголовок блока" (должен совпадать с data-category в index.html)
-  const categoryMapping = {
-    'transport':   '🚗 ТРАНСПОРТ И ДОСТАВКА',
-    'restaurant':  '🍽️ ОБЩЕПИТ И СЕРВИС',
-    'construction':'🏗️ СТРОИТЕЛЬСТВО И ПРОИЗВОДСТВО',
-    'care':        '👥 УХОД И МЕДИЦИНА',
-    'it':          '💻 IT И ТЕХНОЛОГИИ',
-    'office':      '👔 ОФИС И УПРАВЛЕНИЕ',
-    'refugee':     '🇺🇦 ДЛЯ УКРАИНСКИХ БЕЖЕНЦЕВ',
-    'autoservice': '🔧 АВТОСЕРВИС И ТЕХОБСЛУЖИВАНИЕ',
-    'fuel':        '⛽ АЗС И ТОПЛИВО',
-    'oilgas':      '🛢️ НЕФТЬ И ГАЗ'
+  // Человекочитаемое имя для сообщений
+  const names = {
+    transport: 'Транспорт',
+    restaurant: 'Общепит',
+    construction: 'Стройка',
+    care: 'Уход',
+    it: 'IT',
+    office: 'Офис и управление',
+    refugee: 'Для украинцев',
+    refugee: 'Для украинских беженцев',
+    autoservice: 'Автосервис',
+    fuel: 'АЗС',
+    oilgas: 'Нефть и газ',
+    other: 'Другое'
   };
-  const targetHeader = categoryMapping[category];
+  const readable = names[category] || category;
 
-  // 1) список профессий категории из categories.js
-  const cat = (window.categoryMap && window.categoryMap[category]);
-  const jobsFromCat = cat && (cat['ru'] || cat['ua'] || cat['uk'] || cat['ru-RU']) || [];
-  if (!jobsFromCat.length) {
-    alert(`В categories.js нет списка профессий для категории: ${category}`);
+  // Определяем: кнопка была активной?
+  const wasActive =
+    buttonElement.classList.contains('active') ||
+    buttonElement.classList.contains('btn-primary');
+
+  // Сбрасываем стили всех кнопок
+  buttons.forEach(b => {
+    b.classList.remove('active', 'btn-primary');
+    b.classList.add('btn-outline-secondary');
+  });
+
+  // Если клик по уже активной — просто снять все чекбоксы и показать тост "отменено"
+  if (wasActive) {
+    checkboxes.forEach(cb => (cb.checked = false));
+    if (typeof showTemporaryMessage === 'function') {
+      showTemporaryMessage(`Категория "${readable}" отменена`, 'info');
+    }
+    form && form.dispatchEvent(new Event('change'));
     return;
   }
 
-  // 2) деактивируем остальные кнопки и чистим все галки
-  quickSelectButtons.forEach(btn => btn.classList.remove('active'));
-  allCheckboxes.forEach(cb => cb.checked = false);
+  // Делаем текущую кнопку активной
+  buttonElement.classList.remove('btn-outline-secondary');
+  buttonElement.classList.add('btn-primary', 'active');
 
-  // 3) активируем выбранную кнопку
-  buttonElement.classList.add('active');
+  // Сначала снимаем все чекбоксы
+  checkboxes.forEach(cb => (cb.checked = false));
 
-  // 4) отметим чекбоксы ТОЛЬКО из этой категории
-  const categoryBlock = document.querySelector(`div[data-category="${targetHeader}"]`);
-  const categoryCheckboxes = categoryBlock ? categoryBlock.querySelectorAll('.job-checkbox') : [];
+  // Берём список профессий категории (поддерживаем оба варианта глобальной карты)
+  const baseMap = (window.CATEGORY_MAP || window.categoryMap || {});
+  const jobsToSelect = baseMap[category] || [];
+
   let selectedCount = 0;
-  categoryCheckboxes.forEach(cb => {
-    if (jobsFromCat.includes(cb.value)) {
+  document.querySelectorAll('.job-checkbox').forEach(cb => {
+    if (jobsToSelect.includes(cb.value)) {
       cb.checked = true;
       selectedCount++;
     }
   });
 
-  if (!selectedCount) {
-    alert(`Не найдено совпадений чекбоксов для категории: ${targetHeader}`);
+  if (typeof showTemporaryMessage === 'function') {
+    if (selectedCount > 0) {
+      showTemporaryMessage(
+        `Выбрано ${selectedCount} профессий в категории "${readable}"`,
+        'success'
+      );
+    } else {
+      showTemporaryMessage(
+        `Совпадений по категории "${readable}" не найдено среди текущего набора`,
+        'warning'
+      );
+    }
   }
 
-  // триггерим событие — чтобы автосохранение/валидация сработали
-  document.getElementById('job-search-form').dispatchEvent(new Event('change'));
+  form && form.dispatchEvent(new Event('change'));
 }
 
-
-// Инициализация после полной загрузки
-window.addEventListener('load', function() {
-    // Скрываем прелоадер если есть
-    const preloader = document.getElementById('preloader');
-    if (preloader) {
-        preloader.style.opacity = '0';
-        setTimeout(() => preloader.remove(), 500);
-    }
-    
-    // Добавляем анимацию появления
-    document.body.style.opacity = '0';
-    setTimeout(() => {
-        document.body.style.transition = 'opacity 0.5s ease';
-        document.body.style.opacity = '1';
-    }, 100);
-});
 // ДОБАВИТЬ ЭТУ ФУНКЦИЮ
 // ИСПРАВЛЕННАЯ функция subscribeToEmails в app.js
 function subscribeToEmails() {
