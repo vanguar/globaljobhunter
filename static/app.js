@@ -1713,6 +1713,7 @@ function initializeApp() {
     // Инициализация формы поиска
     const searchForm = document.getElementById('job-search-form');
     if (searchForm) {
+        // Запускаем только живой поиск
         searchForm.addEventListener('submit', handleJobSearch);
     }
     
@@ -1980,88 +1981,10 @@ function hideProgress() {
     }, 500);
 }
 
-async function handleJobSearch(event) {
-    event.preventDefault();
-    
-    const form = event.target;
-    const formData = new FormData(form);
-    
-    // Собираем данные
-    const searchData = {
-        is_refugee: formData.get('is_refugee'),
-        selected_jobs: formData.getAll('selected_jobs'),
-        countries: formData.getAll('countries'),
-        city: formData.get('city')
-    };
-    
-    // Валидация
-    if (!searchData.is_refugee) {
-        showAlert('❌ Пожалуйста, укажите ваш статус (беженец или нет)', 'warning');
-        return;
-    }
-
-    if (searchData.selected_jobs.length === 0) {
-        showAlert('❌ Выберите хотя бы одну профессию!', 'warning');
-        return;
-    }
-    
-    if (searchData.countries.length === 0) {
-        showAlert('❌ Выберите хотя бы одну страну!', 'warning');
-        return;
-    }
-    
-    // Блокируем кнопку СРАЗУ
-    const submitBtn = form.querySelector('button[type="submit"]');
-    setButtonLoading(submitBtn, true);
-    
-    try {
-        console.log('🔍 Отправляем запрос на поиск...');
-        
-        const response = await fetch('/search', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(searchData)
-        });
-        
-        const result = await response.json();
-        
-        // ИСПРАВЛЕНИЕ: Проверяем статус ответа ПЕРЕД показом модального окна
-        if (!response.ok) {
-            // Если лимит превышен или другая ошибка - НЕ показываем модальное окно
-            throw new Error(result.error || `HTTP ${response.status}`);
-        }
-        
-        if (result.success) {
-            // ТОЛЬКО ЗДЕСЬ показываем модальное окно и прогресс
-            showLoadingModal();
-            showProgress();
-            
-            // Сохраняем выбор
-            savePreferences(searchData);
-            
-            // Показываем успех
-            showSuccessMessage(result.jobs_count, result.search_time);
-            
-            // Ждем немного для анимации
-            setTimeout(() => {
-                // Плавный переход на результаты
-                window.location.href = result.redirect_url;
-            }, 2000);
-            
-        } else {
-            throw new Error(result.error || 'Ошибка поиска');
-        }
-        
-    } catch (error) {
-        console.error('❌ Ошибка поиска:', error);
-        showAlert(`❌ ${error.message}`, 'danger');
-        setButtonLoading(submitBtn, false);
-        
-        // НЕ вызываем hideLoadingModal() и hideProgress() здесь,
-        // так как они могут не быть запущены
-    }
+// ВСТАВЬТЕ ЭТОТ КОД ВМЕСТО СТАРОЙ ФУНКЦИИ
+function handleJobSearch(e) {
+  e.preventDefault();
+  return startLiveSearch(e);
 }
 
 function showLoadingModal() {
@@ -2725,9 +2648,4 @@ async function startLiveSearch(e) {
   PROGRESS_TIMER = setInterval(poll, 700);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('job-search-form');
-  if (form) {
-    form.addEventListener('submit', startLiveSearch);
-  }
-});
+

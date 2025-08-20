@@ -1654,7 +1654,12 @@ class GlobalJobAggregator:
         # 0) Стартовый набор из общего кеша (если есть)
         job_map: Dict[str, JobVacancy] = {}
         cached_full = self.cache_manager.get_cached_result(preferences)
+
+        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
         if cached_full:
+            # ✅ СЧИТАЕМ ПОПАДАНИЕ В КЕШ
+            self.stats['cache_hits'] = self.stats.get('cache_hits', 0) + 1
+            
             print(f"🎯 Общий кеш: {len(cached_full)} вакансий (стартовый набор)")
             for j in cached_full:
                 url = getattr(j, 'apply_url', None)
@@ -1666,6 +1671,10 @@ class GlobalJobAggregator:
                     progress_callback(list(job_map.values())[:10])
                 except Exception:
                     pass
+        else:
+            # ❌ СЧИТАЕМ ПРОМАХ КЕША
+            self.stats['cache_misses'] = self.stats.get('cache_misses', 0) + 1
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         # 1) Реальный поиск с суб-кешем (внутри _batch_search_jobs)
         #    ВАЖНО: progress_callback сюда не передаём — внутри он числовой,
@@ -1684,8 +1693,6 @@ class GlobalJobAggregator:
             self.stats['total_jobs_found'] = self.stats.get('total_jobs_found', 0) + len(final_list)
 
         return final_list
-
-
 
     
     def _perform_search(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
