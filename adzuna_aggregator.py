@@ -1652,7 +1652,7 @@ class GlobalJobAggregator:
         - Никогда не «только кеш», если нет глобального cooldown.
         """
         # 0) Стартовый набор из общего кеша (если есть)
-        job_map = {}
+        job_map: Dict[str, JobVacancy] = {}
         cached_full = self.cache_manager.get_cached_result(preferences)
         if cached_full:
             print(f"🎯 Общий кеш: {len(cached_full)} вакансий (стартовый набор)")
@@ -1667,8 +1667,10 @@ class GlobalJobAggregator:
                 except Exception:
                     pass
 
-        # 1) Реальный поиск с суб-кешем (внутри _batch_search_jobs())
-        all_jobs = self._perform_search(preferences, progress_callback=None, cancel_check=cancel_check)  # numeric progress нам не критичен
+        # 1) Реальный поиск с суб-кешем (внутри _batch_search_jobs)
+        #    ВАЖНО: progress_callback сюда не передаём — внутри он числовой,
+        #    а в app.py ожидается список вакансий.
+        all_jobs = self._perform_search(preferences, progress_callback=None, cancel_check=cancel_check)
 
         # 2) Склейка и финальный общий кеш
         for j in (all_jobs or []):
@@ -1682,6 +1684,7 @@ class GlobalJobAggregator:
             self.stats['total_jobs_found'] = self.stats.get('total_jobs_found', 0) + len(final_list)
 
         return final_list
+
 
 
     
@@ -1699,7 +1702,7 @@ class GlobalJobAggregator:
         selected_jobs = preferences['selected_jobs']
         countries = preferences['countries']
 
-        # города из preferences (как у тебя было)
+        # города из preferences (список)
         raw_cities = preferences.get('cities') or []
         if not raw_cities and preferences.get('city'):
             raw_cities = [preferences.get('city')]
@@ -1743,6 +1746,7 @@ class GlobalJobAggregator:
                     else:
                         print(f"     ℹ️ Вакансий не найдено (страна={country}, город={city or '—'}) — продолжаем")
 
+                    # Здесь progress_callback (если был) числовой; но в search_specific_jobs мы его не передаём.
                     if progress_callback:
                         progress_callback(min(current_search, total_searches), total_searches)
 
@@ -1750,6 +1754,7 @@ class GlobalJobAggregator:
             print("⛔ Adzuna: источник переведён в cooldown, завершаем поиск по Adzuna.")
 
         return self._deduplicate_jobs(all_jobs) if hasattr(self, '_deduplicate_jobs') else all_jobs
+
 
 
     
@@ -1814,18 +1819,12 @@ class GlobalJobAggregator:
         # Возвращаем максимум 6 терминов
         return selected_terms[:6]
     
-    def _batch_search_jobs(self, terms: List[str], country: str, location: str, max_results: int = 25, cancel_check=None) -> List[JobVacancy]:
-        """
-        Поиск по списку терминов для одной страны/города:
-        1) Сначала берём из суб-кеша (country, location, term) — это мгновенно.
-        2) Для отсутствующих терминов — реальные запросы в API (_search_single_term).
-        3) Каждый успешный запрос кладём в суб-кеш.
-        4) Уважает cancel_check() и глобальный cooldown.
-        """
+    def _batch_search_jobs(self, terms: List[str], country: str, location: str = '', max_results: int = 25, cancel_check=None) -> List[JobVacancy]:
+        """Поиск по списку терминов для одной страны/города + прерывание при 429/cancel + суб-кеш по термам."""
         if cancel_check and cancel_check():
             return []
 
-        # глобальный cooldown по Adzuna
+        # если уже в cooldown — не ходим
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             left = int(self.cooldown_until - now)
@@ -1867,7 +1866,7 @@ class GlobalJobAggregator:
             else:
                 print(f"     💾 Subcache HIT для '{term}': 0 (пропускаем запрос)")
 
-        # 2) Для отсутствующих терминов — реальный запрос в API
+        # 2) Для отсутствующих в суб-кеше терминов — реальные запросы в API
         for i, term in enumerate(terms_to_fetch, 1):
             if cancel_check and cancel_check():
                 break
@@ -1899,9 +1898,6 @@ class GlobalJobAggregator:
             yield_briefly(base_ms=120, jitter_ms=80, cancel_check=cancel_check)
 
         return all_jobs
-
-
-
 
     
     def normalize_city_name(self, city, country_code):
