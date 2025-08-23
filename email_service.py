@@ -715,8 +715,9 @@ def send_welcome_email(app, email, lang=None, *_, **__):
         print(f"🔄 Подготавливаем welcome email для {email} (lang={lang})...")
 
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
-        manage_url = f"{base_url}/subscription/manage?email={email}"
-        unsubscribe_url = f"{base_url}/unsubscribe?email={email}"
+        manage_url = f"{base_url}/subscription/manage?email={email}&lang={lang}"
+        unsub_url = f"{base_url}/unsubscribe?email={email}&lang={lang}"
+
 
         # HTML фрагменты
         list_items = "".join(
@@ -780,7 +781,7 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                     <p><small>{datetime.now().strftime('%d.%m.%Y %H:%M')}</small></p>
                 </div>
                 <div class="footer">
-                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsubscribe_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
+                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
                     <p>{_tr(lang, "copyright", year=datetime.now().year)}</p>
                 </div>
             </div>
@@ -844,6 +845,7 @@ def send_preferences_update_email(app, subscriber):
         lang = _get_lang(subscriber)
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
         manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
+        unsub_url = f"{base_url}/unsubscribe?email={subscriber.email}&lang={lang}"
 
         # --- локализация профессий для шапки письма ---
         profs = subscriber.get_selected_jobs() or []
@@ -878,6 +880,7 @@ def send_preferences_update_email(app, subscriber):
                         <li><strong>{_tr(lang,"prefs_frequency")}:</strong> {subscriber.frequency}</li>
                     </ul>
                     <p><a href="{manage_url}">{_tr(lang, "prefs_change_again")}</a></p>
+                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
                 </div>
             </div>
         </body>

@@ -791,7 +791,7 @@ def unsubscribe():
     if not email:
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
             <title>Ошибка отписки</title>
@@ -830,7 +830,7 @@ def unsubscribe():
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Отписка выполнена</title>
+            <title data-i18n="unsub_title">Отписка выполнена</title>
             <style>
                 body { 
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -875,29 +875,29 @@ def unsubscribe():
         <body>
             <div class="card">
                 <div class="success">✅</div>
-                <h1>Вы успешно отписались!</h1>
-                <p>Подписка на email-уведомления для адреса</p>
+                <h1 data-i18n="unsub_h1_success">Вы успешно отписались!</h1>
+                <p data-i18n="unsub_intro">Подписка на email-уведомления для адреса</p>
                 <div class="email-highlight">{{ email }}</div>
-                <p>была деактивирована.</p>
+                <p data-i18n="unsub_deactivated">была деактивирована.</p>
                 
                 <div class="info-box">
-                    <h4>📧 Что это означает:</h4>
+                    <h4 data-i18n="unsub_info_title">📧 Что это означает:</h4>
                     <ul>
-                        <li>Вы больше не будете получать уведомления о новых вакансиях</li>
-                        <li>Ваши данные остаются в системе (на случай повторной подписки)</li>
-                        <li>Вы можете в любое время подписаться снова через главную страницу</li>
+                        <li data-i18n="unsub_b1">Вы больше не будете получать уведомления о новых вакансиях</li>
+                        <li data-i18n="unsub_b2">Ваши данные остаются в системе (на случай повторной подписки)</li>
+                        <li data-i18n="unsub_b3">Вы можете в любое время подписаться снова через главную страницу</li>
                     </ul>
                 </div>
                 
                 <div>
-                    <a href="/" class="btn">🏠 Вернуться на главную</a>
-                    <a href="mailto:tzvanguardia@gmail.com?subject=Вопрос по GlobalJobHunter" class="btn btn-secondary">📧 Связаться с нами</a>
+                    <a href="/" class="btn" data-i18n="unsub_btn_home">🏠 Вернуться на главную</a>
+                    <a href="mailto:tzvanguardia@gmail.com?subject=Вопрос по GlobalJobHunter" class="btn btn-secondary" data-i18n="unsub_btn_contact">📧 Связаться с нами</a>
                 </div>
                 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
                     <small style="color: #6c757d;">
-                        <strong>Передумали?</strong> Вы всегда можете подписаться снова на 
-                        <a href="/" style="color: #007bff;">главной странице</a>
+                        <strong data-i18n='unsub_footer_intro'>Передумали? Вы всегда можете подписаться снова на</strong> 
+                        <a href="/" style="color: #007bff;" data-i18n="unsub_footer_home_link">главной странице</a>
                     </small>
                 </div>
             </div>
@@ -948,7 +948,7 @@ def unsubscribe():
                     Хотите снова получать уведомления о вакансиях? 
                     Подпишитесь на главной странице!
                 </p>
-                <a href="/" class="btn">🏠 Вернуться на главную</a>
+                <a href="/" class="btn" data-i18n="unsub_btn_home">🏠 Вернуться на главную</a>
             </div>
         </body>
         </html>
@@ -2647,6 +2647,7 @@ def upload_backup():
         <head>
             <title>Загрузка бекапа</title>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
