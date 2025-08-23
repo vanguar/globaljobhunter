@@ -94,6 +94,7 @@
     injectStyles();
     snapshotAndTranslate(document.body);
     setupLanguageSwitcher();
+    ensureSwitcherVisibleOnMobile();
     observeMutations();
     hookRuntimeMessages();
     document.documentElement.setAttribute('lang', currentLang);
@@ -275,6 +276,32 @@
   });
   updateSwitcherUI(currentLang);
 }
+
+ function ensureSwitcherVisibleOnMobile(){
+  const navContainer = document.querySelector('.navbar .container');
+  const collapseNav = document.querySelector('#navbarNav .navbar-nav');
+  const sw = document.getElementById('language-switcher-container');
+  if (!navContainer || !collapseNav || !sw) return;
+
+  const isMobile = window.matchMedia('(max-width: 991.98px)').matches; // Bootstrap lg breakpoint
+  const anchorId = 'lang-switcher-mobile-anchor';
+  let anchor = document.getElementById(anchorId);
+  if (!anchor){
+    anchor = document.createElement('div');
+    anchor.id = anchorId;
+    anchor.className = 'ms-auto d-lg-none'; // показываем только < lg
+    const burger = navContainer.querySelector('.navbar-toggler');
+    navContainer.insertBefore(anchor, burger || navContainer.lastElementChild);
+  }
+
+  if (isMobile) {
+    anchor.appendChild(sw);       // на мобилке — рядом с логотипом/бургером
+  } else {
+    collapseNav.appendChild(sw);  // на десктопе — в раскрытом меню
+  }
+}
+window.addEventListener('resize', ensureSwitcherVisibleOnMobile);
+
 
 
   function updateSwitcherUI(lang){

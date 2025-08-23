@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import os
 from threading import Thread
 import time
+import json
 
 _UI_DICT_CACHE = {}
 
@@ -628,13 +629,10 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
                 <p>{_tr(lang, "digest_intro")}</p>
                 <ul class="inline">
                     {li_prof}
-                    
-                    jobs_disp = ', '.join(_front_tr(lang, j) for j in jobs_src[:3])
-                    li_prof = f"<li><strong>{_tr(lang, 'pref_professions')}:</strong> {jobs_disp}{'...' if len(jobs_src) > 3 else ''}</li>"
-
                     <li><strong>{_tr(lang, "pref_countries")}:</strong> {', '.join(preferences['countries'])}</li>
                     {f"<li><strong>{_tr(lang, 'pref_city')}:</strong> {preferences['cities'][0]}</li>" if preferences.get('cities') else ''}
                 </ul>
+
 
                 <h3>{_tr(lang, "digest_all_jobs")}</h3>
     """
@@ -844,6 +842,11 @@ def send_preferences_update_email(app, subscriber):
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
         manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
 
+        # --- локализация профессий для шапки письма ---
+        profs = subscriber.get_selected_jobs() or []
+        profs_disp = ', '.join(_front_tr(lang, p) for p in profs[:3])
+
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -865,7 +868,8 @@ def send_preferences_update_email(app, subscriber):
                 <div class="content">
                     <p>{_tr(lang, "prefs_intro")}</p>
                     <ul>
-                        <li><strong>{_tr(lang,"prefs_professions")}:</strong> {', '.join(subscriber.get_selected_jobs()[:3])}{'...' if len(subscriber.get_selected_jobs()) > 3 else ''}</li>
+                        {f'<li><strong>{_tr(lang,"pref_professions")}:</strong> {profs_disp}{"..." if len(profs) > 3 else ""}</li>'}
+
                         <li><strong>{_tr(lang,"prefs_countries")}:</strong> {', '.join(subscriber.get_countries())}</li>
                         <li><strong>{_tr(lang,"prefs_city")}:</strong> {subscriber.city or _tr(lang,"prefs_city_none")}</li>
                         <li><strong>{_tr(lang,"prefs_frequency")}:</strong> {subscriber.frequency}</li>

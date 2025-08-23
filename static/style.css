@@ -787,18 +787,12 @@ footer .remotive-footer:hover {
 
 /* Мобильная копия свитчера рядом с бургером */
 @media (max-width: 991.98px){
-  .language-switcher.d-lg-none .btn {
-    padding: 6px 10px;
-    font-size: .95rem;
+  #language-switcher-container .btn{
+    padding: .25rem .5rem;
+    font-size: .875rem;
   }
-  /* чтобы меню не уезжало за экран */
-  .language-switcher.d-lg-none .dropdown-menu {
-    position: fixed !important;
-    top: 52px !important;
-    right: 12px !important;
-    left: auto !important;
-    transform: none !important;
-    z-index: 2000;
+  #language-switcher-container .dropdown-menu{
+    min-width: 11rem;
   }
 }
 
