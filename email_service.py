@@ -704,7 +704,7 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                 .container {{ max-width: 680px; margin: 0 auto; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
                 .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 36px 24px; text-align: center; }}
                 .content {{ padding: 28px; }}
-                .button {{ display: inline-block; background: #667eea; color: #ffffff !important; text-decoration: none; padding: 12px 20px; border-radius: 24px; font-weight: bold; margin: 8px 6px; }}
+                .button {{ display: inline-block; background: #667eea; color: #ffffff !important;text-decoration: none; padding: 12px 20px; border-radius: 24px; font-weight: bold; margin: 8px 6px; }}
                 .footer {{ background: #f8f9fa; padding: 18px; text-align: center; font-size: 12px; color: #666; }}
                 .info-box {{ background: #e3f2fd; border-left: 4px solid #2196f3; padding: 14px; margin: 16px 0; border-radius: 6px; }}
                 ul {{ margin: 10px 0 0 18px; }}
@@ -730,8 +730,8 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                     </div>
 
                     <div style="text-align:center; margin: 24px 0;">
-                        <a href="{manage_url}" class="button">style="color:#ffffff !important; display:inline-block; background:#667eea; text-decoration:none; padding:12px 20px; border-radius:24px; font-weight:bold; margin:8px 6px;">{_tr(lang, "welcome_manage")}</a>
-                        <a href="{base_url}" class="button" style="background:#28a745;">style="color:#ffffff !important; display:inline-block; background:#28a745; text-decoration:none; padding:12px 20px; border-radius:24px; font-weight:bold; margin:8px 6px;">{_tr(lang, "welcome_find_now")}</a>
+                        <a href="{manage_url}" class="button">{_tr(lang, "welcome_manage")}</a>
+                        <a href="{base_url}" class="button" style="background:#28a745;">{_tr(lang, "welcome_find_now")}</a>
                     </div>
 
                     <div style="background:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:14px; margin:18px 0;">
