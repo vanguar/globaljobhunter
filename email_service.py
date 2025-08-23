@@ -640,7 +640,9 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
     # Страны
     for country, country_jobs in jobs_by_country.items():
         vac_short_c = _vacancy_forms(lang, len(country_jobs), long=False)
-        html += f'<div class="country-header">{_tr(lang, "country_header", country=country, n=len(country_jobs), vac_short=vac_short_c)}</div>'
+        country_disp = country  # или _front_tr(lang, country), если сделаешь словарь стран
+        html += f'<div class="country-header">{country_disp} ({len(country_jobs)} {vac_short_c})</div>'
+
 
         for job in country_jobs:
             title = getattr(job, 'title', '')

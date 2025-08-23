@@ -68,6 +68,15 @@ class RemotiveAggregator(BaseJobAggregator):
         'Медсестра', 'Сиделка', 'Няня', 'Гувернантка', 'Уход за пенсионерами'
     }
     
+    def _get_english_keywords(self, text: str) -> str:
+        """
+        Back-compat: раньше вызывался этот приватный метод.
+        Сейчас просто возвращаем text как есть (или нормализуем, если есть хелпер).
+        """
+        # Если есть уже существующий нормализатор — используй его:
+        # return self._normalize_keywords(text)
+        return text
+
     # 2) Запрос в Remotive: безопасный батчинг + возможность принудить свежий запрос
     def _query_remotive(self, terms_or_params, progress_callback=None, cancel_check=None, fresh: bool = False) -> List[JobVacancy]:
         """
