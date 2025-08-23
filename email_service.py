@@ -596,7 +596,7 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
     # HTML
     html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <meta charset="utf-8">
         <title>{I18N[lang]['app_name']}</title>
@@ -727,7 +727,7 @@ def send_welcome_email(app, email, lang=None, *_, **__):
 
         html_content = f"""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
             <style>
@@ -854,7 +854,7 @@ def send_preferences_update_email(app, subscriber):
 
         html_content = f"""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
             <style>
