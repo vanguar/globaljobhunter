@@ -891,7 +891,10 @@ def unsubscribe():
                 
                 <div>
                     <a href="/" class="btn">🏠 Вернуться на главную</a>
-                    <a href="mailto:tzvanguardia@gmail.com?subject=Вопрос по GlobalJobHunter" class="btn btn-secondary">📧 Связаться с нами</a>
+                    <a href="mailto:tzvanguardia@gmail.com?subject=Support%20GlobalJobHunter"
+                    class="btn btn-secondary"
+                    data-i18n="📧 Связаться с нами">📧 Связаться с нами</a>
+
                 </div>
                 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
