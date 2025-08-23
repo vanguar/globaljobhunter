@@ -772,3 +772,16 @@ footer .remotive-footer:hover {
   cursor: pointer;
 }
 #stop-search-btn.btn-stop-live:disabled { opacity:.6; cursor: not-allowed; }
+
+/* RU flag → grayscale только в переключателе языка */
+#language-switcher-container .fi.fi-ru {
+  filter: grayscale(100%) contrast(1.05);
+  -webkit-filter: grayscale(100%) contrast(1.05);
+}
+
+/* и в пункте меню с data-lang="ru" */
+#language-switcher-container .dropdown-item[data-lang="ru"] .fi {
+  filter: grayscale(100%) contrast(1.05);
+  -webkit-filter: grayscale(100%) contrast(1.05);
+}
+
