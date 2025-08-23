@@ -661,12 +661,26 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
     return html
 
 
-def send_welcome_email(app, email):
-    """Отправка приветственного email (локализовано по subscriber.lang, если есть)."""
+def send_welcome_email(app, email, lang=None, *_, **__):
+    """
+    Отправка приветственного email.
+    Совместима с обоими стилями вызова:
+      - send_welcome_email(app, email)
+      - send_welcome_email(app, email, lang='en')
+    Если lang не передан или невалиден — берём из Subscriber.lang, иначе 'ru'.
+    """
     try:
-        # Пытаемся найти подписчика, чтобы взять язык
+        # Можем логировать и использовать subscriber дальше (лог успеха с id)
         subscriber = Subscriber.query.filter_by(email=email).first()
-        lang = _get_lang(subscriber) if subscriber else 'ru'
+
+        # Определяем язык
+        SUPPORTED_LANGS = {'ru', 'uk', 'en'}
+        if lang is None:
+            lang = _get_lang(subscriber) if subscriber else 'ru'
+        else:
+            lang = (lang or 'ru').lower()
+            if lang not in SUPPORTED_LANGS:
+                lang = 'ru'
 
         print(f"🔄 Подготавливаем welcome email для {email} (lang={lang})...")
 
@@ -674,8 +688,11 @@ def send_welcome_email(app, email):
         manage_url = f"{base_url}/subscription/manage?email={email}"
         unsubscribe_url = f"{base_url}/unsubscribe?email={email}"
 
-        # HTML
-        list_items = "".join(f"<li>{_tr(lang,'welcome_box_list')[i]}</li>" for i in range(len(_tr(lang,'welcome_box_list'))))
+        # HTML фрагменты
+        list_items = "".join(
+            f"<li>{_tr(lang,'welcome_box_list')[i]}</li>"
+            for i in range(len(_tr(lang,'welcome_box_list')))
+        )
 
         html_content = f"""
         <!DOCTYPE html>
@@ -786,6 +803,7 @@ def send_welcome_email(app, email):
         except Exception as log_error:
             print(f"❌ Ошибка записи лога: {log_error}")
         return False
+
 
 
 def send_preferences_update_email(app, subscriber):

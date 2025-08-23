@@ -107,7 +107,7 @@
                             </div>
                         </div>
                         
-                        <!-- Город и частота -->
+                        <!-- Город и частота! -->
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="card mb-4">
@@ -115,11 +115,11 @@
                                         <h5 class="mb-0">📍 Город</h5>
                                     </div>
                                     <div class="card-body">
-                                        <input type="text"
-                                                class="form-control"
-                                                name="city"
-                                                value="{{ subscriber.city or '' }}"
-                                                placeholder="For example: Berlin, Warsaw">
+                                        <input type="text" class="form-control" name="city"
+                                            value="{{ subscriber.city or '' }}"
+                                            placeholder="Например: Berlin, Warsaw"
+                                            data-i18n="attr=placeholder">
+
                                                 
                                             <small class="text-muted"
                                                 data-i18n="Оставьте пустым для поиска по всей стране">
