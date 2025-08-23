@@ -31,6 +31,18 @@
             </button>
             
             <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Мобильный переключатель (виден только < lg) -->
+                <div class="dropdown language-switcher d-lg-none ms-auto me-2">
+                <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
+                    <span class="fi fi-ru"></span> Русский
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>
+                    <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> Українська</a></li>
+                    <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> English</a></li>
+                </ul>
+                </div>
+
                 <div class="navbar-nav ms-auto">
                     <a class="nav-link btn-hover" href="{{ url_for('index') }}">
                         <i class="bi bi-house me-1"></i>Главная
@@ -38,7 +50,7 @@
                     <a href="javascript:void(0)" onclick="checkSystemStatus()" class="nav-link btn-hover">
                         <i class="bi bi-heart-pulse me-1"></i>Статус
                     </a>
-                    <div id="language-switcher-container" class="nav-item dropdown language-switcher">
+                    <div id="language-switcher-container" class="nav-item dropdown language-switcher d-none d-lg-block">
                     <button class="btn dropdown-toggle" data-bs-toggle="dropdown"><span class="fi fi-ru"></span> Русский</button>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>

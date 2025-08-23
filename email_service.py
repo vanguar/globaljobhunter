@@ -6,6 +6,24 @@ import os
 from threading import Thread
 import time
 
+_UI_DICT_CACHE = {}
+
+def _front_tr(lang: str, s: str) -> str:
+    """Переводит русскую фразу s с помощью фронтового словаря /static/i18n/<lang>.json.
+       Если ключа нет — возвращает исходное s."""
+    if not s or lang == 'ru':
+        return s
+    try:
+        d = _UI_DICT_CACHE.get(lang)
+        if d is None:
+            base = os.path.join(os.path.dirname(__file__), 'static', 'i18n', f'{lang}.json')
+            with open(base, 'r', encoding='utf-8') as f:
+                d = json.load(f)
+            _UI_DICT_CACHE[lang] = d
+        return d.get(s, s)
+    except Exception:
+        return s
+
 # -----------------------------------------------------------------------------
 # Server-side i18n для писем (минимальный словарь; расширяйте по надобности)
 # -----------------------------------------------------------------------------
@@ -602,7 +620,10 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
             <div class="content">
                 <p>{_tr(lang, "digest_intro")}</p>
                 <ul class="inline">
-                    <li><strong>{_tr(lang, "pref_professions")}:</strong> {', '.join(preferences['selected_jobs'][:3])}{'...' if len(preferences['selected_jobs']) > 3 else ''}</li>
+                    jobs_src = preferences.get('selected_jobs', [])
+                    jobs_disp = ', '.join(_front_tr(lang, j) for j in jobs_src[:3])
+                    li_prof = f"<li><strong>{_tr(lang, 'pref_professions')}:</strong> {jobs_disp}{'...' if len(jobs_src) > 3 else ''}</li>"
+
                     <li><strong>{_tr(lang, "pref_countries")}:</strong> {', '.join(preferences['countries'])}</li>
                     {f"<li><strong>{_tr(lang, 'pref_city')}:</strong> {preferences['cities'][0]}</li>" if preferences.get('cities') else ''}
                 </ul>

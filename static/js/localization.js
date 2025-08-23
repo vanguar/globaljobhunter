@@ -265,26 +265,32 @@
 
   // подключаем уже существующий переключатель в шапке
   function setupLanguageSwitcher(){
-    const container = document.querySelector('#language-switcher-container');
-    if (!container) return; // верстка без него? тогда ничего не ломаем
-
+  document.querySelectorAll('.language-switcher').forEach(container => {
     container.addEventListener('click', (e)=>{
       const btn = e.target.closest('[data-lang]');
       if (!btn) return;
       e.preventDefault();
       setLang(btn.getAttribute('data-lang'));
     });
-    updateSwitcherUI(currentLang);
-  }
+  });
+  updateSwitcherUI(currentLang);
+}
+
 
   function updateSwitcherUI(lang){
-    const cont = document.querySelector('#language-switcher-container');
-    if (!cont) return;
+  document.querySelectorAll('.language-switcher').forEach(cont => {
     const main = cont.querySelector('.dropdown-toggle, .btn');
-    const act  = cont.querySelector(`[data-lang="${lang}"]`);
-    if (main && act) main.innerHTML = act.innerHTML; // флаг+текст
-    cont.querySelectorAll('[data-lang]').forEach(x=> x.classList.toggle('active', x.dataset.lang===lang));
-  }
+    if (main) {
+      const map = { ru: 'fi fi-ru', uk: 'fi fi-ua', en: 'fi fi-gb' };
+      main.innerHTML = `<span class="${map[lang]||'fi fi-ru'}"></span> ` + 
+                       (lang === 'uk' ? 'Українська' : lang === 'en' ? 'English' : 'Русский');
+    }
+    cont.querySelectorAll('[data-lang]').forEach(a=>{
+      a.classList.toggle('active', a.getAttribute('data-lang') === lang);
+    });
+  });
+}
+
 
   function injectStyles(){
     if (document.getElementById('gzh-i18n-style')) return;
