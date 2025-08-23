@@ -762,12 +762,24 @@ def send_welcome_email(app, email, lang=None, *_, **__):
 
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
                     <tr>
-                        <td align="center">
-                        <a href="{manage_url}" class="button">{_tr(lang, "welcome_manage")}</a>
-                        <a href="{base_url}" class="button" style="background:#28a745;">{_tr(lang, "welcome_find_now")}</a>
+                        <td align="center" style="text-align:center;">
+                        <a href="{manage_url}"
+                            style="display:inline-block; background:#6f42c1; color:#ffffff !important; text-decoration:none; 
+                                    font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; 
+                                    line-height:1; padding:12px 18px; border-radius:10px; mso-padding-alt:0;">
+                            ⚙️ {_tr(lang, "welcome_manage")}
+                        </a>
+                        <span style="display:inline-block; width:12px; line-height:1;">&nbsp;</span>
+                        <a href="{base_url}"
+                            style="display:inline-block; background:#28a745; color:#ffffff !important; text-decoration:none; 
+                                    font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; 
+                                    line-height:1; padding:12px 18px; border-radius:10px; mso-padding-alt:0;">
+                            🔍 {_tr(lang, "welcome_find_now")}
+                        </a>
                         </td>
                     </tr>
                     </table>
+
 
 
                     <div style="background:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:14px; margin:18px 0;">
