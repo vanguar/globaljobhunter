@@ -1778,7 +1778,7 @@ def admin_test_email():
             # Отправляем тестовый email
             from email_service import send_job_email
             
-            # Создаем временный объект подписчика для тестирования
+            # Создаем временный объект подписчика для тестирования!
             class TestSubscriber:
                 def __init__(self, email):
                     self.email = email
