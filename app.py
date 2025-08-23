@@ -23,6 +23,9 @@ from flask_mail import Mail
 from database import db, Subscriber, EmailLog  
 from email_service import mail, send_welcome_email, send_preferences_update_email
 from flask_migrate import Migrate
+from pathlib import Path
+import time
+
 
 from threading import Thread
 import schedule
@@ -38,6 +41,8 @@ active_searches = {}  # sid -> state dict
 
 import threading, inspect
 from dataclasses import asdict
+from pathlib import Path
+import time
 
 # Rate limiting
 RATE_LIMIT_FILE = "rate_limits.json"
@@ -789,9 +794,10 @@ def unsubscribe():
     if not email:
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Ошибка отписки</title>
             <style>
                 body { font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa; }
@@ -825,9 +831,10 @@ def unsubscribe():
         # Показываем страницу успешной отписки
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Отписка выполнена</title>
             <style>
                 body { 
@@ -873,30 +880,33 @@ def unsubscribe():
         <body>
             <div class="card">
                 <div class="success">✅</div>
-                <h1>Вы успешно отписались!</h1>
-                <p>Подписка на email-уведомления для адреса</p>
+                <h1 data-i18n="Вы успешно отписались!">Вы успешно отписались!</h1>
+                <p data-i18n="Подписка на email-уведомления для адреса">Подписка на email-уведомления для адреса</p>
                 <div class="email-highlight">{{ email }}</div>
-                <p>была деактивирована.</p>
+                <p data-i18n="была деактивирована.">была деактивирована.</p>
                 
                 <div class="info-box">
-                    <h4>📧 Что это означает:</h4>
+                    <h4 data-i18n="📧 Что это означает:">📧 Что это означает:</h4>
                     <ul>
-                        <li>Вы больше не будете получать уведомления о новых вакансиях</li>
-                        <li>Ваши данные остаются в системе (на случай повторной подписки)</li>
-                        <li>Вы можете в любое время подписаться снова через главную страницу</li>
+                        <li data-i18n="Вы больше не будете получать уведомления о новых вакансиях">Вы больше не будете получать уведомления о новых вакансиях</li>
+                        <li data-i18n="Ваши данные остаются в системе (на случай повторной подписки)">Ваши данные остаются в системе (на случай повторной подписки)</li>
+                        <li data-i18n="Вы можете в любое время подписаться снова через главную страницу">Вы можете в любое время подписаться снова через главную страницу</li>
                     </ul>
                 </div>
                 
                 <div>
-                    <a href="/" class="btn">🏠 Вернуться на главную</a>
-                    <a href="mailto:tzvanguardia@gmail.com?subject=Вопрос по GlobalJobHunter" class="btn btn-secondary">📧 Связаться с нами</a>
+                    <a href="/" class="btn" data-i18n="🏠 Вернуться на главную">🏠 Вернуться на главную</a>
+                    <a href="mailto:tzvanguardia@gmail.com?subject=Support%20GlobalJobHunter" class="btn btn-secondary" data-i18n="📬 Связаться с нами">📬 Связаться с нами</a>
+
                 </div>
                 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
                     <small style="color: #6c757d;">
-                        <strong>Передумали?</strong> Вы всегда можете подписаться снова на 
-                        <a href="/" style="color: #007bff;">главной странице</a>
+                        <strong data-i18n="Передумали?">Передумали?</strong>
+                        <span data-i18n="Вы всегда можете подписаться снова на">Вы всегда можете подписаться снова на</span>
+                        <a href="/" style="color: #007bff;" data-i18n="на главной странице">на главной странице</a>
                     </small>
+
                 </div>
             </div>
         </body>
@@ -907,10 +917,13 @@ def unsubscribe():
         # Пользователь уже отписан
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang') or request.args.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Уже отписан</title>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+                          
             <style>
                 body { 
                     font-family: 'Inter', Arial, sans-serif; padding: 40px; text-align: center; 
@@ -938,15 +951,16 @@ def unsubscribe():
         <body>
             <div class="card">
                 <div class="info">ℹ️</div>
-                <h1>Вы уже отписаны</h1>
-                <p>Подписка для адреса</p>
+                <h1 data-i18n="Вы уже отписаны">Вы уже отписаны</h1>
+
+                <p data-i18n="Подписка для адреса">Подписка для адреса</p>
+
                 <div class="email-highlight">{{ email }}</div>
-                <p>уже была деактивирована ранее.</p>
-                <p style="color: #6c757d; margin-top: 25px;">
-                    Хотите снова получать уведомления о вакансиях? 
-                    Подпишитесь на главной странице!
-                </p>
-                <a href="/" class="btn">🏠 Вернуться на главную</a>
+                <p data-i18n="уже была деактивирована ранее.">уже была деактивирована ранее.</p>
+
+                <p style="color: #6c757d; margin-top: 25px;" data-i18n="Хотите снова получать уведомления о вакансиях? Подпишитесь на главной странице!">Хотите снова получать уведомления о вакансиях? Подпишитесь на главной странице!</p>
+
+                <a href="/" class="btn" data-i18n="🏠 Вернуться на главную">🏠 Вернуться на главную</a>
             </div>
         </body>
         </html>
@@ -956,9 +970,10 @@ def unsubscribe():
         # Подписчик не найден
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Подписка не найдена</title>
             <style>
                 body { 
@@ -988,7 +1003,8 @@ def unsubscribe():
                 <p style="color: #6c757d; margin-top: 25px;">
                     Возможно, вы уже были отписаны ранее, или email адрес указан неверно.
                 </p>
-                <a href="/" class="btn">🏠 Вернуться на главную!</a>
+                <a href="/" class="btn" data-i18n="🏠 Вернуться на главную">🏠 Вернуться на главную</a>
+
             </div>
         </body>
         </html>
@@ -1012,7 +1028,7 @@ def cleanup_cache():
     try:
         aggregator.cleanup_cache()
         return """
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head><title>Кеш очищен</title><meta charset="utf-8"></head>
         <body style="font-family: Arial; padding: 40px; text-align: center;">
             <h1>✅ Кеш успешно очищен!</h1>
@@ -1044,10 +1060,11 @@ def admin_subscribers():
     
     html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <title>Админка подписчиков</title>
         <meta charset="utf-8">
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -1071,6 +1088,7 @@ def admin_subscribers():
                 <a href="/">🏠 Главная</a>
                 <a href="/admin/stats?key={admin_key}">📊 Статистика кеша</a>
                 <a href="/health">💚 Здоровье системы</a>
+                <a href="/admin/cache">🧹 Кэш</a>
             </div>
             
             <div class="stats">
@@ -1182,10 +1200,11 @@ def admin_stats():
     
     return f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <title>Статистика GlobalJobHunter</title>
         <meta charset="utf-8">
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; }}
             .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
@@ -1219,6 +1238,7 @@ def admin_stats():
                 <a href="/">🏠 Главная</a>
                 <a href="/admin/subscribers?key={os.getenv('ADMIN_KEY')}">👥 Подписчики</a>
                 <a href="/health">💚 Здоровье системы</a>
+                <a href="/admin/cache">🧹 Кэш</a>
             </div>
             
             <div class="sources-card">
@@ -1368,6 +1388,7 @@ def health_check():
         <html lang="{lang}">
         <head>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body {{ font-family: -apple-system, Segoe UI, Roboto, Arial; margin:0; padding:16px; background:#f7f7f9; }}
                 .container {{ max-width: 720px; margin:0 auto; }}
@@ -1582,10 +1603,11 @@ def admin_login_page():
     
     return f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <title>Вход в админку</title>
         <meta charset="utf-8">
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                    height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }}
@@ -1685,10 +1707,11 @@ def admin_test_email():
         # Показываем форму для ввода email
         return """
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <title>Тестовая отправка</title>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
@@ -1794,10 +1817,11 @@ def admin_dashboard():
     
     return render_template_string(f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <title>Админка GlobalJobHunter</title>
         <meta charset="utf-8">
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -1848,6 +1872,7 @@ def admin_dashboard():
                     <a href="/admin/subscribers_secure">👥 Подписчики</a>
                     <a href="/admin/stats_secure">📊 Статистика</a>
                     <a href="/health">💚 Здоровье системы</a>
+                    <a href="/admin/cache">🧹 Кэш</a>              
                     <a href="/admin/logout" class="logout">🚪 Выйти</a>
                 </div>
             </div>
@@ -1895,6 +1920,155 @@ def admin_dashboard():
     </body>
     </html>
     """)
+# ====== КЭШ: каталоги и утилиты ======
+CACHE_DIRS = [
+    Path("cache"),
+    Path("search_cache"),
+    Path("temp_jobs"),
+]
+CACHE_PATTERNS = ("*.pkl", "*.json", "*.cache", "*.tmp")
+
+def _human_bytes(n: int) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} PB"
+
+def _iter_cache_files():
+    """Итерирует по всем файлам кэша во всех каталогах."""
+    for base in CACHE_DIRS:
+        if not base.exists():
+            continue
+        for pattern in CACHE_PATTERNS:
+            yield from base.rglob(pattern)
+
+def cleanup_old_cache(days: int = 3):
+    """Удаляет файлы старше N дней. Возвращает статистику."""
+    cutoff = time.time() - days * 86400
+    stat = {"deleted": 0, "kept": 0, "freed": 0, "errors": 0}
+
+    for f in _iter_cache_files():
+        try:
+            mtime = f.stat().st_mtime
+            if mtime < cutoff:
+                size = f.stat().st_size
+                f.unlink()
+                stat["deleted"] += 1
+                stat["freed"] += size
+            else:
+                stat["kept"] += 1
+        except Exception:
+            stat["errors"] += 1
+
+    # подчистим пустые папки
+    for base in CACHE_DIRS:
+        if base.exists():
+            for d in sorted([p for p in base.rglob("*") if p.is_dir()], reverse=True):
+                try:
+                    next(d.iterdir())
+                except StopIteration:
+                    d.rmdir()
+                except Exception:
+                    pass
+    return stat
+
+@app.route("/admin/cache", methods=["GET", "POST"])
+def admin_cache_page():
+    # тот же флаг, что и в твоей админке
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+
+    message = ""
+    if request.method == "POST":
+        mode = request.form.get("mode", "old")
+        days = int(request.form.get("days", 3) or 3)
+
+        if mode == "all":
+            st = purge_all_cache()
+            message = f"Удалено {st['deleted']} файлов, освобождено {_human_bytes(st['freed'])}. Ошибок: {st['errors']}."
+        else:
+            st = cleanup_old_cache(days=days)
+            message = (
+                f"Удалено {st['deleted']} старых файлов, освобождено {_human_bytes(st['freed'])}. "
+                f"Оставлено {st['kept']}. Ошибок: {st['errors']}."
+            )
+
+    return render_template_string(f"""
+    <!DOCTYPE html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
+    <head>
+        <meta charset="utf-8">
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <title>Управление кэшем — Admin</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="p-4">
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2>Управление кэшем</h2>
+          <div>
+            <a class="btn btn-secondary" href="{url_for('admin_dashboard')}">← В админку</a>
+          </div>
+        </div>
+
+        {f"<div class='alert alert-info'>{message}</div>" if message else ""}
+
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5>Очистить старый кэш</h5>
+            <form method="post" class="row g-2 align-items-center" onsubmit="return confirm('Удалить кэш старше N дней?');">
+              <input type="hidden" name="mode" value="old">
+              <div class="col-auto">
+                <label for="days" class="col-form-label">Старше (дней):</label>
+              </div>
+              <div class="col-auto">
+                <input id="days" name="days" type="number" value="3" min="1" class="form-control">
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-warning" type="submit">Очистить</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5>Удалить весь кэш</h5>
+            <form method="post" onsubmit="return confirm('Точно удалить ВСЁ? Действие необратимо.');">
+              <input type="hidden" name="mode" value="all">
+              <button class="btn btn-danger" type="submit">Удалить всё</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    """)
+
+
+def purge_all_cache():
+    """Удаляет вообще все файлы кэша во всех каталогах."""
+    stat = {"deleted": 0, "freed": 0, "errors": 0}
+    for f in _iter_cache_files():
+        try:
+            size = f.stat().st_size
+            f.unlink()
+            stat["deleted"] += 1
+            stat["freed"] += size
+        except Exception:
+            stat["errors"] += 1
+
+    for base in CACHE_DIRS:
+        if base.exists():
+            for d in sorted([p for p in base.rglob("*") if p.is_dir()], reverse=True):
+                try:
+                    next(d.iterdir())
+                except StopIteration:
+                    d.rmdir()
+                except Exception:
+                    pass
+    return stat
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -2004,10 +2178,11 @@ def admin_subscribers_secure():
         # Теперь создаем полный HTML
         html = f"""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <title>Подписчики - Админка</title>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
                 .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2030,6 +2205,7 @@ def admin_subscribers_secure():
                 <div class="nav">
                     <a href="/admin/dashboard">🏠 Главная админки</a>
                     <a href="/admin/stats_secure">📊 Статистика</a>
+                    <a href="/admin/cache">🧹 Кэш</a>
                     <a href="/admin/logout">🚪 Выйти</a>
                 </div>
                 
@@ -2090,7 +2266,7 @@ def admin_subscribers_secure():
         import traceback
         traceback.print_exc()
         return f"""
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <body style="font-family: Arial; padding: 40px;">
             <h1 class="error">❌ Ошибка загрузки админки</h1>
             <p>Ошибка: {str(e)}</p>
@@ -2112,10 +2288,11 @@ def admin_stats_secure():
     
     return f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <title>Статистика - Админка</title>
         <meta charset="utf-8">
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2133,6 +2310,7 @@ def admin_stats_secure():
             <div class="nav">
                 <a href="/admin/dashboard">🏠 Главная админки</a>
                 <a href="/admin/subscribers_secure">👥 Подписчики</a>
+                <a href="/admin/cache">🧹 Кэш</a>
                 <a href="/admin/logout">🚪 Выйти</a>
             </div>
             
@@ -2488,10 +2666,11 @@ def upload_backup():
         # Показываем форму загрузки
         return """
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <title>Загрузка бекапа</title>
             <meta charset="utf-8">
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
@@ -2602,7 +2781,7 @@ def upload_backup():
             db.session.commit()
             
             return f"""
-            <html>
+            <html lang="{{ request.cookies.get('lang','ru') }}"
             <head><title>Восстановление завершено</title><meta charset="utf-8"></head>
             <body style="font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa;">
                 <div style="background: white; padding: 40px; border-radius: 10px; max-width: 500px; margin: 0 auto;">
