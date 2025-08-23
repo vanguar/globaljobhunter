@@ -916,6 +916,8 @@ def unsubscribe():
         <head>
             <meta charset="utf-8">
             <title>Уже отписан</title>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+                          
             <style>
                 body { 
                     font-family: 'Inter', Arial, sans-serif; padding: 40px; text-align: center; 
