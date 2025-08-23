@@ -277,6 +277,56 @@
   updateSwitcherUI(currentLang);
 }
 
+// ===== ЯЗЫК: навесить клики на оба свитчера =====
+(function initLangSwitchers() {
+  const langMap = {
+    ru: { flag: 'fi-ru', text: 'Русский' },
+    uk: { flag: 'fi-ua', text: 'Українська' },
+    en: { flag: 'fi-gb', text: 'English' }
+  };
+
+  function updateButtons(lang) {
+    const mBtn = document.getElementById('langMobileBtn');
+    const dBtn = document.getElementById('langDesktopBtn');
+    if (mBtn) mBtn.innerHTML = `<span class="fi ${langMap[lang].flag}"></span> ${langMap[lang].text}`;
+    if (dBtn) dBtn.innerHTML = `<span class="fi ${langMap[lang].flag}"></span> ${langMap[lang].text}`;
+  }
+
+  function applyLang(lang) {
+    // твоя уже существующая функция, которая реально применяет переводы:
+    if (typeof setLang === 'function') {
+      setLang(lang);
+    }
+    // сохранить предпочтение
+    try {
+      document.cookie = `lang=${lang};path=/;max-age=31536000`;
+      localStorage.setItem('lang', lang);
+    } catch(e) {}
+    updateButtons(lang);
+  }
+
+  // клики по пунктам в ОБОИХ меню
+  document.querySelectorAll('.language-switcher .dropdown-item, .language-switcher .lang-option')
+    .forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const lang = a.dataset.lang;
+        if (lang) applyLang(lang);
+      });
+    });
+
+  // проставить подписи при загрузке
+  const current =
+    (localStorage.getItem('lang') ||
+     (document.cookie.match(/(?:^|;)\s*lang=([^;]+)/) || [,'ru'])[1]).toLowerCase();
+  if (['ru','uk','en'].includes(current)) {
+    updateButtons(current);
+  } else {
+    updateButtons('ru');
+  }
+})();
+
+
  function ensureSwitcherVisibleOnMobile(){
   const navContainer = document.querySelector('.navbar .container');
   const collapseNav = document.querySelector('#navbarNav .navbar-nav');

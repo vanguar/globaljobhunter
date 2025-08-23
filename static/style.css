@@ -796,3 +796,15 @@ footer .remotive-footer:hover {
   }
 }
 
+/* кнопки языка читаемые на светлой навбаре */
+.navbar .language-switcher .btn{
+  background:#fff;
+  border:1px solid #dee2e6;
+  color:#212529;
+}
+
+/* на мобилке прижать свитчер вправо */
+@media (max-width: 991.98px){
+  .navbar .language-switcher { margin-left:auto; }
+}
+

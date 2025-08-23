@@ -29,20 +29,21 @@
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
+            <!-- ✅ Мобильный свитчер — теперь вне collapse, всегда виден на <lg -->
+            <div class="dropdown language-switcher d-inline d-lg-none ms-auto">
+            <button class="btn dropdown-toggle" data-bs-toggle="dropdown" id="langMobileBtn">
+                <span class="fi fi-ru"></span> <span id="langMobileText">Русский</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item lang-option" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>
+                <li><a class="dropdown-item lang-option" data-lang="uk" href="#"><span class="fi fi-ua"></span> Українська</a></li>
+                <li><a class="dropdown-item lang-option" data-lang="en" href="#"><span class="fi fi-gb"></span> English</a></li>
+            </ul>
+            </div>
             
             <div class="collapse navbar-collapse" id="navbarNav">
-                <!-- Мобильный переключатель (виден только < lg) -->
-                <div class="dropdown language-switcher d-lg-none ms-auto me-2">
-                <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
-                    <span class="fi fi-ru"></span> Русский
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>
-                    <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> Українська</a></li>
-                    <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> English</a></li>
-                </ul>
-                </div>
-
+                
                 <div class="navbar-nav ms-auto">
                     <a class="nav-link btn-hover" href="{{ url_for('index') }}">
                         <i class="bi bi-house me-1"></i>Главная
