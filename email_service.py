@@ -760,10 +760,15 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                         </ul>
                     </div>
 
-                    <div style="text-align:center; margin: 24px 0;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+                    <tr>
+                        <td align="center">
                         <a href="{manage_url}" class="button">{_tr(lang, "welcome_manage")}</a>
                         <a href="{base_url}" class="button" style="background:#28a745;">{_tr(lang, "welcome_find_now")}</a>
-                    </div>
+                        </td>
+                    </tr>
+                    </table>
+
 
                     <div style="background:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:14px; margin:18px 0;">
                         <h4 style="margin:0 0 6px 0; color:#856404;">{_tr(lang, "welcome_box_title")}</h4>
@@ -885,7 +890,7 @@ def send_preferences_update_email(app, subscriber):
                     <a href="{base_url}">{_tr(lang, "nav_find")}</a>
                     </p>
 
-                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
+                    
                 </div>
             </div>
         </body>
