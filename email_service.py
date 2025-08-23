@@ -767,14 +767,16 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                             style="display:inline-block; background:#6f42c1; color:#ffffff !important; text-decoration:none; 
                                     font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; 
                                     line-height:1; padding:12px 18px; border-radius:10px; mso-padding-alt:0;">
-                            ⚙️ {_tr(lang, "welcome_manage")}
+                            {_tr(lang, "welcome_manage")}
+
                         </a>
                         <span style="display:inline-block; width:12px; line-height:1;">&nbsp;</span>
                         <a href="{base_url}"
                             style="display:inline-block; background:#28a745; color:#ffffff !important; text-decoration:none; 
                                     font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; 
                                     line-height:1; padding:12px 18px; border-radius:10px; mso-padding-alt:0;">
-                            🔍 {_tr(lang, "welcome_find_now")}
+                            {_tr(lang, "welcome_find_now")}
+
                         </a>
                         </td>
                     </tr>
