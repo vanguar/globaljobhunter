@@ -585,6 +585,13 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
     manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
     unsub_url = f"{base_url}/unsubscribe?email={subscriber.email}"
 
+
+    # --- ЛОКАЛИЗАЦИЯ СПИСКА ПРОФЕССИЙ В ШАПКЕ ДАЙДЖЕСТА ---
+    jobs_src = (preferences.get('selected_jobs') or [])
+    jobs_disp = ', '.join(_front_tr(lang, j) for j in jobs_src[:3])
+    li_prof  = f"<li><strong>{_tr(lang, 'pref_professions')}:</strong> {jobs_disp}{'...' if len(jobs_src) > 3 else ''}</li>"
+    # ------------------------------------------------------
+
     # HTML
     html = f"""
     <!DOCTYPE html>
@@ -620,7 +627,8 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
             <div class="content">
                 <p>{_tr(lang, "digest_intro")}</p>
                 <ul class="inline">
-                    jobs_src = preferences.get('selected_jobs', [])
+                    {li_prof}
+                    
                     jobs_disp = ', '.join(_front_tr(lang, j) for j in jobs_src[:3])
                     li_prof = f"<li><strong>{_tr(lang, 'pref_professions')}:</strong> {jobs_disp}{'...' if len(jobs_src) > 3 else ''}</li>"
 

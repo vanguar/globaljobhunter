@@ -266,7 +266,7 @@
   // подключаем уже существующий переключатель в шапке
   function setupLanguageSwitcher(){
   document.querySelectorAll('.language-switcher').forEach(container => {
-    container.addEventListener('click', (e)=>{
+    container.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-lang]');
       if (!btn) return;
       e.preventDefault();
@@ -282,8 +282,8 @@
     const main = cont.querySelector('.dropdown-toggle, .btn');
     if (main) {
       const map = { ru: 'fi fi-ru', uk: 'fi fi-ua', en: 'fi fi-gb' };
-      main.innerHTML = `<span class="${map[lang]||'fi fi-ru'}"></span> ` + 
-                       (lang === 'uk' ? 'Українська' : lang === 'en' ? 'English' : 'Русский');
+      main.innerHTML = `<span class="${map[lang]||'fi fi-ru'}"></span> `
+        + (lang === 'uk' ? 'Українська' : lang === 'en' ? 'English' : 'Русский');
     }
     cont.querySelectorAll('[data-lang]').forEach(a=>{
       a.classList.toggle('active', a.getAttribute('data-lang') === lang);
@@ -314,3 +314,30 @@
     apply: ()=> applyTranslations(document.body)
   };
 })();
+
+document.addEventListener('DOMContentLoaded', () => {
+  ensureMobileLanguageSwitcher();   // <- добавили
+  setupLanguageSwitcher();          // уже есть, но см. обновление ниже
+  // ... остальной твой запуск (applyTranslations и т.д.)
+});
+
+function ensureMobileLanguageSwitcher(){
+  // если мобильная копия уже есть — ничего не делаем
+  if (document.querySelector('.language-switcher.d-lg-none')) return;
+
+  const desktop = document.getElementById('language-switcher-container');
+  if (!desktop) return;
+
+  // только для мобильной ширины
+  if (!window.matchMedia('(max-width: 991.98px)').matches) return;
+
+  // клонируем десктопный свитчер
+  const clone = desktop.cloneNode(true);
+  clone.removeAttribute('id');                // id должен быть уникальным
+  clone.classList.remove('d-none','d-lg-block');
+  clone.classList.add('d-lg-none','ms-auto','me-2');
+
+  // вставляем сразу после burger-кнопки
+  const toggler = document.querySelector('.navbar .navbar-toggler');
+  if (toggler) toggler.insertAdjacentElement('afterend', clone);
+}
