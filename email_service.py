@@ -584,7 +584,7 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
 
     base_url = os.getenv('BASE_URL', 'http://localhost:5000')
     manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
-    unsub_url = f"{base_url}/unsubscribe?email={subscriber.email}"
+    
 
 
     # --- ЛОКАЛИЗАЦИЯ СПИСКА ПРОФЕССИЙ В ШАПКЕ ДАЙДЖЕСТА ---
@@ -879,7 +879,12 @@ def send_preferences_update_email(app, subscriber):
                         <li><strong>{_tr(lang,"prefs_city")}:</strong> {subscriber.city or _tr(lang,"prefs_city_none")}</li>
                         <li><strong>{_tr(lang,"prefs_frequency")}:</strong> {subscriber.frequency}</li>
                     </ul>
-                    <p><a href="{manage_url}">{_tr(lang, "prefs_change_again")}</a></p>
+                    <p>
+                    <a href="{manage_url}">{_tr(lang, "nav_manage")}</a> |
+                    <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> |
+                    <a href="{base_url}">{_tr(lang, "nav_find")}</a>
+                    </p>
+
                     <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
                 </div>
             </div>

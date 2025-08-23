@@ -795,6 +795,8 @@ def unsubscribe():
         <head>
             <meta charset="utf-8">
             <title>Ошибка отписки</title>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+                       
             <style>
                 body { font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa; }
                 .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
@@ -806,9 +808,9 @@ def unsubscribe():
         <body>
             <div class="card">
                 <div class="error">❌</div>
-                <h1>Неверная ссылка</h1>
-                <p>Email адрес не указан в ссылке для отписки.</p>
-                <a href="/" class="btn">Вернуться на главную</a>
+                <h1 data-i18n="Неверная ссылка">Неверная ссылка</h1>
+                <p data-i18n="Email адрес не указан в ссылке для отписки.">Email адрес не указан в ссылке для отписки.</p>
+                <a href="/" class="btn" data-i18n="🏠 Вернуться на главную">Вернуться на главную</a>
             </div>
         </body>
         </html>
@@ -827,10 +829,11 @@ def unsubscribe():
         # Показываем страницу успешной отписки
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang') or request.args.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
-            <title data-i18n="unsub_title">Отписка выполнена</title>
+            <title data-i18n="Отписка выполнена">Отписка выполнена</title>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <style>
                 body { 
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -909,10 +912,12 @@ def unsubscribe():
         # Пользователь уже отписан
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang') or request.args.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
             <title>Уже отписан</title>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+                          
             <style>
                 body { 
                     font-family: 'Inter', Arial, sans-serif; padding: 40px; text-align: center; 
@@ -940,15 +945,16 @@ def unsubscribe():
         <body>
             <div class="card">
                 <div class="info">ℹ️</div>
-                <h1>Вы уже отписаны</h1>
+                <h1 data-i18n="Вы уже отписаны">Вы уже отписаны</h1>
                 <p>Подписка для адреса</p>
                 <div class="email-highlight">{{ email }}</div>
-                <p>уже была деактивирована ранее.</p>
-                <p style="color: #6c757d; margin-top: 25px;">
+                <p data-i18n="уже была деактивирована ранее.">уже была деактивирована ранее.</p>
+                <p style="color: #6c757d; margin-top: 25px;" data-i18n="Хотите снова получать уведомления о вакансиях? 
+                    Подпишитесь на главной странице!">
                     Хотите снова получать уведомления о вакансиях? 
                     Подпишитесь на главной странице!
                 </p>
-                <a href="/" class="btn" data-i18n="unsub_btn_home">🏠 Вернуться на главную</a>
+                <a href="/" class="btn" data-i18n="🏠 Вернуться на главную">🏠 Вернуться на главную</a>
             </div>
         </body>
         </html>
@@ -958,7 +964,7 @@ def unsubscribe():
         # Подписчик не найден
         return render_template_string("""
         <!DOCTYPE html>
-        <html>
+        <html lang="{{ request.cookies.get('lang') or request.args.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
             <title>Подписка не найдена</title>
@@ -985,12 +991,12 @@ def unsubscribe():
         <body>
             <div class="card">
                 <div class="warning">⚠️</div>
-                <h1>Подписка не найдена</h1>
-                <p>Подписка для адреса <strong>{{ email }}</strong> не существует в нашей системе.</p>
-                <p style="color: #6c757d; margin-top: 25px;">
+                <h1 data-i18n="Подписка не найдена">Подписка не найдена</h1>
+                <p data-i18n="Подписка для адреса">Подписка для адреса <strong>{{ email }}</strong data-i18n="не существует в нашей системе."> не существует в нашей системе.</p>
+                <p style="color: #6c757d; margin-top: 25px;" data-i18n="Возможно, вы уже были отписаны ранее, или email адрес указан неверно.">
                     Возможно, вы уже были отписаны ранее, или email адрес указан неверно.
                 </p>
-                <a href="/" class="btn">🏠 Вернуться на главную!</a>
+                <a href="/" class="btn" data-i18n="🏠 Вернуться на главную!">🏠 Вернуться на главную!</a>
             </div>
         </body>
         </html>
