@@ -584,7 +584,7 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
 
     base_url = os.getenv('BASE_URL', 'http://localhost:5000')
     manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
-    
+    unsub_url = f"{base_url}/unsubscribe?email={subscriber.email}"
 
 
     # --- ЛОКАЛИЗАЦИЯ СПИСКА ПРОФЕССИЙ В ШАПКЕ ДАЙДЖЕСТА ---
@@ -596,7 +596,7 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
     # HTML
     html = f"""
     <!DOCTYPE html>
-    <html lang="{lang}">
+    <html>
     <head>
         <meta charset="utf-8">
         <title>{I18N[lang]['app_name']}</title>
@@ -641,8 +641,7 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
     for country, country_jobs in jobs_by_country.items():
         vac_short_c = _vacancy_forms(lang, len(country_jobs), long=False)
         country_disp = country  # или _front_tr(lang, country), если сделаешь словарь стран
-        country_name = _front_tr(lang, country)  # перевести «Германия»→«Germany/Німеччина»
-        html += f'<div class="country-header">{_tr(lang, "country_header", country=country_name, n=len(country_jobs), vac_short=vac_short_c)}</div>'
+        html += f'<div class="country-header">{country_disp} ({len(country_jobs)} {vac_short_c})</div>'
 
 
         for job in country_jobs:
@@ -715,9 +714,8 @@ def send_welcome_email(app, email, lang=None, *_, **__):
         print(f"🔄 Подготавливаем welcome email для {email} (lang={lang})...")
 
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
-        manage_url = f"{base_url}/subscription/manage?email={email}&lang={lang}"
-        unsub_url = f"{base_url}/unsubscribe?email={email}&lang={lang}"
-
+        manage_url = f"{base_url}/subscription/manage?email={email}"
+        unsubscribe_url = f"{base_url}/unsubscribe?email={email}"
 
         # HTML фрагменты
         list_items = "".join(
@@ -727,7 +725,7 @@ def send_welcome_email(app, email, lang=None, *_, **__):
 
         html_content = f"""
         <!DOCTYPE html>
-        <html lang="{{ request.cookies.get('lang','ru') }}"
+        <html>
         <head>
             <meta charset="utf-8">
             <style>
@@ -760,29 +758,10 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                         </ul>
                     </div>
 
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-                    <tr>
-                        <td align="center" style="text-align:center;">
-                        <a href="{manage_url}"
-                            style="display:inline-block; background:#6f42c1; color:#ffffff !important; text-decoration:none; 
-                                    font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; 
-                                    line-height:1; padding:12px 18px; border-radius:10px; mso-padding-alt:0;">
-                            {_tr(lang, "welcome_manage")}
-
-                        </a>
-                        <span style="display:inline-block; width:12px; line-height:1;">&nbsp;</span>
-                        <a href="{base_url}"
-                            style="display:inline-block; background:#28a745; color:#ffffff !important; text-decoration:none; 
-                                    font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:600; 
-                                    line-height:1; padding:12px 18px; border-radius:10px; mso-padding-alt:0;">
-                            {_tr(lang, "welcome_find_now")}
-
-                        </a>
-                        </td>
-                    </tr>
-                    </table>
-
-
+                    <div style="text-align:center; margin: 24px 0;">
+                        <a href="{manage_url}" class="button">{_tr(lang, "welcome_manage")}</a>
+                        <a href="{base_url}" class="button" style="background:#28a745;">{_tr(lang, "welcome_find_now")}</a>
+                    </div>
 
                     <div style="background:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:14px; margin:18px 0;">
                         <h4 style="margin:0 0 6px 0; color:#856404;">{_tr(lang, "welcome_box_title")}</h4>
@@ -800,7 +779,7 @@ def send_welcome_email(app, email, lang=None, *_, **__):
                     <p><small>{datetime.now().strftime('%d.%m.%Y %H:%M')}</small></p>
                 </div>
                 <div class="footer">
-                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
+                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsubscribe_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
                     <p>{_tr(lang, "copyright", year=datetime.now().year)}</p>
                 </div>
             </div>
@@ -864,7 +843,6 @@ def send_preferences_update_email(app, subscriber):
         lang = _get_lang(subscriber)
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
         manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
-        unsub_url = f"{base_url}/unsubscribe?email={subscriber.email}&lang={lang}"
 
         # --- локализация профессий для шапки письма ---
         profs = subscriber.get_selected_jobs() or []
@@ -873,7 +851,7 @@ def send_preferences_update_email(app, subscriber):
 
         html_content = f"""
         <!DOCTYPE html>
-        <html lang="{lang}">
+        <html>
         <head>
             <meta charset="utf-8">
             <style>
@@ -898,13 +876,7 @@ def send_preferences_update_email(app, subscriber):
                         <li><strong>{_tr(lang,"prefs_city")}:</strong> {subscriber.city or _tr(lang,"prefs_city_none")}</li>
                         <li><strong>{_tr(lang,"prefs_frequency")}:</strong> {subscriber.frequency}</li>
                     </ul>
-                    <p>
-                    <a href="{manage_url}">{_tr(lang, "nav_manage")}</a> |
-                    <a href="{unsub_url}">{_tr(lang, "nav_unsub")}</a> |
-                    <a href="{base_url}">{_tr(lang, "nav_find")}</a>
-                    </p>
-
-                    
+                    <p><a href="{manage_url}">{_tr(lang, "prefs_change_again")}</a></p>
                 </div>
             </div>
         </body>

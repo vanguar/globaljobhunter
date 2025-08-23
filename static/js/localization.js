@@ -262,10 +262,6 @@
     wrap('showAlert'); wrap('showToast'); wrap('showTemporaryMessage');
     const native = window.alert;
     window.alert = function(msg){ native.call(window, tWS(String(msg||''))); };
-    // Переводить содержимое Bootstrap-модалок при открытии
-    document.addEventListener('show.bs.modal',  (e) => applyTranslations(e.target));
-    document.addEventListener('shown.bs.modal', (e) => applyTranslations(e.target));
-
   }
 
   // подключаем уже существующий переключатель в шапке
