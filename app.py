@@ -38,6 +38,8 @@ active_searches = {}  # sid -> state dict
 
 import threading, inspect
 from dataclasses import asdict
+from pathlib import Path
+import time
 
 # Rate limiting
 RATE_LIMIT_FILE = "rate_limits.json"
@@ -1071,6 +1073,7 @@ def admin_subscribers():
                 <a href="/">🏠 Главная</a>
                 <a href="/admin/stats?key={admin_key}">📊 Статистика кеша</a>
                 <a href="/health">💚 Здоровье системы</a>
+                <a href="/admin/cache">🧹 Кэш</a>
             </div>
             
             <div class="stats">
@@ -1219,6 +1222,7 @@ def admin_stats():
                 <a href="/">🏠 Главная</a>
                 <a href="/admin/subscribers?key={os.getenv('ADMIN_KEY')}">👥 Подписчики</a>
                 <a href="/health">💚 Здоровье системы</a>
+                <a href="/admin/cache">🧹 Кэш</a>
             </div>
             
             <div class="sources-card">
@@ -1848,6 +1852,7 @@ def admin_dashboard():
                     <a href="/admin/subscribers_secure">👥 Подписчики</a>
                     <a href="/admin/stats_secure">📊 Статистика</a>
                     <a href="/health">💚 Здоровье системы</a>
+                    <a href="/admin/cache">🧹 Кэш</a>              
                     <a href="/admin/logout" class="logout">🚪 Выйти</a>
                 </div>
             </div>
@@ -1895,6 +1900,227 @@ def admin_dashboard():
     </body>
     </html>
     """)
+# ====== КЭШ: каталоги и утилиты ======
+CACHE_DIRS = [
+    Path("cache"),
+    Path("search_cache"),
+    Path("temp_jobs"),
+]
+CACHE_PATTERNS = ("*.pkl", "*.json", "*.cache", "*.tmp")
+
+def _human_bytes(n: int) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} PB"
+
+def _iter_cache_files():
+    """Итерирует по всем файлам кэша во всех каталогах."""
+    for base in CACHE_DIRS:
+        if not base.exists():
+            continue
+        for pattern in CACHE_PATTERNS:
+            yield from base.rglob(pattern)
+
+def cleanup_old_cache(days: int = 3):
+    """Удаляет файлы старше N дней. Возвращает статистику."""
+    cutoff = time.time() - days * 86400
+    stat = {"deleted": 0, "kept": 0, "freed": 0, "errors": 0}
+
+    for f in _iter_cache_files():
+        try:
+            mtime = f.stat().st_mtime
+            if mtime < cutoff:
+                size = f.stat().st_size
+                f.unlink()
+                stat["deleted"] += 1
+                stat["freed"] += size
+            else:
+                stat["kept"] += 1
+        except Exception:
+            stat["errors"] += 1
+
+    # подчистим пустые папки
+    for base in CACHE_DIRS:
+        if base.exists():
+            for d in sorted([p for p in base.rglob("*") if p.is_dir()], reverse=True):
+                try:
+                    next(d.iterdir())
+                except StopIteration:
+                    d.rmdir()
+                except Exception:
+                    pass
+    return stat
+
+@app.route("/admin/cache", methods=["GET", "POST"])
+def admin_cache_page():
+    # тот же флаг, что и в твоей админке
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+
+    message = ""
+    if request.method == "POST":
+        mode = request.form.get("mode", "old")
+        days = int(request.form.get("days", 3) or 3)
+
+        if mode == "all":
+            st = purge_all_cache()
+            message = f"Удалено {st['deleted']} файлов, освобождено {_human_bytes(st['freed'])}. Ошибок: {st['errors']}."
+        else:
+            st = cleanup_old_cache(days=days)
+            message = (
+                f"Удалено {st['deleted']} старых файлов, освобождено {_human_bytes(st['freed'])}. "
+                f"Оставлено {st['kept']}. Ошибок: {st['errors']}."
+            )
+
+    return render_template_string(f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Управление кэшем — Admin</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="p-4">
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2>Управление кэшем</h2>
+          <div>
+            <a class="btn btn-secondary" href="{url_for('admin_dashboard')}">← В админку</a>
+          </div>
+        </div>
+
+        {f"<div class='alert alert-info'>{message}</div>" if message else ""}
+
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5>Очистить старый кэш</h5>
+            <form method="post" class="row g-2 align-items-center" onsubmit="return confirm('Удалить кэш старше N дней?');">
+              <input type="hidden" name="mode" value="old">
+              <div class="col-auto">
+                <label for="days" class="col-form-label">Старше (дней):</label>
+              </div>
+              <div class="col-auto">
+                <input id="days" name="days" type="number" value="3" min="1" class="form-control">
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-warning" type="submit">Очистить</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5>Удалить весь кэш</h5>
+            <form method="post" onsubmit="return confirm('Точно удалить ВСЁ? Действие необратимо.');">
+              <input type="hidden" name="mode" value="all">
+              <button class="btn btn-danger" type="submit">Удалить всё</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    """)
+
+
+def purge_all_cache():
+    """Удаляет вообще все файлы кэша во всех каталогах."""
+    stat = {"deleted": 0, "freed": 0, "errors": 0}
+    for f in _iter_cache_files():
+        try:
+            size = f.stat().st_size
+            f.unlink()
+            stat["deleted"] += 1
+            stat["freed"] += size
+        except Exception:
+            stat["errors"] += 1
+
+    for base in CACHE_DIRS:
+        if base.exists():
+            for d in sorted([p for p in base.rglob("*") if p.is_dir()], reverse=True):
+                try:
+                    next(d.iterdir())
+                except StopIteration:
+                    d.rmdir()
+                except Exception:
+                    pass
+    return stat
+
+
+@app.route("/admin/cache", methods=["GET", "POST"])
+def admin_cache_page():
+    # простая защита: тот же is_admin(), что и в остальных админ-ручках
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+
+    message = ""
+    if request.method == "POST":
+        mode = request.form.get("mode", "old")
+        days = int(request.form.get("days", 3) or 3)
+
+        if mode == "all":
+            st = purge_all_cache()
+            message = f"Удалено {st['deleted']} файлов, освобождено {_human_bytes(st['freed'])}. Ошибок: {st['errors']}."
+        else:
+            st = cleanup_old_cache(days=days)
+            message = (
+                f"Удалено {st['deleted']} старых файлов, освобождено {_human_bytes(st['freed'])}. "
+                f"Оставлено {st['kept']}. Ошибок: {st['errors']}."
+            )
+
+    # простая HTML-страничка
+    html = f"""
+    <html><head>
+      <meta charset="utf-8">
+      <title>Управление кэшем — Admin</title>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="p-4">
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2>Управление кэшем</h2>
+          <div>
+            <a class="btn btn-secondary" href="{url_for('admin_dashboard')}">← В админку</a>
+          </div>
+        </div>
+
+        {"<div class='alert alert-info'>"+message+"</div>" if message else ""}
+
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5>Очистить старый кэш</h5>
+            <form method="post" class="row g-2 align-items-center" onsubmit="return confirm('Удалить кэш старше N дней?');">
+              <input type="hidden" name="mode" value="old">
+              <div class="col-auto">
+                <label for="days" class="col-form-label">Старше (дней):</label>
+              </div>
+              <div class="col-auto">
+                <input id="days" name="days" type="number" value="3" min="1" class="form-control">
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-warning" type="submit">Очистить</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h5>Удалить весь кэш</h5>
+            <form method="post" onsubmit="return confirm('Точно удалить ВСЁ? Действие необратимо.');">
+              <input type="hidden" name="mode" value="all">
+              <button class="btn btn-danger" type="submit">Удалить всё</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </body></html>
+    """
+    return html
+
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -2030,6 +2256,7 @@ def admin_subscribers_secure():
                 <div class="nav">
                     <a href="/admin/dashboard">🏠 Главная админки</a>
                     <a href="/admin/stats_secure">📊 Статистика</a>
+                    <a href="/admin/cache">🧹 Кэш</a>
                     <a href="/admin/logout">🚪 Выйти</a>
                 </div>
                 
@@ -2133,6 +2360,7 @@ def admin_stats_secure():
             <div class="nav">
                 <a href="/admin/dashboard">🏠 Главная админки</a>
                 <a href="/admin/subscribers_secure">👥 Подписчики</a>
+                <a href="/admin/cache">🧹 Кэш</a>
                 <a href="/admin/logout">🚪 Выйти</a>
             </div>
             
