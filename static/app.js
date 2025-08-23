@@ -1994,6 +1994,11 @@ function showLoadingModal() {
         modal = createLoadingModal();
         document.body.appendChild(modal);
     }
+    // сразу после appendChild(modal)
+    if (window.i18n && typeof i18n.apply === 'function') {
+    i18n.apply(modal);
+    }
+
     
     const bootstrapModal = new bootstrap.Modal(modal, {
         backdrop: 'static',
@@ -2280,56 +2285,82 @@ function selectJobCategory(category, buttonElement) {
 // ДОБАВИТЬ ЭТУ ФУНКЦИЮ
 // ИСПРАВЛЕННАЯ функция subscribeToEmails в app.js
 function subscribeToEmails() {
-    console.log('🚀 subscribeToEmails() вызвана'); // Добавляем лог
-    
-    const emailInput = document.getElementById('subscribe-email');
-    const email = emailInput.value.trim();
-    
-    console.log('📧 Email из поля:', email); // Лог email
-    
-    if (!email || !email.includes('@')) {
-        console.log('❌ Некорректный email'); // Лог ошибки
-        showAlert('❌ Введите корректный email адрес', 'warning');
-        return;
+  // 1) Берём email и язык интерфейса
+  const emailInput = document.getElementById('subscribe-email');
+  const email = (emailInput?.value || '').trim();
+
+  // Язык: i18n -> localStorage -> cookie -> 'ru'
+  const lang =
+    (window.i18n && typeof window.i18n.getLang === 'function' && window.i18n.getLang()) ||
+    localStorage.getItem('lang') ||
+    ((document.cookie.match(/(?:^|;\s*)lang=([^;]+)/) || [])[1]) ||
+    'ru';
+
+  // Локализация сообщений в алертах (используем текущий i18n, если есть)
+  const t = (s) => (window.i18n && typeof window.i18n.t === 'function' ? window.i18n.t(s) : s);
+
+  // 2) Быстрая валидация email
+  if (!email || !email.includes('@')) {
+    showAlert('❌ ' + t('Введите корректный email адрес'), 'warning');
+    return;
+  }
+
+  // 3) Блокируем кнопку/поле, чтобы не дублировать запрос
+  const btn = document.querySelector('[data-action="subscribe"]') || document.querySelector('#subscribe-btn');
+  const prevBtnText = btn ? btn.innerHTML : null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ ' + t('Подписка...');
+  }
+  if (emailInput) emailInput.disabled = true;
+
+  // 4) Отправка — язык передаём и в body, и в заголовке X-Lang
+  fetch('/subscribe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Lang': lang
+    },
+    body: JSON.stringify({ email, lang })
+  })
+  .then(async (response) => {
+    // 409 — конфликт подписки (твоя модалка выбора)
+    if (response.status === 409) {
+      const data = await response.json().catch(() => ({}));
+      showSubscriptionChoiceModal(email, data);
+      throw new Error('HANDLED_409');
     }
-    
-    console.log('🔄 Отправляем запрос на /subscribe'); // Лог запроса
-    
-    fetch('/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email })
-    })
-    .then(response => {
-        console.log('📡 Ответ получен, status:', response.status); // Лог ответа
-        
-        if (response.status === 409) {
-            return response.json().then(data => {
-                console.log('⚠️ Конфликт подписки:', data);
-                showSubscriptionChoiceModal(email, data);
-                throw new Error('HANDLED_409');
-            });
-        } else if (response.ok) {
-            return response.json();
-        } else {
-            return response.json().then(data => {
-                throw new Error(data.error || 'Ошибка подписки');
-            });
-        }
-    })
-    .then(data => {
-        console.log('✅ Успешная подписка:', data);
-        showAlert('✅ ' + data.message, 'success');
-        emailInput.value = '';
-    })
-    .catch(error => {
-        if (error.message === 'HANDLED_409') {
-            return;
-        }
-        console.error('❌ Ошибка подписки:', error);
-        showAlert('❌ ' + error.message, 'danger');
-    });
+    // 200..299 — ок
+    if (response.ok) {
+      return response.json();
+    }
+    // Иначе — пытаемся вытащить текст ошибки
+    const data = await response.json().catch(() => ({}));
+    const msg = data && data.error ? data.error : t('Ошибка подписки');
+    throw new Error(msg);
+  })
+  .then((data) => {
+    // 5) Успех
+    const msg = (data && data.message) ? data.message : t('Подписка оформлена! Проверьте email.');
+    showAlert('✅ ' + msg, 'success');
+    if (emailInput) emailInput.value = '';
+  })
+  .catch((err) => {
+    if (err && err.message === 'HANDLED_409') return; // модалка уже показана
+    // Любая иная ошибка
+    showAlert('❌ ' + (err && err.message ? err.message : t('Ошибка подписки')), 'danger');
+    console.error('[subscribeToEmails] error:', err);
+  })
+  .finally(() => {
+    // 6) Разблокируем UI
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = prevBtnText || t('Подписаться');
+    }
+    if (emailInput) emailInput.disabled = false;
+  });
 }
+
 
 function showSubscriptionChoiceModal(email, data) {
     // ИСПРАВЛЕНИЕ: Проверяем что данные корректны
@@ -2455,6 +2486,11 @@ function showSubscriptionChoiceModal(email, data) {
     `;
     
     document.body.appendChild(modal);
+    // сразу после appendChild(modal)
+    if (window.i18n && typeof i18n.apply === 'function') {
+    i18n.apply(modal);
+    }
+
     const bootstrapModal = new bootstrap.Modal(modal);
     bootstrapModal.show();
     
@@ -2488,11 +2524,20 @@ function updateSubscription(email, action) {
 }
 
 function showManageSubscriptionInfo() {
-    alert('📧 Ссылка на управление подпиской будет в каждом email уведомлении!\n\nВы сможете:\n• Изменить профессии\n• Изменить страны\n• Изменить частоту уведомлений\n• Отписаться');
+  const t = (s) => (window.i18n?.t ? i18n.t(s) : s);
+  alert(
+    '📧 ' + t('Ссылка на управление подпиской будет в каждом email уведомлении!') + '\n\n' +
+    t('Вы сможете:') + '\n' +
+    '• ' + t('Изменить профессии') + '\n' +
+    '• ' + t('Изменить страны') + '\n' +
+    '• ' + t('Изменить частоту уведомлений') + '\n' +
+    '• ' + t('Отписаться')
+  );
 }
 
+
 function checkSystemStatus() {
-    fetch('/health')
+    fetch('/health?lang=' + (window.i18n && typeof i18n.getLang === 'function' ? i18n.getLang() : 'ru'))
         .then(response => {
             if (response.ok) {
                 return response.text();
@@ -2518,6 +2563,8 @@ function checkSystemStatus() {
                 </div>
             `;
             document.body.appendChild(modal);
+            // сразу после appendChild(modal)
+            if (window.i18n && typeof i18n.apply === 'function') i18n.apply();
             
             const bootstrapModal = new bootstrap.Modal(modal);
             bootstrapModal.show();

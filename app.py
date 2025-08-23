@@ -26,6 +26,8 @@ from flask_migrate import Migrate
 
 from threading import Thread
 import schedule
+SUPPORTED_LANGS = {'ru', 'uk', 'en'}
+from flask import request
 
 # Импортируем существующий агрегатор
 from adzuna_aggregator import GlobalJobAggregator, JobVacancy
@@ -550,6 +552,7 @@ def results():
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
+    
     """Подписка на email уведомления с детальным логированием"""
     print("="*60)
     print("🔍 НАЧАЛО ФУНКЦИИ SUBSCRIBE")
@@ -573,6 +576,34 @@ def subscribe():
         
         email = data.get('email', '').strip().lower()
         print(f"📧 Email из запроса: '{email}'")
+        # >>> ЯЗЫК ПОДПИСКИ (вставить СРАЗУ ПОСЛЕ определения email)
+        SUPPORTED_LANGS = {'ru', 'uk', 'en'}
+        lang = (data.get('lang')
+                or request.cookies.get('lang')
+                or request.headers.get('X-Lang')
+                or 'ru').lower()
+        if lang not in SUPPORTED_LANGS:
+            lang = 'ru'
+        print(f"🌐 Язык подписки: {lang}")
+        # <<< конец вставки
+        # --- локализованные тексты для ответов этого метода
+        MSG = {
+        'ru': {
+            'ok': 'Подписка оформлена! Проверьте email.',
+            'ok_slow': 'Подписка оформлена! (Email может быть отправлен с задержкой)'
+        },
+        'en': {
+            'ok': 'Subscription created! Check your email.',
+            'ok_slow': 'Subscription created! (Email may be delayed)'
+        },
+        'uk': {
+            'ok': 'Підписку оформлено! Перевірте email.',
+            'ok_slow': 'Підписку оформлено! (Лист може надійти із затримкою)'
+        }
+        }
+        # ---
+
+
         
         if not email or '@' not in email:
             print("❌ Неверный email")
@@ -586,7 +617,7 @@ def subscribe():
         if not preferences.get('selected_jobs') or not preferences.get('countries'):
             print("❌ Нет профессий или стран в сессии")
             return jsonify({
-                'error': 'Сначала выберите профессии и страны, затем нажмите "Найти работу", а потом подписывайтесь'
+                'error': 'Сначала выберите профессии и страны, затем нажмите Найти работу, а потом подписывайтесь'
             }), 400
         
         print("🔍 Ищем существующего подписчика в БД...")
@@ -648,6 +679,7 @@ def subscribe():
                 existing.set_countries(preferences['countries'])
             existing.city = preferences.get('city')
             existing.is_refugee = preferences.get('is_refugee', True)
+            existing.lang = lang
             subscriber = existing
         else:
             print("➕ Создаем нового подписчика...")
@@ -655,7 +687,8 @@ def subscribe():
                 email=email,
                 is_refugee=preferences.get('is_refugee', True),
                 city=preferences.get('city'),
-                frequency='weekly'
+                frequency='weekly',
+                lang=lang
             )
             if preferences.get('selected_jobs'):
                 subscriber.set_selected_jobs(preferences['selected_jobs'])
@@ -672,7 +705,7 @@ def subscribe():
         email_success = False
         try:
             from email_service import send_welcome_email
-            email_success = send_welcome_email(app, email)
+            email_success = send_welcome_email(app, email, lang=subscriber.lang)
             print(f"📧 Результат отправки email: {email_success}")
             
             if email_success:
@@ -691,10 +724,8 @@ def subscribe():
                 db.session.commit()
                 print("📝 Лог успешной отправки записан")
                 
-                return jsonify({
-                    'success': True, 
-                    'message': 'Подписка оформлена! Проверьте email.'
-                })
+                return jsonify({'success': True, 'message': MSG[lang]['ok']})
+
             else:
                 print("❌ Ошибка отправки welcome email")
                 
@@ -712,11 +743,8 @@ def subscribe():
                 db.session.commit()
                 print("📝 Лог ошибки записан")
                 
-                return jsonify({
-                    'success': True, 
-                    'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'
-                })
-                
+                return jsonify({'success': True, 'message': MSG[lang]['ok_slow']})
+
         except Exception as email_error:
             print(f"❌ ИСКЛЮЧЕНИЕ при отправке welcome email: {email_error}")
             import traceback
@@ -739,10 +767,8 @@ def subscribe():
             except Exception as log_error:
                 print(f"❌ Ошибка записи лога: {log_error}")
             
-            return jsonify({
-                'success': True, 
-                'message': 'Подписка оформлена! (Email может быть отправлен с задержкой)'
-            })
+            return jsonify({'success': True, 'message': MSG[lang]['ok_slow']})
+
         
     except Exception as e:
         print(f"❌ КРИТИЧЕСКОЕ ИСКЛЮЧЕНИЕ В SUBSCRIBE: {e}")
@@ -1266,10 +1292,17 @@ def favicon():
    """Обработка favicon"""
    return '', 204
 
+# app.py
 @app.route('/health')
 def health_check():
-    """Простая проверка здоровья системы БЕЗ админских ссылок"""
+    """Статус системы — локализованная страница для модалки."""
     try:
+        # 1) Язык интерфейса
+        lang = (request.args.get('lang') or request.cookies.get('lang') or 'ru').lower()
+        if lang not in ('ru', 'uk', 'en'):
+            lang = 'ru'
+
+        # 2) Данные
         if aggregator:
             cache_stats = aggregator.get_cache_stats()
         else:
@@ -1280,74 +1313,97 @@ def health_check():
                 'cache_hit_rate': '0.0%',
                 'total_jobs_found': 0
             }
-        
         additional_sources = list(additional_aggregators.keys()) if additional_aggregators else []
-        
-        return f"""
+
+        # 3) Словарь
+        T = {
+            'ru': {
+                'status_ok': 'Система работает нормально',
+                'main_agg': 'Основной агрегатор',
+                'online': 'Работает',
+                'offline': 'Недоступен',
+                'add_sources': 'Дополнительные источники',
+                'none': 'Нет',
+                'api_requests': 'API запросов',
+                'cache_hits': 'Попаданий в кеш',
+                'cache_misses': 'Промахов кеша',
+                'cache_eff': 'Эффективность кеша',
+                'total_found': 'Всего найдено вакансий',
+                'checked_at': 'Время проверки'
+            },
+            'en': {
+                'status_ok': 'System is operating normally',
+                'main_agg': 'Main aggregator',
+                'online': 'Online',
+                'offline': 'Offline',
+                'add_sources': 'Additional sources',
+                'none': 'None',
+                'api_requests': 'API requests',
+                'cache_hits': 'Cache hits',
+                'cache_misses': 'Cache misses',
+                'cache_eff': 'Cache hit rate',
+                'total_found': 'Total jobs found',
+                'checked_at': 'Checked at'
+            },
+            'uk': {
+                'status_ok': 'Система працює нормально',
+                'main_agg': 'Основний агрегатор',
+                'online': 'Працює',
+                'offline': 'Недоступний',
+                'add_sources': 'Додаткові джерела',
+                'none': 'Немає',
+                'api_requests': 'Запити до API',
+                'cache_hits': 'Влучань у кеш',
+                'cache_misses': 'Промахів кешу',
+                'cache_eff': 'Ефективність кешу',
+                'total_found': 'Всього знайдено вакансій',
+                'checked_at': 'Час перевірки'
+            }
+        }
+        t = T[lang]
+
+        # 4) HTML
+        html = f"""
         <!DOCTYPE html>
-        <html>
+        <html lang="{lang}">
         <head>
-            <title>Статус системы</title>
             <meta charset="utf-8">
             <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
-                .container {{ max-width: 600px; margin: 0 auto; }}
-                .status-card {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-                .status-good {{ border-left: 5px solid #28a745; }}
-                .status-item {{ display: flex; justify-content: space-between; margin: 10px 0; }}
-                .status-ok {{ color: #28a745; font-size: 1.5em; }}
+                body {{ font-family: -apple-system, Segoe UI, Roboto, Arial; margin:0; padding:16px; background:#f7f7f9; }}
+                .container {{ max-width: 720px; margin:0 auto; }}
+                .status-card {{ background:#fff; border-radius:12px; padding:20px; box-shadow:0 4px 14px rgba(0,0,0,.06); }}
+                .status-ok {{ color:#28a745; font-size:1.2rem; margin:0 0 12px; }}
+                .status-item {{ display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid #eee; }}
+                .status-item:last-child {{ border-bottom:0; }}
             </style>
         </head>
         <body>
             <div class="container">
-                <div class="status-card status-good">
-                    <h2 class="status-ok">🟢 Система работает нормально</h2>
+                <div class="status-card">
+                    <h2 class="status-ok">🟢 {t['status_ok']}</h2>
                     <div class="status-item">
-                        <span>Основной агрегатор:</span>
-                        <span>{'✅ Работает' if aggregator else '❌ Недоступен'}</span>
+                        <span>{t['main_agg']}:</span>
+                        <span>{'✅ ' + t['online'] if aggregator else '❌ ' + t['offline']}</span>
                     </div>
                     <div class="status-item">
-                        <span>Дополнительные источники:</span>
-                        <span>{', '.join(additional_sources) if additional_sources else 'Нет'}</span>
+                        <span>{t['add_sources']}:</span>
+                        <span>{', '.join(additional_sources) if additional_sources else t['none']}</span>
                     </div>
-                    <div class="status-item">
-                        <span>API запросов:</span>
-                        <span>{cache_stats.get('api_requests', 0)}</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Попаданий в кеш:</span>
-                        <span>{cache_stats.get('cache_hits', 0)}</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Промахов кеша:</span>
-                        <span>{cache_stats.get('cache_misses', 0)}</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Эффективность кеша:</span>
-                        <span>{cache_stats.get('cache_hit_rate', '0.0%')}</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Всего найдено вакансий:</span>
-                        <span>{cache_stats.get('total_jobs_found', 0)}</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Время проверки:</span>
-                        <span>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
-                    </div>
+                    <div class="status-item"><span>{t['api_requests']}:</span><span>{cache_stats.get('api_requests', 0)}</span></div>
+                    <div class="status-item"><span>{t['cache_hits']}:</span><span>{cache_stats.get('cache_hits', 0)}</span></div>
+                    <div class="status-item"><span>{t['cache_misses']}:</span><span>{cache_stats.get('cache_misses', 0)}</span></div>
+                    <div class="status-item"><span>{t['cache_eff']}:</span><span>{cache_stats.get('cache_hit_rate', '0.0%')}</span></div>
+                    <div class="status-item"><span>{t['total_found']}:</span><span>{cache_stats.get('total_jobs_found', 0)}</span></div>
+                    <div class="status-item"><span>{t['checked_at']}:</span><span>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span></div>
                 </div>
             </div>
         </body>
         </html>
         """
+        return html
     except Exception as e:
-        return f"""
-        <html>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-            <h1 style="color: red;">❌ Ошибка системы</h1>
-            <p>Ошибка: {str(e)}</p>
-        </body>
-        </html>
-        """, 500
+        return f"<pre>health error: {e}</pre>", 500
+
 @app.errorhandler(404)
 def not_found(error):
    return render_template('error.html', error="Страница не найдена"), 404
@@ -1385,6 +1441,14 @@ def update_subscription_preferences():
         subscriber = Subscriber.query.filter_by(email=email, is_active=True).first()
         if not subscriber:
             return jsonify({'error': 'Подписка не найдена'}), 404
+        # --- ЯЗЫК ИНТЕРФЕЙСА: берём из формы / cookie / заголовка и сохраняем в подписчике
+        lang = (request.form.get('lang') or
+                request.cookies.get('lang') or
+                request.headers.get('X-Lang') or 'ru').lower()
+        if lang in ('ru', 'en', 'uk'):
+            subscriber.lang = lang
+        # --- конец вставки
+
         
         # Обновляем данные
         subscriber.is_refugee = request.form.get('is_refugee') == 'on'
@@ -1419,6 +1483,8 @@ def update_subscription_preferences():
     except Exception as e:
         print(f"❌ Ошибка обновления предпочтений: {e}")
         return jsonify({'error': 'Ошибка при сохранении изменений'}), 500
+        
+    
 
 @app.route('/subscribe/update', methods=['POST'])
 def update_existing_subscription():

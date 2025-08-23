@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask_mail import Mail, Message
 from database import db, Subscriber, EmailLog
 from datetime import datetime, timedelta
@@ -5,14 +6,290 @@ import os
 from threading import Thread
 import time
 
+# -----------------------------------------------------------------------------
+# Server-side i18n для писем (минимальный словарь; расширяйте по надобности)
+# -----------------------------------------------------------------------------
+
+I18N = {
+    "ru": {
+        "app_name": "GlobalJobHunter",
+
+        # subjects / headings
+        "digest_subject": "🎯 Найдено {n} {vac_forms}",
+        "digest_subject_1": "🎯 Найдена 1 новая вакансия",
+        "welcome_subject": "🎉 Добро пожаловать в GlobalJobHunter!",
+        "prefs_subject": "✅ Настройки подписки обновлены",
+
+        # plural forms base words
+        "vacancy_forms": ("новых вакансий", "новые вакансии", "новых вакансий"),  # many, few(2-4), many(5+)
+        "vacancy_forms_short": ("вакансий", "вакансии", "вакансий"),
+
+        # digest header/subheader
+        "digest_title": "Найдено {n} {vac_short}",
+        "digest_intro": "Привет! Мы нашли для вас новые вакансии по вашим предпочтениям:",
+        "pref_professions": "Профессии",
+        "pref_countries": "Страны",
+        "pref_city": "Город",
+        "digest_all_jobs": "🎯 Все найденные вакансии:",
+
+        # job card
+        "badge_refugee": "🏠 Для беженцев",
+        "badge_no_lang": "🔇 Без языка",
+        "btn_apply": "Откликнуться",
+
+        # digest footer
+        "auto_notice": "Это автоматическое уведомление от GlobalJobHunter",
+        "manage": "⚙️ Настроить подписку",
+        "unsubscribe": "Отписаться от рассылки",
+        "find_job_now": "🔍 Найти работу сейчас",
+        "copyright": "© {year} GlobalJobHunter.",
+
+        # welcome email
+        "welcome_title": "🌍 Добро пожаловать в GlobalJobHunter!",
+        "welcome_tagline": "Ваш помощник в поиске работы по всему миру",
+        "welcome_thanks": "🎉 Спасибо за подписку!",
+        "welcome_you_will_get": "📧 Что вас ждет:",
+        "welcome_bul_1": "Еженедельные подборки актуальных вакансий",
+        "welcome_bul_2": "Персональные рекомендации на основе ваших предпочтений",
+        "welcome_bul_3": "Специальные предложения для украинских беженцев",
+        "welcome_bul_4": "Вакансии без требований к языку",
+        "welcome_manage": "⚙️ Управлять подпиской",
+        "welcome_find_now": "🔍 Найти работу сейчас",
+        "welcome_box_title": "🛠️ Управление подпиской",
+        "welcome_box_text_1": "Вы можете в любое время:",
+        "welcome_box_list": [
+            "Изменить профессии и страны поиска",
+            "Настроить частоту уведомлений",
+            "Добавить или убрать города",
+            "Полностью отписаться от рассылки"
+        ],
+        "welcome_box_text_2": "Для этого: нажмите кнопку «Управлять подпиской» выше или используйте ссылку в письмах с вакансиями.",
+        "welcome_email": "Ваш email",
+        "welcome_freq": "Частота уведомлений",
+        "welcome_weekly": "еженедельно",
+        "nav_manage": "Управление подпиской",
+        "nav_unsub": "Отписаться",
+        "nav_find": "Найти работу",
+
+        # preferences updated
+        "prefs_title": "✅ Настройки обновлены!",
+        "prefs_intro": "Ваши предпочтения для поиска вакансий успешно обновлены:",
+        "prefs_professions": "Профессии",
+        "prefs_countries": "Страны",
+        "prefs_city": "Город",
+        "prefs_city_none": "Не указан",
+        "prefs_frequency": "Частота",
+        "prefs_change_again": "Изменить снова",
+
+        # countries header in digest list
+        "country_header": "🌍 {country} ({n} {vac_short})"
+    },
+
+    "en": {
+        "app_name": "GlobalJobHunter",
+
+        "digest_subject": "🎯 Found {n} {vac_forms}",
+        "digest_subject_1": "🎯 1 new job found",
+        "welcome_subject": "🎉 Welcome to GlobalJobHunter!",
+        "prefs_subject": "✅ Subscription settings updated",
+
+        "vacancy_forms": ("new jobs", "new jobs", "new jobs"),
+        "vacancy_forms_short": ("jobs", "jobs", "jobs"),
+
+        "digest_title": "Found {n} {vac_short}",
+        "digest_intro": "Hi! We’ve found new jobs based on your preferences:",
+        "pref_professions": "Professions",
+        "pref_countries": "Countries",
+        "pref_city": "City",
+        "digest_all_jobs": "🎯 All found vacancies:",
+
+        "badge_refugee": "🏠 Refugee-friendly",
+        "badge_no_lang": "🔇 No language required",
+        "btn_apply": "Apply",
+
+        "auto_notice": "This is an automated notification from GlobalJobHunter",
+        "manage": "⚙️ Manage subscription",
+        "unsubscribe": "Unsubscribe",
+        "find_job_now": "🔍 Find a job now",
+        "copyright": "© {year} GlobalJobHunter.",
+
+        "welcome_title": "🌍 Welcome to GlobalJobHunter!",
+        "welcome_tagline": "Your assistant for finding jobs worldwide",
+        "welcome_thanks": "🎉 Thanks for subscribing!",
+        "welcome_you_will_get": "📧 What you’ll get:",
+        "welcome_bul_1": "Weekly digests of fresh vacancies",
+        "welcome_bul_2": "Personalized suggestions based on your preferences",
+        "welcome_bul_3": "Special options for Ukrainian refugees",
+        "welcome_bul_4": "Jobs that don’t require local language",
+        "welcome_manage": "⚙️ Manage subscription",
+        "welcome_find_now": "🔍 Start job search",
+        "welcome_box_title": "🛠️ Subscription management",
+        "welcome_box_text_1": "You can at any time:",
+        "welcome_box_list": [
+            "Change professions and countries",
+            "Adjust notification frequency",
+            "Add or remove cities",
+            "Unsubscribe completely"
+        ],
+        "welcome_box_text_2": "Click “Manage subscription” above or use the link in job emails.",
+        "welcome_email": "Your email",
+        "welcome_freq": "Frequency",
+        "welcome_weekly": "weekly",
+        "nav_manage": "Manage subscription",
+        "nav_unsub": "Unsubscribe",
+        "nav_find": "Find jobs",
+
+        "prefs_title": "✅ Settings updated!",
+        "prefs_intro": "Your job search preferences were updated successfully:",
+        "prefs_professions": "Professions",
+        "prefs_countries": "Countries",
+        "prefs_city": "City",
+        "prefs_city_none": "Not specified",
+        "prefs_frequency": "Frequency",
+        "prefs_change_again": "Change again",
+
+        "country_header": "🌍 {country} ({n} {vac_short})"
+    },
+
+    "uk": {
+        "app_name": "GlobalJobHunter",
+
+        "digest_subject": "🎯 Знайдено {n} {vac_forms}",
+        "digest_subject_1": "🎯 Знайдена 1 нова вакансія",
+        "welcome_subject": "🎉 Ласкаво просимо до GlobalJobHunter!",
+        "prefs_subject": "✅ Налаштування підписки оновлено",
+
+        "vacancy_forms": ("нових вакансій", "нові вакансії", "нових вакансій"),
+        "vacancy_forms_short": ("вакансій", "вакансії", "вакансій"),
+
+        "digest_title": "Знайдено {n} {vac_short}",
+        "digest_intro": "Вітаємо! Ми знайшли для вас нові вакансії за вашими налаштуваннями:",
+        "pref_professions": "Професії",
+        "pref_countries": "Країни",
+        "pref_city": "Місто",
+        "digest_all_jobs": "🎯 Усі знайдені вакансії:",
+
+        "badge_refugee": "🏠 Для біженців",
+        "badge_no_lang": "🔇 Без мови",
+        "btn_apply": "Відгукнутися",
+
+        "auto_notice": "Це автоматичне сповіщення від GlobalJobHunter",
+        "manage": "⚙️ Керувати підпискою",
+        "unsubscribe": "Відписатися",
+        "find_job_now": "🔍 Знайти роботу зараз",
+        "copyright": "© {year} GlobalJobHunter.",
+
+        "welcome_title": "🌍 Ласкаво просимо до GlobalJobHunter!",
+        "welcome_tagline": "Ваш помічник у пошуку роботи у будь-якій точці світу",
+        "welcome_thanks": "🎉 Дякуємо за підписку!",
+        "welcome_you_will_get": "📧 Що на вас чекає:",
+        "welcome_bul_1": "Щотижневі добірки актуальних вакансій",
+        "welcome_bul_2": "Персональні рекомендації на основі ваших вподобань",
+        "welcome_bul_3": "Спеціальні пропозиції для українських біженців",
+        "welcome_bul_4": "Вакансії без вимог до мови",
+        "welcome_manage": "⚙️ Керувати підпискою",
+        "welcome_find_now": "🔍 Знайти роботу зараз",
+        "welcome_box_title": "🛠️ Керування підпискою",
+        "welcome_box_text_1": "Ви можете в будь-який час:",
+        "welcome_box_list": [
+            "Змінити професії та країни пошуку",
+            "Налаштувати частоту сповіщень",
+            "Додати або прибрати міста",
+            "Повністю відписатися"
+        ],
+        "welcome_box_text_2": "Натисніть «Керувати підпискою» вище або скористайтеся посиланням у листах.",
+        "welcome_email": "Ваш email",
+        "welcome_freq": "Частота",
+        "welcome_weekly": "щотижня",
+        "nav_manage": "Керування підпискою",
+        "nav_unsub": "Відписатися",
+        "nav_find": "Знайти роботу",
+
+        "prefs_title": "✅ Налаштування оновлено!",
+        "prefs_intro": "Ваші налаштування пошуку вакансій успішно оновлено:",
+        "prefs_professions": "Професії",
+        "prefs_countries": "Країни",
+        "prefs_city": "Місто",
+        "prefs_city_none": "Не вказано",
+        "prefs_frequency": "Частота",
+        "prefs_change_again": "Змінити знову",
+
+        "country_header": "🌍 {country} ({n} {vac_short})"
+    }
+}
+
+
+def _get_lang(subscriber, fallback='ru'):
+    """Определяем язык письма: поле subscriber.lang -> cookie/lang на клиенте, иначе RU."""
+    try:
+        lang = (subscriber.lang or "").lower().strip()
+        return lang if lang in I18N else fallback
+    except Exception:
+        return fallback
+
+
+def _pf_ru(n):
+    # формы 1, few(2-4), many(5+)
+    n = abs(int(n))
+    if n % 10 == 1 and n % 100 != 11:
+        return 1
+    if 2 <= (n % 10) <= 4 and not (12 <= (n % 100) <= 14):
+        return 2
+    return 0  # many
+
+
+def _pf_uk(n):
+    # похожие правила для украинского
+    n = abs(int(n))
+    if n % 10 == 1 and n % 100 != 11:
+        return 1
+    if 2 <= (n % 10) <= 4 and not (12 <= (n % 100) <= 14):
+        return 2
+    return 0
+
+
+def _pf_en(n):
+    # английский – фактически одна форма
+    return 0
+
+
+def _plural_form_index(lang, n):
+    if lang == 'ru':
+        return _pf_ru(n)
+    if lang == 'uk':
+        return _pf_uk(n)
+    return _pf_en(n)
+
+
+def _tr(lang, key, **kwargs):
+    """Простой переводчик с подстановками."""
+    d = I18N.get(lang, I18N['ru'])
+    s = d.get(key, I18N['ru'].get(key, key))
+    try:
+        return s.format(**kwargs)
+    except Exception:
+        return s
+
+
+def _vacancy_forms(lang, n, long=True):
+    """Возвращает строку с правильной формой слова 'вакансия'."""
+    idx = _plural_form_index(lang, n)
+    arr = I18N[lang]['vacancy_forms' if long else 'vacancy_forms_short']
+    return arr[idx]
+
+
+# -----------------------------------------------------------------------------
+# Поиск/агрегация (ваш код — только слегка отрефакторен под lang)
+# -----------------------------------------------------------------------------
+
 def _search_all_sources(main_aggregator, additional_aggregators, preferences):
     """
-    Вспомогательная функция для поиска по ВСЕМ источникам и дедупликации.
+    Поиск по ВСЕМ источникам и дедупликация.
     """
     print(f"   🔍 Ищем вакансии через все доступные источники...")
     all_found_jobs = []
 
-    # 1. Основной агрегатор (Adzuna)
+    # 1) Основной агрегатор (Adzuna)
     if main_aggregator:
         try:
             adzuna_jobs = main_aggregator.search_specific_jobs(preferences)
@@ -21,7 +298,7 @@ def _search_all_sources(main_aggregator, additional_aggregators, preferences):
         except Exception as e:
             print(f"   ⚠️ Adzuna ошибка: {e}")
 
-    # 2. Дополнительные агрегаторы
+    # 2) Дополнительные агрегаторы
     for source_name, aggregator in additional_aggregators.items():
         try:
             additional_jobs = aggregator.search_jobs(preferences)
@@ -30,7 +307,7 @@ def _search_all_sources(main_aggregator, additional_aggregators, preferences):
         except Exception as e:
             print(f"   ⚠️ {source_name.title()} ошибка: {e}")
 
-    # 3. Дедупликация финального списка
+    # 3) Дедупликация по apply_url
     seen_urls = set()
     final_jobs = []
     for job in all_found_jobs:
@@ -40,6 +317,11 @@ def _search_all_sources(main_aggregator, additional_aggregators, preferences):
 
     print(f"   📊 Итого уникальных вакансий: {len(final_jobs)}")
     return final_jobs
+
+
+# -----------------------------------------------------------------------------
+# Отправка для одного подписчика
+# -----------------------------------------------------------------------------
 
 def _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
     """
@@ -57,22 +339,22 @@ def _send_notification_for_subscriber(app, subscriber, main_aggregator, addition
             print(f"   ⚠️ У {subscriber.email} отсутствуют профессии или страны - пропускаем")
             return False
 
-        # Используем единую функцию поиска
         final_jobs = _search_all_sources(main_aggregator, additional_aggregators, preferences)
-
         if not final_jobs:
             print(f"   ℹ️ Нет новых вакансий для {subscriber.email} - пропускаем отправку")
             return False
 
-        # Отправляем email
-        print(f"   📤 Отправляем email с {len(final_jobs)} вакансиями...")
-        success = send_job_email(app, subscriber, final_jobs[:20], preferences) # Ограничение в 20 вакансий
+        lang = _get_lang(subscriber)
+
+        print(f"   📤 Отправляем email ({lang}) с {len(final_jobs)} вакансиями...")
+        success = send_job_email(app, subscriber, final_jobs[:20], preferences, lang=lang)  # лимит 20
 
         if success:
+            subject = _digest_subject(lang, len(final_jobs))
             log = EmailLog(
                 subscriber_id=subscriber.id,
                 email=subscriber.email,
-                subject=f"🎯 Найдено {len(final_jobs)} новых вакансий",
+                subject=subject,
                 jobs_count=len(final_jobs),
                 status='sent',
                 sent_at=datetime.now()
@@ -84,14 +366,16 @@ def _send_notification_for_subscriber(app, subscriber, main_aggregator, addition
         else:
             print(f"   ❌ Не удалось отправить email на {subscriber.email}")
             return False
-            
+
     except Exception as e:
         print(f"   ❌ КРИТИЧЕСКАЯ ОШИБКА для {subscriber.email}: {e}")
         import traceback
         traceback.print_exc()
         return False
 
+
 mail = Mail()
+
 
 def send_async_email(app, msg):
     """Отправка email в отдельном потоке"""
@@ -105,78 +389,88 @@ def send_async_email(app, msg):
             print(f"❌ Ошибка отправки email на {msg.recipients[0]}: {e}")
             return False
 
+
+# -----------------------------------------------------------------------------
+# Пакетные отправки (ручной запуск / планировщик)
+# -----------------------------------------------------------------------------
+
 def send_job_notifications(app, main_aggregator, additional_aggregators={}):
     """
-    Отправка уведомлений всем подписчикам (вызывается из админки).
+    Ручная отправка уведомлений всем подписчикам (из админки).
     """
     with app.app_context():
         print("=" * 60)
         print("📧 НАЧИНАЕМ РУЧНУЮ ОТПРАВКУ УВЕДОМЛЕНИЙ...")
         print("=" * 60)
-        
+
         subscribers = Subscriber.query.filter_by(is_active=True).all()
         print(f"👥 Найдено {len(subscribers)} активных подписчиков")
-        
+
         if not subscribers:
             return 0
-        
+
         sent_count = 0
         for i, subscriber in enumerate(subscribers, 1):
             print(f"\n🔄 ({i}/{len(subscribers)}) Обрабатываем {subscriber.email}...")
             if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
                 sent_count += 1
-            time.sleep(3) # Пауза между отправками
-        
+            time.sleep(3)  # пауза между отправками
+
         db.session.commit()
         print("=" * 60)
         print(f"🎉 РУЧНАЯ ОТПРАВКА ЗАВЕРШЕНА: {sent_count}/{len(subscribers)} писем отправлено")
         print("=" * 60)
         return sent_count
-    
+
+
 def run_scheduled_notifications(app, main_aggregator, additional_aggregators):
     """
-    Функция, которую вызывает планировщик.
-    Проверяет, кому нужно отправить письмо, и запускает процесс.
+    Планировщик: отправлять по расписанию.
     """
     with app.app_context():
         print("="*60)
         print(f"📅 ПЛАНИРОВЩИК: Проверка подписчиков в {datetime.now().strftime('%H:%M:%S')}")
         print("="*60)
-        
+
         subscribers_to_notify = []
         all_active_subscribers = Subscriber.query.filter_by(is_active=True).all()
 
         for sub in all_active_subscribers:
             if should_send_notification(sub):
                 subscribers_to_notify.append(sub)
-        
+
         if not subscribers_to_notify:
             print("ℹ️ ПЛАНИРОВЩИК: Нет подписчиков для отправки уведомлений.")
             return
 
         print(f"📬 ПЛАНИРОВЩИК: Найдено {len(subscribers_to_notify)} подписчиков для уведомления.")
-        
+
         sent_count = 0
         for i, subscriber in enumerate(subscribers_to_notify, 1):
             print(f"\n🔄 ({i}/{len(subscribers_to_notify)}) Отправка для {subscriber.email}...")
             if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
                 sent_count += 1
-            time.sleep(5) # Увеличим паузу для планировщика
+            time.sleep(5)
 
         db.session.commit()
         print("=" * 60)
         print(f"🎉 ПЛАНИРОВЩИК ЗАВЕРШЕН: {sent_count}/{len(subscribers_to_notify)} писем отправлено")
-        print("=" * 60)    
+        print("=" * 60)
+
+
+# -----------------------------------------------------------------------------
+# Fallback-вакансии (оставил как у вас; используется только при недоступности)
+# -----------------------------------------------------------------------------
 
 def create_fallback_jobs(preferences):
     """Создание fallback вакансий только при недоступности агрегатора"""
     fallback_jobs = []
-    
+
     for i, job_title in enumerate(preferences['selected_jobs'][:2]):
         for j, country_code in enumerate(preferences['countries'][:2]):
             country_names = {'de': 'Германия', 'pl': 'Польша', 'gb': 'Великобритания', 'us': 'США', 'ca': 'Канада'}
             country_name = country_names.get(country_code, country_code.upper())
-            
+
             fake_job = type('FallbackJob', (), {
                 'id': f'fallback_{i}_{j}',
                 'title': f"{job_title}",
@@ -192,173 +486,197 @@ def create_fallback_jobs(preferences):
                 'refugee_friendly': preferences.get('is_refugee', True),
                 'language_requirement': 'no_language_required' if preferences.get('is_refugee') else 'basic'
             })()
-            
+
             fallback_jobs.append(fake_job)
-    
+
     print(f"🧪 Создано {len(fallback_jobs)} fallback вакансий")
     return fallback_jobs
 
+
+# -----------------------------------------------------------------------------
+# Вспомогательные
+# -----------------------------------------------------------------------------
+
 def should_send_notification(subscriber):
-    """Проверяем, нужно ли отправлять уведомление"""
+    """Нужно ли отправлять уведомление по частоте."""
     if not subscriber.last_sent:
         return True
-    
+
     now = datetime.utcnow()
-    
     if subscriber.frequency == 'daily':
         return now - subscriber.last_sent > timedelta(days=1)
     elif subscriber.frequency == 'weekly':
         return now - subscriber.last_sent > timedelta(days=7)
     elif subscriber.frequency == 'monthly':
         return now - subscriber.last_sent > timedelta(days=30)
-    
     return False
 
-def send_job_email(app, subscriber, jobs, preferences):
-    """Отправка email с вакансиями"""
+
+def _digest_subject(lang, total_count):
+    """Локализованный subject для дайджеста."""
+    if total_count == 1:
+        return _tr(lang, "digest_subject_1")
+    vac_forms = _vacancy_forms(lang, total_count, long=True)
+    return _tr(lang, "digest_subject", n=total_count, vac_forms=vac_forms)
+
+
+# -----------------------------------------------------------------------------
+# Основные отправки (локализованные)
+# -----------------------------------------------------------------------------
+
+def send_job_email(app, subscriber, jobs, preferences, lang=None):
+    """Отправка email с вакансиями (локализовано)."""
     try:
-        print(f"📤 Отправляем email на {subscriber.email} с {len(jobs)} вакансиями")
-        
-        # Формируем HTML контент
-        html_content = generate_email_html(subscriber, jobs, preferences)
-        
-        # ИСПРАВЛЕННЫЙ SUBJECT - убираем "ТОП-5"
-        total_count = len(jobs)
-        if total_count == 1:
-            subject = f"🎯 Найдена 1 новая вакансия"
-        elif 2 <= total_count <= 4:
-            subject = f"🎯 Найдено {total_count} новые вакансии"
-        else:
-            subject = f"🎯 Найдено {total_count} новых вакансий"
-        
+        lang = lang or _get_lang(subscriber)
+        print(f"📤 Отправляем email на {subscriber.email} ({lang}) с {len(jobs)} вакансиями")
+
+        html_content = generate_email_html(subscriber, jobs, preferences, lang=lang)
+        subject = _digest_subject(lang, len(jobs))
+
         msg = Message(
             subject=subject,
             sender=os.getenv('MAIL_DEFAULT_SENDER'),
             recipients=[subscriber.email],
             html=html_content
         )
-        
-        # Отправляем СИНХРОННО
+
         with app.app_context():
             mail.send(msg)
             print(f"✅ Email успешно отправлен на {subscriber.email}")
             return True
-        
+
     except Exception as e:
         print(f"❌ Ошибка отправки email на {subscriber.email}: {e}")
         return False
 
-def generate_email_html(subscriber, jobs, preferences):
-    """Генерируем HTML для email - ВСЕ ВАКАНСИИ СРАЗУ БЕЗ JavaScript"""
-    
+
+def generate_email_html(subscriber, jobs, preferences, lang='ru'):
+    """Генерация HTML (локализовано)."""
     total_jobs = len(jobs)
-    
-    # Группируем ВСЕ вакансии по странам
+
+    # Группируем по странам
     jobs_by_country = {}
     for job in jobs:
-        country = job.country
-        if country not in jobs_by_country:
-            jobs_by_country[country] = []
-        jobs_by_country[country].append(job)
-    
-    # ИСПРАВЛЕННЫЙ заголовок
-    if total_jobs == 1:
-        jobs_title = "Найдена 1 вакансия"
-    elif 2 <= total_jobs <= 4:
-        jobs_title = f"Найдено {total_jobs} вакансии"
-    else:
-        jobs_title = f"Найдено {total_jobs} вакансий"
+        country = getattr(job, 'country', getattr(job, 'location', '')) or ''
+        jobs_by_country.setdefault(country, []).append(job)
 
-    base_url = os.getenv('BASE_URL', 'https://web-production-2928e.up.railway.app')    
-    
-    # Формируем HTML БЕЗ JavaScript
+    vac_short = _vacancy_forms(lang, total_jobs, long=False)
+    jobs_title = _tr(lang, "digest_title", n=total_jobs, vac_short=vac_short)
+
+    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+    manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
+    unsub_url = f"{base_url}/unsubscribe?email={subscriber.email}"
+
+    # HTML
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
-        <title>Новые вакансии от GlobalJobHunter</title>
+        <title>{I18N[lang]['app_name']}</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; }}
-            .header {{ background: #0057B7; color: white; padding: 30px 20px; text-align: center; }}
+            .container {{ max-width: 680px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; }}
+            .header {{ background: #0057B7; color: white; padding: 28px 20px; text-align: center; }}
             .content {{ padding: 20px; }}
-            .job-card {{ border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 15px 0; }}
-            .job-title {{ font-weight: bold; color: #0057B7; font-size: 16px; }}
-            .job-company {{ color: #6c757d; margin: 5px 0; }}
-            .job-location {{ color: #28a745; font-size: 14px; }}
-            .country-header {{ background: #e9ecef; padding: 15px; margin: 20px 0 10px 0; border-radius: 5px; font-weight: bold; }}
-            .footer {{ background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }}
-            .btn {{ background: #0057B7; color: white !important; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }}
+            .job-card {{ border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin: 14px 0; }}
+            .job-title {{ font-weight: bold; color: #0d47a1; font-size: 16px; }}
+            .job-company {{ color: #6b7280; margin: 5px 0; }}
+            .job-location {{ color: #1b5e20; font-size: 14px; }}
+            .country-header {{ background: #eff6ff; padding: 12px 14px; margin: 20px 0 8px 0; border-radius: 8px; font-weight: bold; }}
+            .footer {{ background: #f8f9fa; padding: 18px; text-align: center; font-size: 12px; color: #6b7280; }}
+            .btn {{ background: #0057B7; color: white !important; padding: 10px 18px; text-decoration: none; border-radius: 6px; display: inline-block; }}
+            .badge {{ display:inline-block; margin-right:6px; padding:2px 8px; border-radius:10px; font-size:11px; color:#fff; }}
+            .bg-green {{ background:#28a745; }}
+            .bg-cyan {{ background:#17a2b8; }}
+            ul.inline li {{ margin-bottom: 4px; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>🌍 GlobalJobHunter</h1>
+                <h1>🌍 {I18N[lang]['app_name']}</h1>
                 <p>📍 {jobs_title}</p>
             </div>
-            
+
             <div class="content">
-                <p>Привет! Мы нашли для вас новые вакансии по вашим предпочтениям:</p>
-                <ul>
-                    <li><strong>Профессии:</strong> {', '.join(preferences['selected_jobs'][:3])}{'...' if len(preferences['selected_jobs']) > 3 else ''}</li>
-                    <li><strong>Страны:</strong> {', '.join(preferences['countries'])}</li>
-                    {f"<li><strong>Город:</strong> {preferences['city']}</li>" if preferences.get('city') else ''}
+                <p>{_tr(lang, "digest_intro")}</p>
+                <ul class="inline">
+                    <li><strong>{_tr(lang, "pref_professions")}:</strong> {', '.join(preferences['selected_jobs'][:3])}{'...' if len(preferences['selected_jobs']) > 3 else ''}</li>
+                    <li><strong>{_tr(lang, "pref_countries")}:</strong> {', '.join(preferences['countries'])}</li>
+                    {f"<li><strong>{_tr(lang, 'pref_city')}:</strong> {preferences['cities'][0]}</li>" if preferences.get('cities') else ''}
                 </ul>
-                
-                <h3>🎯 Все найденные вакансии:</h3>
+
+                <h3>{_tr(lang, "digest_all_jobs")}</h3>
     """
-    
-    # Добавляем ВСЕ вакансии сразу, сгруппированные по странам
+
+    # Страны
     for country, country_jobs in jobs_by_country.items():
-        html += f'<div class="country-header">🌍 {country} ({len(country_jobs)} вакансий)</div>'
-        
+        vac_short_c = _vacancy_forms(lang, len(country_jobs), long=False)
+        html += f'<div class="country-header">{_tr(lang, "country_header", country=country, n=len(country_jobs), vac_short=vac_short_c)}</div>'
+
         for job in country_jobs:
-            salary_text = f"<br><strong>💰 {job.salary}</strong>" if job.salary else ""
+            title = getattr(job, 'title', '')
+            company = getattr(job, 'company', '')
+            location = getattr(job, 'location', '')
+            apply_url = getattr(job, 'apply_url', '')
+            salary = getattr(job, 'salary', None)
+            refugee = getattr(job, 'refugee_friendly', False)
+            no_lang = getattr(job, 'language_requirement', '') == 'no_language_required'
+
+            salary_html = f"<br><strong>💰 {salary}</strong>" if salary else ""
             badges = ""
-            if job.refugee_friendly:
-                badges += '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px;">🏠 Для беженцев</span>'
-            if job.language_requirement == 'no_language_required':
-                badges += '<span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">🔇 Без языка</span>'
-            
+            if refugee:
+                badges += f'<span class="badge bg-green">{_tr(lang, "badge_refugee")}</span>'
+            if no_lang:
+                badges += f'<span class="badge bg-cyan">{_tr(lang, "badge_no_lang")}</span>'
+
             html += f"""
             <div class="job-card">
-                <div class="job-title">{job.title}</div>
-                <div class="job-company">🏢 {job.company}</div>
-                <div class="job-location">📍 {job.location}</div>
-                {salary_text}
+                <div class="job-title">{title}</div>
+                <div class="job-company">🏢 {company}</div>
+                <div class="job-location">📍 {location}</div>
+                {salary_html}
                 <div style="margin: 10px 0;">{badges}</div>
-                <a href="{job.apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">Откликнуться</a>
+                <a href="{apply_url}" class="btn" target="_blank" style="color: white !important; text-decoration: none;">{_tr(lang, "btn_apply")}</a>
             </div>
             """
-    
+
+    year = datetime.now().year
     html += f"""
             </div>
-            
+
             <div class="footer">
-                <p>Это автоматическое уведомление от GlobalJobHunter</p>
-                <p><a href="{os.getenv('BASE_URL', 'https://web-production-2928e.up.railway.app')}/subscription/manage?email={subscriber.email}">⚙️ Настроить подписку</a> | 
-                <a href="{os.getenv('BASE_URL', 'https://web-production-2928e.up.railway.app')}/unsubscribe?email={subscriber.email}">Отписаться от рассылки</a></p>
-                <p>© 2025 GlobalJobHunter.</p>
+                <p>{_tr(lang, "auto_notice")}</p>
+                <p>
+                    <a href="{manage_url}">{_tr(lang, "manage")}</a> |
+                    <a href="{unsub_url}">{_tr(lang, "unsubscribe")}</a>
+                </p>
+                <p>{_tr(lang, "copyright", year=year)}</p>
             </div>
         </div>
     </body>
     </html>
     """
-    
     return html
 
+
 def send_welcome_email(app, email):
-    """Отправка приветственного email"""
+    """Отправка приветственного email (локализовано по subscriber.lang, если есть)."""
     try:
-        print(f"🔄 Подготавливаем welcome email для {email}...")
-        
-        # Определяем базовый URL
+        # Пытаемся найти подписчика, чтобы взять язык
+        subscriber = Subscriber.query.filter_by(email=email).first()
+        lang = _get_lang(subscriber) if subscriber else 'ru'
+
+        print(f"🔄 Подготавливаем welcome email для {email} (lang={lang})...")
+
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
         manage_url = f"{base_url}/subscription/manage?email={email}"
         unsubscribe_url = f"{base_url}/unsubscribe?email={email}"
-        
+
+        # HTML
+        list_items = "".join(f"<li>{_tr(lang,'welcome_box_list')[i]}</li>" for i in range(len(_tr(lang,'welcome_box_list'))))
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -366,130 +684,119 @@ def send_welcome_email(app, email):
             <meta charset="utf-8">
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }}
-                .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
-                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; text-align: center; }}
-                .content {{ padding: 30px; }}
-                .button {{ display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 25px; border-radius: 25px; font-weight: bold; margin: 10px 5px; }}
-                .footer {{ background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; }}
-                .info-box {{ background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 20px 0; border-radius: 5px; }}
+                .container {{ max-width: 680px; margin: 0 auto; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 36px 24px; text-align: center; }}
+                .content {{ padding: 28px; }}
+                .button {{ display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 20px; border-radius: 24px; font-weight: bold; margin: 8px 6px; }}
+                .footer {{ background: #f8f9fa; padding: 18px; text-align: center; font-size: 12px; color: #666; }}
+                .info-box {{ background: #e3f2fd; border-left: 4px solid #2196f3; padding: 14px; margin: 16px 0; border-radius: 6px; }}
+                ul {{ margin: 10px 0 0 18px; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>🌍 Добро пожаловать в GlobalJobHunter!</h1>
-                    <p>Ваш помощник в поиске работы по всему миру</p>
+                    <h1>{_tr(lang, "welcome_title")}</h1>
+                    <p>{_tr(lang, "welcome_tagline")}</p>
                 </div>
                 <div class="content">
-                    <h2>🎉 Спасибо за подписку!</h2>
-                    <p>Теперь вы будете получать персональные подборки вакансий прямо на ваш email.</p>
-                    
+                    <h2>{_tr(lang, "welcome_thanks")}</h2>
+                    <p>{_tr(lang, "welcome_you_will_get")}</p>
+
                     <div class="info-box">
-                        <h4>📧 Что вас ждет:</h4>
                         <ul>
-                            <li>Еженедельные подборки актуальных вакансий</li>
-                            <li>Персональные рекомендации на основе ваших предпочтений</li>
-                            <li>Специальные предложения для украинских беженцев</li>
-                            <li>Вакансии без требований к языку</li>
+                            <li>{_tr(lang, "welcome_bul_1")}</li>
+                            <li>{_tr(lang, "welcome_bul_2")}</li>
+                            <li>{_tr(lang, "welcome_bul_3")}</li>
+                            <li>{_tr(lang, "welcome_bul_4")}</li>
                         </ul>
                     </div>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="{manage_url}" class="button">⚙️ Управлять подпиской</a>
-                        <a href="{base_url}" class="button" style="background: #28a745;">🔍 Найти работу сейчас</a>
+
+                    <div style="text-align:center; margin: 24px 0;">
+                        <a href="{manage_url}" class="button">{_tr(lang, "welcome_manage")}</a>
+                        <a href="{base_url}" class="button" style="background:#28a745;">{_tr(lang, "welcome_find_now")}</a>
                     </div>
-                    
-                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                        <h5 style="margin-top: 0; color: #856404;">🛠️ Управление подпиской</h5>
-                        <p style="margin: 10px 0; color: #856404; font-size: 14px;">
-                            <strong>Вы можете в любое время:</strong><br>
-                            • Изменить профессии и страны поиска<br>
-                            • Настроить частоту уведомлений<br>
-                            • Добавить или убрать города<br>
-                            • Полностью отписаться от рассылки
+
+                    <div style="background:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:14px; margin:18px 0;">
+                        <h4 style="margin:0 0 6px 0; color:#856404;">{_tr(lang, "welcome_box_title")}</h4>
+                        <p style="margin: 6px 0; color:#856404; font-size:14px;">
+                            <strong>{_tr(lang, "welcome_box_text_1")}</strong><br>
+                            <ul style="margin-top:8px;">{list_items}</ul>
                         </p>
-                        <p style="margin: 10px 0; color: #856404; font-size: 14px;">
-                            <strong>Для этого:</strong> нажмите кнопку "Управлять подпиской" выше или используйте ссылку в письмах с вакансиями.
+                        <p style="margin: 6px 0; color:#856404; font-size:14px;">
+                            {_tr(lang, "welcome_box_text_2")}
                         </p>
                     </div>
-                    
-                    <p><small>Ваш email: {email}</small></p>
-                    <p><small>Частота уведомлений: еженедельно</small></p>
-                    <p><small>Дата подписки: {datetime.now().strftime('%d.%m.%Y %H:%M')}</small></p>
+
+                    <p><small>{_tr(lang, "welcome_email")}: {email}</small></p>
+                    <p><small>{_tr(lang, "welcome_freq")}: {_tr(lang, "welcome_weekly")}</small></p>
+                    <p><small>{datetime.now().strftime('%d.%m.%Y %H:%M')}</small></p>
                 </div>
                 <div class="footer">
-                    <p><a href="{manage_url}">Управление подпиской</a> | <a href="{unsubscribe_url}">Отписаться</a> | <a href="{base_url}">Найти работу</a></p>
-                    <p>© 2025 GlobalJobHunter.</p>
+                    <p><a href="{manage_url}">{_tr(lang, "nav_manage")}</a> | <a href="{unsubscribe_url}">{_tr(lang, "nav_unsub")}</a> | <a href="{base_url}">{_tr(lang, "nav_find")}</a></p>
+                    <p>{_tr(lang, "copyright", year=datetime.now().year)}</p>
                 </div>
             </div>
         </body>
         </html>
         """
-        
+
         msg = Message(
-            subject="🎉 Добро пожаловать в GlobalJobHunter!",
+            subject=_tr(lang, "welcome_subject"),
             sender=os.getenv('MAIL_DEFAULT_SENDER'),
             recipients=[email],
             html=html_content
         )
-        
-        print(f"📤 Отправляем welcome email...")
-        
-        # ИСПРАВЛЕНИЕ: Отправляем БЕЗ потоков для тестирования
+
+        print("📤 Отправляем welcome email...")
         with app.app_context():
             mail.send(msg)
             print(f"✅ Welcome email отправлен на {email}")
-            
+
             # Логируем успешную отправку
-            # Находим подписчика
-            subscriber = Subscriber.query.filter_by(email=email).first()
             if subscriber:
                 log = EmailLog(
-                    subscriber_id=subscriber.id,  # ← ПРАВИЛЬНО
-                    subject="Добро пожаловать в GlobalJobHunter!",
+                    subscriber_id=subscriber.id,
+                    email=email,
+                    subject=_tr(lang, "welcome_subject"),
                     jobs_count=0,
                     status='sent',
                     sent_at=datetime.now()
                 )
                 db.session.add(log)
-            db.session.add(log)
-            db.session.commit()
-            print(f"📝 Лог записан в базу")
-            
+                db.session.commit()
+                print("📝 Лог записан в базу")
             return True
-        
+
     except Exception as e:
         print(f"❌ Ошибка отправки welcome email на {email}: {str(e)}")
-        
-        # Логируем ошибку
+        # Лог ошибки (без subscriber_id)
         try:
             with app.app_context():
                 log = EmailLog(
                     email=email,
+                    subject="welcome_failed",
+                    jobs_count=0,
                     status='failed',
                     error_message=str(e),
                     sent_at=datetime.now()
                 )
                 db.session.add(log)
                 db.session.commit()
-                print(f"📝 Лог ошибки записан в базу")
         except Exception as log_error:
             print(f"❌ Ошибка записи лога: {log_error}")
-            
         return False
-    
+
+
 def send_preferences_update_email(app, subscriber):
-    """Отправка email о изменении предпочтений"""
-    print(f"📧 send_preferences_update_email вызвана для {subscriber.email}")  # ДОБАВЛЕНО
-    
+    """Отправка email об изменении предпочтений (локализовано)."""
+    print(f"📧 send_preferences_update_email -> {subscriber.email}")
+
     try:
-        print("🔄 Подготавливаем email...")  # ДОБАВЛЕНО
-        
+        lang = _get_lang(subscriber)
         base_url = os.getenv('BASE_URL', 'http://localhost:5000')
         manage_url = f"{base_url}/subscription/manage?email={subscriber.email}"
-        
-        print(f"🔗 manage_url: {manage_url}")  # ДОБАВЛЕНО
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -497,63 +804,55 @@ def send_preferences_update_email(app, subscriber):
             <meta charset="utf-8">
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }}
-                .container {{ max-width: 500px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; }}
+                .container {{ max-width: 560px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; }}
                 .header {{ background: #28a745; color: white; padding: 20px; text-align: center; }}
                 .content {{ padding: 20px; }}
+                .muted {{ color:#6b7280; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h2>✅ Настройки обновлены!</h2>
+                    <h2>{_tr(lang, "prefs_title")}</h2>
                 </div>
                 <div class="content">
-                    <p>Ваши предпочтения для поиска вакансий успешно обновлены:</p>
+                    <p>{_tr(lang, "prefs_intro")}</p>
                     <ul>
-                        <li><strong>Профессии:</strong> {', '.join(subscriber.get_selected_jobs()[:3])}{'...' if len(subscriber.get_selected_jobs()) > 3 else ''}</li>
-                        <li><strong>Страны:</strong> {', '.join(subscriber.get_countries())}</li>
-                        <li><strong>Город:</strong> {subscriber.city or 'Не указан'}</li>
-                        <li><strong>Частота:</strong> {subscriber.frequency}</li>
+                        <li><strong>{_tr(lang,"prefs_professions")}:</strong> {', '.join(subscriber.get_selected_jobs()[:3])}{'...' if len(subscriber.get_selected_jobs()) > 3 else ''}</li>
+                        <li><strong>{_tr(lang,"prefs_countries")}:</strong> {', '.join(subscriber.get_countries())}</li>
+                        <li><strong>{_tr(lang,"prefs_city")}:</strong> {subscriber.city or _tr(lang,"prefs_city_none")}</li>
+                        <li><strong>{_tr(lang,"prefs_frequency")}:</strong> {subscriber.frequency}</li>
                     </ul>
-                    <p><a href="{manage_url}">Изменить снова</a></p>
+                    <p><a href="{manage_url}">{_tr(lang, "prefs_change_again")}</a></p>
                 </div>
             </div>
         </body>
         </html>
         """
-        
-        print("🔄 Создаем Message...")  # ДОБАВЛЕНО
-        
+
         msg = Message(
-            subject="✅ Настройки подписки обновлены",
+            subject=_tr(lang, "prefs_subject"),
             sender=os.getenv('MAIL_DEFAULT_SENDER'),
             recipients=[subscriber.email],
             html=html_content
         )
-        
-        print(f"📧 Отправляем email от {msg.sender} на {msg.recipients}...")  # ДОБАВЛЕНО
-        
+
         with app.app_context():
             mail.send(msg)
-            print("✅ mail.send() выполнено успешно")  # ДОБАВЛЕНО
-            
-            # Логируем в базу
-            print("🔄 Записываем лог в БД...")  # ДОБАВЛЕНО
             log = EmailLog(
                 subscriber_id=subscriber.id,
-                subject="Настройки подписки обновлены",
+                email=subscriber.email,
+                subject=_tr(lang, "prefs_subject"),
                 jobs_count=0,
                 status='sent',
                 sent_at=datetime.now()
             )
             db.session.add(log)
             db.session.commit()
-            print("✅ Лог записан в БД")  # ДОБАВЛЕНО
-            
             return True
-            
+
     except Exception as e:
         print(f"❌ Ошибка отправки email об изменениях: {e}")
         import traceback
-        traceback.print_exc()  # ДОБАВЛЕНО
-        return False   
+        traceback.print_exc()
+        return False

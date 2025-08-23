@@ -37,181 +37,44 @@ except Exception:
 
 class RemotiveAggregator(BaseJobAggregator):
     """
-    Поиск удалённых вакансий через Remotive API.
-    Особенности:
-      • Сначала пробуем ?category=<slug> (по доке Remotive), затем fallback на ?search=... (EN-ключи).
-      • Кеш бережный: непустой — используем, пустой — не цементируем и не возвращаем.
-      • Повторы на таймаут/сетевые/5xx. На 429 — cooldown.
-      • Мягкая фильтрация офлайн-ролей: если всё офлайн — всё равно пробуем поиск.
+    Агрегатор для поиска удаленных вакансий через Remotive API.
+    - УЛУЧШЕНО: Добавлен черный список профессий, которые не могут быть удаленными.
+    - ИСПРАВЛЕНО: Объединение ключевых слов в один запрос для избежания Rate Limit.
+    - Улучшено: Использует поиск по категориям и исправлен Rate Limiter.
     """
-
-    # Профессии, которые обычно офлайн — не ограничиваем насмерть (см. мягкий фильтр в search_jobs)
+    
+    # --- НОВОЕ: Список профессий, которые не ищем на этом сайте ---
     NON_REMOTE_JOBS = {
-        # Примеры “реально офлайн”:
-        'Водитель такси', 'Курьер пешком', 'Курьер-доставщик еды',
+        # Транспорт и доставка
+        'Водитель такси', 'Водитель категории B', 'Водитель категории C',
+        'Водитель-курьер', 'Курьер пешком', 'Курьер-доставщик еды',
         'Водитель автобуса', 'Водитель грузовика',
+        # Автосервис
         'Автомеханик', 'Автослесарь', 'Шиномонтажник', 'Диагност',
+        'Мастер-приёмщик', 'Кузовщик', 'Маляр по авто',
+        # АЗС и Топливо
         'Заправщик на АЗС', 'Оператор АЗС', 'Кассир на АЗС',
+        # Нефть и газ
         'Оператор добычи', 'Помощник бурильщика', 'Рабочий нефтебазы',
+        # Строительство и производство
         'Строитель-разнорабочий', 'Грузчик', 'Складской работник',
         'Разнорабочий', 'Рабочий на производстве',
+        # Общепит и сервис
         'Официант', 'Бармен', 'Повар', 'Помощник повара', 'Посудомойщик',
         'Кассир', 'Продавец',
+        # Сервис и обслуживание
         'Уборщик', 'Садовник', 'Домработница', 'Массажист',
+        # Уход и медицина (требующие физического присутствия)
         'Медсестра', 'Сиделка', 'Няня', 'Гувернантка', 'Уход за пенсионерами'
     }
-
-    def __init__(self, specific_jobs_map: Dict, cache_duration_hours: Optional[int] = None):
-        super().__init__(source_name='Remotive')
-        self.base_url = "https://remotive.com/api/remote-jobs"
-        self.specific_jobs_map = specific_jobs_map
-        self.cooldown_until = 0
-
-        # TTL кеша (по умолчанию 24ч, можно пробросить REMOTIVE_CACHE_HOURS или общий CACHE_TTL_HOURS)
-        if cache_duration_hours is None:
-            try:
-                cache_duration_hours = int(os.getenv('REMOTIVE_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
-            except Exception:
-                cache_duration_hours = 24
-
-        self.cache_manager = CacheManager(cache_duration_hours=cache_duration_hours)
-        self.rate_limiter = RateLimiter(requests_per_minute=2)
-
-        # Небольшая карта термин→категория (используется в старом коде is_relevant_job)
-        self.job_to_category_map = {
-            'python developer': 'software-dev',
-            'web developer': 'software-dev',
-            'programmer': 'software-dev',
-            'software developer': 'software-dev',
-            'qa engineer': 'software-dev',
-            'software tester': 'software-dev',
-            'data analyst': 'data',
-            'data scientist': 'data',
-            'designer': 'design',
-            'product manager': 'product',
-            'manager': 'management',
-            'sales assistant': 'sales-marketing',
-            'marketer': 'sales-marketing',
-            'recruiter': 'hr',
-            'customer support': 'customer-service'
-        }
-
-        print(f"✅ Remotive Aggregator инициализирован (TTL={cache_duration_hours}ч, RL=2/min).")
-
-    # --- ПУБЛИЧНЫЕ МЕТОДЫ ---
-
-    def get_supported_countries(self) -> Dict[str, Dict]:
-        return {}  # Remotive — глобальный/remote
-
-    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
-        """
-        Стратегия:
-          1) Угадываем slug категории и пробуем ?category=<slug> (один крупный запрос).
-          2) Если по категории пусто/мало — fallback на ?search=... (EN ключи по выбранным профессиям).
-          3) Дедупликация; кеш/ретраи внутри низкоуровневого метода.
-        """
-        all_jobs: List[JobVacancy] = []
-
-        selected = preferences.get('selected_jobs') or []
-        if not selected:
-            return []
-
-        # Мягкая фильтрация офлайн-ролей
-        initial_count = len(selected)
-        filtered = [j for j in selected if j not in self.NON_REMOTE_JOBS]
-        if not filtered:
-            print(f"ℹ️ Remotive: все {initial_count} выбранных профессий помечены как офлайн — всё же пробуем по ним (fallback).")
-            filtered = selected
-        else:
-            dropped = set(selected) - set(filtered)
-            if dropped:
-                print(f"ℹ️ Remotive: исключил офлайн-списки: {', '.join(dropped)}")
-        selected = filtered
-
-        try:
-            # 1) Категория (slug) по выбранным RU-ролям
-            slug = self._guess_category_slug(selected)
-            cat_jobs: List[JobVacancy] = []
-            if slug:
-                cat_jobs = self._query_remotive({"category": slug}, progress_callback=progress_callback, cancel_check=cancel_check)
-
-            if cancel_check and cancel_check():
-                out = self._deduplicate_jobs(cat_jobs)
-                print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(out)} вакансий.")
-                return out
-
-            # 2) Fallback: точечные search-запросы по EN-ключам, если по категории маловато
-            search_jobs_total: List[JobVacancy] = []
-            if len(cat_jobs) < 10:  # порог можно подстроить
-                for ru_title in selected:
-                    if cancel_check and cancel_check():
-                        break
-                    terms = self._get_english_keywords(ru_title)
-                    if not terms:
-                        continue
-                    search_jobs_total.extend(
-                        self._query_remotive(terms, progress_callback=progress_callback, cancel_check=cancel_check)
-                    )
-
-            all_jobs.extend(cat_jobs)
-            all_jobs.extend(search_jobs_total)
-
-        except RateLimitedError:
-            print(f"⛔ {self.source_name}: источник переведён в cooldown (429).")
-        except Exception as e:
-            print(f"❌ {self.source_name}: ошибка поиска — {e}")
-
-        deduped = self._deduplicate_jobs(all_jobs)
-        print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(deduped)} вакансий.")
-        return deduped
-
-    # --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ---
-
-    def _guess_category_slug(self, ru_titles: List[str]) -> Optional[str]:
-        """
-        Пробуем угадать slug категории Remotive по выбранным RU-профессиям.
-        Возвращаем None, если уверенности нет (тогда используем search).
-        """
-        text = " ".join(ru_titles).lower()
-        # Мини-карта подсказок (дополняй по нужде)
-        m = {
-            "software-dev":   ["разработ", "программист", "developer", "инженер по по", "qa", "тестиров", "backend", "frontend", "fullstack"],
-            "data":           ["аналитик", "data", "данн", "scientist", "ml", "ai"],
-            "design":         ["дизайн", "ui", "ux", "дизайнер", "product designer", "ui/ux"],
-            "product":        ["продакт", "product manager", "продукт"],
-            "management":     ["менеджер", "руковод", "project", "team lead", "координатор", "администратор"],
-            "sales-marketing":["маркет", "smm", "seo", "контент", "продаж", "sales", "marketing", "ppc"],
-            "hr":             ["hr", "рекрутер", "кадров", "talent", "recruiter"],
-            "customer-service":["поддержк", "саппорт", "support", "customer", "helpdesk"],
-            "devops":         ["devops", "sre", "админ", "инфра", "platform"],
-            "finance-legal":  ["бухгалт", "финанс", "юрист", "legal", "compliance"],
-            "writing":        ["копирайт", "writer", "редактор", "контентмейкер"],
-            "education":      ["учител", "преподав", "education", "coach", "тренер"],
-            "sales":          ["sales", "аккаунт", "account"],
-        }
-        for slug, cues in m.items():
-            if any(cue in text for cue in cues):
-                return slug
-        return None
-
-    def _get_english_keywords(self, russian_job_title: str) -> List[str]:
-        """
-        Берём из nested self.specific_jobs_map термы и оставляем ТОЛЬКО англ. ASCII.
-        Ограничиваем до 8, чтобы не раздувать URL.
-        """
-        import re  # локальный импорт, чтобы не ловить NameError
-        for category in self.specific_jobs_map.values():
-            terms = category.get(russian_job_title)
-            if terms:
-                en = [t for t in terms if t and re.match(r'^[A-Za-z0-9 .,+\-]+$', t)]
-                return en[:8]
-        return []
-
+    
+    # 2) Запрос в Remotive: безопасный батчинг + возможность принудить свежий запрос
     def _query_remotive(self, terms_or_params, progress_callback=None, cancel_check=None, fresh: bool = False) -> List[JobVacancy]:
         """
-        Универсальная обёртка поверх _fetch_jobs:
-          • dict {'category': slug} → один запрос по категории.
-          • list/tuple/str → 1..N запросов по search с батчингом (3–4 слова, <=80 символов).
+        Универсальная обёртка:
+        • dict с {'category': slug} → один запрос по категории.
+        • list/tuple/str → запрос(ы) по search с батчингом 3–4 термина / <=80 символов.
+        Внутри зовём _fetch_jobs(..., max_retries=2).
         """
         def _run_one(params: Dict) -> List[JobVacancy]:
             jobs = self._fetch_jobs(params, fresh=fresh, max_retries=2)
@@ -255,19 +118,158 @@ class RemotiveAggregator(BaseJobAggregator):
 
         return results
 
+    
+    def __init__(self, specific_jobs_map: Dict, cache_duration_hours: Optional[int] = None):
+        """
+        Инициализация Remotive.
+        TTL: REMOTIVE_CACHE_HOURS > CACHE_TTL_HOURS > 24 (по умолчанию).
+        """
+        super().__init__(source_name='Remotive')
+        self.cooldown_until = 0
+        self.base_url = "https://remotive.com/api/remote-jobs"
+        self.specific_jobs_map = specific_jobs_map
+
+        # TTL кеша (часы)
+        if cache_duration_hours is None:
+            try:
+                cache_duration_hours = int(os.getenv('REMOTIVE_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
+            except Exception:
+                cache_duration_hours = 24
+
+        self.cache_manager = CacheManager(cache_duration_hours=cache_duration_hours)
+        self.rate_limiter = RateLimiter(requests_per_minute=2)
+
+        # Маппинг популярных ключей → категорий Remotive
+        self.job_to_category_map = {
+            'python developer': 'software-dev',
+            'web developer': 'software-dev',
+            'programmer': 'software-dev',
+            'software developer': 'software-dev',
+            'qa engineer': 'qa',
+            'software tester': 'qa',
+            'data analyst': 'data',
+            'data scientist': 'data',
+            'designer': 'design',
+            'product manager': 'product',
+            'manager': 'management',
+            'sales assistant': 'sales-marketing',
+            'marketer': 'sales-marketing',
+            'recruiter': 'hr',
+            'customer support': 'customer-service'
+        }
+
+        print(f"✅ Remotive Aggregator инициализирован (TTL={cache_duration_hours}ч, RL=2/min).")
+
+    def _guess_category_slug(self, ru_titles: List[str]) -> Optional[str]:
+        """
+        Пробуем угадать slug категории Remotive по выбранным RU-профессиям.
+        Если не уверены — вернём None (тогда используем search).
+        """
+        text = " ".join(ru_titles).lower()
+
+        # базовые соответствия (можешь дополнять при желании)
+        m = {
+            "software-dev":  ["разработ", "программист", "developer", "инженер по ПО", "qa", "тестиров"],
+            "data":          ["аналитик", "data", "данн", "scientist"],
+            "design":        ["дизайн", "ui", "ux", "product designer"],
+            "product":       ["продакт", "product manager", "продукт"],
+            "management":    ["менеджер", "руковод", "project", "team lead", "координатор", "администратор"],
+            "sales-marketing":["маркет", "smm", "seo", "контент", "продаж", "sales", "marketing"],
+            "hr":            ["hr", "рекрутер", "кадров", "talent"],
+            "customer-service":["поддержк", "саппорт", "support", "customer"],
+            "devops":        ["devops", "sre", "админ", "инфра"],
+            "finance-legal": ["бухгалт", "финанс", "юрист", "legal"],
+            "writing":       ["копирайт", "writer", "редактор", "контентмейкер"],
+            "education":     ["учител", "преподав", "education", "coach", "тренер"],
+            "sales":         ["sales", "аккаунт", "account"],
+        }
+
+        for slug, cues in m.items():
+            if any(cue in text for cue in cues):
+                return slug
+
+        return None
+        
+
+
+    def get_supported_countries(self) -> Dict[str, Dict]:
+        return {}
+
+    def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
+        """
+        Стратегия (по доке Remotive):
+        1) Если можем угадать slug категории — сначала пробуем ?category=slug.
+        2) Если мало/пусто — fallback на ?search=... (EN-ключи).
+        3) Непустой кеш уважаем; пустой не цементируем. Есть ретраи.
+        """
+        all_jobs: List[JobVacancy] = []
+
+        selected = preferences.get('selected_jobs') or []
+        if not selected:
+            return []
+
+        # МЯГКАЯ фильтрация офлайн‑ролей (не обнуляем совсем)
+        initial_count = len(selected)
+        filtered = [j for j in selected if j not in self.NON_REMOTE_JOBS]
+        if not filtered:
+            print(f"ℹ️ Remotive: все {initial_count} выбранных профессий помечены как офлайн — всё же пробуем по ним (fallback).")
+            filtered = selected
+        else:
+            dropped = set(selected) - set(filtered)
+            if dropped:
+                print(f"ℹ️ Remotive: исключил офлайн‑списки: {', '.join(dropped)}")
+        selected = filtered
+
+        try:
+            # 1) Попытка через категорию (slug) — ОДИН запрос даёт много релевантного
+            slug = self._guess_category_slug(selected)
+            cat_jobs: List[JobVacancy] = []
+            if slug:
+                cat_jobs = self._query_remotive({"category": slug}, progress_callback=progress_callback, cancel_check=cancel_check)
+                # _query_remotive понимает и dict params (category), и list/str terms
+
+            # 2) Если по категории пусто/мало — дополнительно пробуем точечные search‑запросы
+            if cancel_check and cancel_check():
+                return self._deduplicate_jobs(cat_jobs)
+
+            search_jobs_total: List[JobVacancy] = []
+            if len(cat_jobs) < 10:  # порог можно подвинуть
+                for ru_title in selected:
+                    if cancel_check and cancel_check():
+                        break
+                    terms = self._get_english_keywords(ru_title)
+                    if not terms:
+                        continue
+                    # аккуратный батчинг и ретраи — внутри _query_remotive
+                    search_jobs_total.extend(
+                        self._query_remotive(terms, progress_callback=progress_callback, cancel_check=cancel_check)
+                    )
+
+            all_jobs.extend(cat_jobs)
+            all_jobs.extend(search_jobs_total)
+
+        except RateLimitedError:
+            print(f"⛔ {self.source_name}: источник переведён в cooldown (429).")
+        except Exception as e:
+            print(f"❌ {self.source_name}: ошибка поиска — {e}")
+
+        deduped = self._deduplicate_jobs(all_jobs)
+        print(f"✅ {self.source_name}: Поиск завершен. Найдено всего: {len(deduped)} вакансий.")
+        return deduped
+
+    # 3) Кеш: уважаем непустой кеш; пустой кеш не возвращаем и не сохраняем
     def _fetch_jobs(self, params: Dict, fresh: bool = False, max_retries: int = 2) -> List[JobVacancy]:
         """
-        Один запрос к Remotive (кеш + повторы).
+        Один запрос к Remotive (с кешем + повторы).
         Кеш:
-          • fresh=True → игнорировать чтение кеша (запись остаётся).
-          • непустой кеш → возвращаем.
-          • пустой кеш → НЕ возвращаем, идём в API.
-          • пустой ответ из API НЕ кешируем.
+        • fresh=True → игнорировать чтение кеша (но писать можно).
+        • непустой кеш → возвращаем.
+        • пустой кеш → НЕ возвращаем, идём в API.
+        • пустой ответ из API НЕ кешируем.
         Повторы:
-          • таймаут/сетевая/5xx → retry с лёгким джиттером.
-          • 429 → cooldown и исключение.
+        • таймаут/сетевая/5xx → retry с лёгким джиттером.
+        • 429 → cooldown и исключение.
         """
-        # Respect cooldown
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             left = int(self.cooldown_until - now)
@@ -276,7 +278,6 @@ class RemotiveAggregator(BaseJobAggregator):
 
         tag = params.get('search') or params.get('category')
 
-        # Чтение кеша
         if not fresh:
             cached = self.cache_manager.get_cached_result(params)
             if cached is not None:
@@ -290,9 +291,7 @@ class RemotiveAggregator(BaseJobAggregator):
         last_err = None
 
         for attempt in range(1, attempts + 1):
-            # Rate limit
             self.rate_limiter.wait_if_needed()
-
             try:
                 r = requests.get(self.base_url, params=params, timeout=12)
                 if r.status_code == 200:
@@ -304,7 +303,6 @@ class RemotiveAggregator(BaseJobAggregator):
                         if j:
                             out.append(j)
 
-                    # НЕ кешируем пустой результат
                     if out:
                         self.cache_manager.cache_result(params, out)
                         print(f"    🌐 Remotive '{tag}': +{len(out)} (cached)")
@@ -321,8 +319,8 @@ class RemotiveAggregator(BaseJobAggregator):
                 if 500 <= r.status_code <= 599:
                     last_err = RuntimeError(f"HTTP {r.status_code}")
                     print(f"⚠️ {self.source_name}: HTTP {r.status_code} для '{tag}', попытка {attempt}/{attempts}")
-                    self._sleep_jitter(0.3, 0.6)
                     if attempt < attempts:
+                        yield_briefly(300, 300)
                         continue
                     return []
 
@@ -332,15 +330,15 @@ class RemotiveAggregator(BaseJobAggregator):
             except requests.Timeout as e:
                 last_err = e
                 print(f"⚠️ {self.source_name}: таймаут запроса для '{tag}', попытка {attempt}/{attempts}")
-                self._sleep_jitter(0.3, 0.6)
                 if attempt < attempts:
+                    yield_briefly(300, 300)
                     continue
                 return []
             except requests.RequestException as e:
                 last_err = e
                 print(f"⚠️ {self.source_name}: сетевая ошибка для '{tag}': {e}, попытка {attempt}/{attempts}")
-                self._sleep_jitter(0.3, 0.6)
                 if attempt < attempts:
+                    yield_briefly(300, 300)
                     continue
                 return []
             except RateLimitedError:
@@ -354,13 +352,13 @@ class RemotiveAggregator(BaseJobAggregator):
             print(f"❌ {self.source_name}: исчерпаны попытки для '{tag}': {last_err}")
         return []
 
-    # --- НОРМАЛИЗАЦИЯ/УТИЛИТЫ ---
+
 
     def _normalize_job_data(self, raw_job: Dict, search_term: str) -> Optional[JobVacancy]:
         try:
             title = raw_job.get('title', '')
             description = raw_job.get('description', '')
-
+            
             url = raw_job.get('url')
             if not url:
                 return None
@@ -392,14 +390,16 @@ class RemotiveAggregator(BaseJobAggregator):
             return None
 
     def is_relevant_job(self, job_title: str, job_description: str, search_term: str) -> bool:
-        # Сохраняем старую “простую” проверку для совместимости
+        """Простая проверка на релевантность."""
         if search_term in self.job_to_category_map.values():
-            return True
-        search_keywords = str(search_term or '').lower().split()
-        title_lower = (job_title or '').lower()
+             return True
+        
+        search_keywords = search_term.lower().split()
+        title_lower = job_title.lower()
         return any(keyword in title_lower for keyword in search_keywords)
 
     def _deduplicate_jobs(self, jobs: List[JobVacancy]) -> List[JobVacancy]:
+        """Удаление дубликатов по URL вакансии."""
         seen = set()
         unique_jobs = []
         for job in jobs:
@@ -407,12 +407,3 @@ class RemotiveAggregator(BaseJobAggregator):
                 seen.add(job.apply_url)
                 unique_jobs.append(job)
         return unique_jobs
-
-    # Локальный “бэкофф”, если нет глобального yield_briefly
-    @staticmethod
-    def _sleep_jitter(min_sec: float, max_sec: float) -> None:
-        try:
-            import random, time as _t
-            _t.sleep(random.uniform(min_sec, max_sec))
-        except Exception:
-            pass

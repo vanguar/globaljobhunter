@@ -8,8 +8,8 @@
         <div class="container">
             <div class="text-center">
                 <div style="font-size: 4rem; color: #007bff; margin-bottom: 20px;">💙</div>
-                <h1 class="display-4 fw-bold mb-3">Поддержка проекта</h1>
-                <p class="lead text-muted">Ваш интерес и поддержка помогают этому проекту расти и становиться лучше. Спасибо, что вы с нами!</p>
+                <h1 class="display-4 fw-bold mb-3" data-i18n="Поддержка проекта">Поддержка проекта</h1>
+                <p class="lead text-muted" data-i18n="Ваш интерес и поддержка помогают этому проекту расти и становиться лучше. Спасибо, что вы с нами!">Ваш интерес и поддержка помогают этому проекту расти и становиться лучше. Спасибо, что вы с нами!</p>
             </div>
         </div>
     </section>
@@ -23,7 +23,7 @@
                         <div class="card-body p-4">
                             <div class="text-center mb-4">
                                 <div style="font-size: 3rem; color: #f0b90b; margin-bottom: 15px;">💰</div>
-                                <h3 class="fw-bold mb-3">Помочь развитию</h3>
+                                <h3 class="fw-bold mb-3" data-i18n="Помочь развитию">Помочь развитию</h3>
                                 <p class="text-muted">Если вам нравится то, что я делаю, вы можете поддержать проект, отправив любую сумму на один из кошельков ниже.</p>
                             </div>
                             
@@ -81,9 +81,9 @@
 
                             <!-- Реферальный блок Binance -->
                             <div class="referral-promo text-center p-4" style="background: linear-gradient(135deg, #fff9e6 0%, #ffeaa7 100%); border: 2px solid #f0b90b; border-radius: 15px;">
-                                <h5 class="fw-bold mb-2">🎁 Нужна криптовалюта?</h5>
+                                <h5 class="fw-bold mb-2" data-i18n="Нужна криптовалюта?">🎁 Нужна криптовалюта?</h5>
                                 <p class="mb-3" style="font-size: 0.95rem;">Вы можете легко купить любую из этих монет на бирже Binance. При регистрации по нашей ссылке вы получите приветственный бонус!</p>
-                                <a href="https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00UPKQJOPT" target="_blank" rel="noopener noreferrer" class="btn fw-bold" style="background: #f0b90b; color: #1e2026; border-radius: 12px; padding: 12px 25px;">
+                                <a href="https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00UPKQJOPT" target="_blank" rel="noopener noreferrer" class="btn fw-bold" style="background: #f0b90b; color: #1e2026; border-radius: 12px; padding: 12px 25px;" data-i18n="Регистрация на Binance + бонус">
                                     Регистрация на Binance + Бонус
                                 </a>
                             </div>
@@ -94,10 +94,10 @@
                     <div class="card" style="border: none; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
                         <div class="card-body p-4 text-center">
                             <div style="font-size: 3rem; color: #28a745; margin-bottom: 20px;">📧</div>
-                            <h3 class="fw-bold mb-3">Есть вопросы или идеи?</h3>
+                            <h3 class="fw-bold mb-3" data-i18n="Есть вопросы или идеи?">Есть вопросы или идеи?</h3>
                             <p class="text-muted mb-4">Я всегда открыт для предложений, вопросов по сотрудничеству или просто дружеской беседы. Не стесняйтесь написать!</p>
                             <a href="mailto:tzvanguardia@gmail.com" class="btn btn-success btn-lg" style="border-radius: 12px; font-weight: 600;">
-                                <i class="bi bi-envelope me-2"></i>Написать на Email
+                                <i class="bi bi-envelope me-2" data-i18n="Написать на Email"></i>Написать на Email
                             </a>
                         </div>
                     </div>
@@ -109,6 +109,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const copyButtons = document.querySelectorAll('.copy-btn');
@@ -156,4 +157,5 @@ function createToastContainer() {
     return container;
 }
 </script>
+
 {% endblock %}

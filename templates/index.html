@@ -27,10 +27,11 @@
     <section class="hero-section">
         <div class="container">
             <h1 class="display-4 fw-bold mb-3">
-                Ваша новая работа — в любой точке <span class="highlight-animated">мира</span>
+                Ваша новая работа — в любой точке <span class="highlight-animated" data-i18n="мира">мира</span>
             </h1>
-            <p class="lead">
-                Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
+            <p class="lead"
+            data-i18n="Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.">
+            Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
             </p>
             <a href="#search-form-section" class="btn btn-primary btn-lg">
                 <i class="bi bi-search me-2"></i>Начать поиск
@@ -134,7 +135,7 @@
                                 <span class="step-number">4</span>
                                 <h4>Город (опционально)</h4>
                             </div>
-                            <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Варшава, Munich, Краков...">
+                            <input type="text" class="form-control form-control-lg" name="city" placeholder="Например: Berlin, Варшава, Munich, Краков..." data-i18n="attr=placeholder">
                             
                             <div class="alert alert-info mt-3 py-2" style="font-size: 0.9rem; border-radius: 8px;">
                                 <div class="d-flex align-items-start">
@@ -292,5 +293,6 @@ function showTemporaryMessage(message, type = 'info') {
     }, 3000);
 }
 </script>
+
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% endblock %}

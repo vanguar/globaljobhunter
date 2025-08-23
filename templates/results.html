@@ -58,7 +58,7 @@
                     <div class="col-md-6">
                         <div class="input-group">
                              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                             <input type="text" class="form-control" id="job-filter" placeholder="Фильтр по названию, компании...">
+                             <input type="text" class="form-control" id="job-filter" placeholder="Фильтр по названию, компании..." data-i18n="attr=placeholder">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -167,8 +167,8 @@
                 {% else %}
                     <div class="text-center py-5">
                         <i class="bi bi-binoculars-fill text-muted" style="font-size: 5rem;"></i>
-                        <h3 class="mt-4">По вашему запросу ничего не найдено</h3>
-                        <p class="text-muted">Попробуйте изменить профессии или расширить географию поиска.</p>
+                        <h3 class="mt-4" data-i18n="По вашему запросу ничего не найдено">По вашему запросу ничего не найдено</h3>
+                        <p class="text-muted" data-i18n="Попробуйте изменить профессии или расширить географию поиска.">Попробуйте изменить профессии или расширить географию поиска.</p>
                     </div>
                 {% endif %}
             </div>
@@ -251,6 +251,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
 <script>
 document.getElementById('job-filter').addEventListener('input', filterJobs);
 document.querySelectorAll('input[name="filter-type"]').forEach(radio => {

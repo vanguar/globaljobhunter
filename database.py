@@ -9,6 +9,8 @@ class Subscriber(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    lang = db.Column(db.String(5), default='ru')  # 'ru' | 'uk' | 'en'
+
     
     # Предпочтения пользователя
     is_refugee = db.Column(db.Boolean, default=True)
