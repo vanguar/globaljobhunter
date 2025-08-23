@@ -79,3 +79,8 @@ email_logs/
 # Тестовые файлы
 test_data/
 testing/
+
+# --- allow frontend i18n dictionaries ----
+!static/
+!static/i18n/
+!static/i18n/*.json
