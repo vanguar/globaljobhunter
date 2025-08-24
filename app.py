@@ -127,6 +127,28 @@ app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('MAIL_USERNAME'))
 
+# ==== База данных: PostgreSQL через ENV, иначе SQLite fallback ====
+def _build_db_uri():
+    url = os.getenv("DATABASE_URL")  # Railway задаёт postgres://...
+    if url:
+        # SQLAlchemy/psycopg2 нуждается в схеме postgresql+psycopg2
+        return url.replace("postgres://", "postgresql+psycopg2://")
+    # Fallback: локальная SQLite в instance/
+    os.makedirs(app.instance_path, exist_ok=True)
+    return "sqlite:///" + os.path.join(app.instance_path, "globaljobhunter.db")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = _build_db_uri()
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Параметры пула (важно на проде/воркерах)
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    # настроить при необходимости:
+    # "pool_size": 5,
+    # "max_overflow": 10,
+    # "pool_recycle": 1800,
+}
+
+
 # Инициализация расширений
 db.init_app(app)
 mail.init_app(app)
