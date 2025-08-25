@@ -2508,8 +2508,13 @@ function updateSubscription(email, action) {
         if (data.success) {
             showAlert('✅ ' + data.message, 'success');
             // Закрываем модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('subscription-choice-modal'));
-            if (modal) modal.hide();
+            try {
+                const el = document.getElementById('subscription-choice-modal');
+                let modal = el && bootstrap.Modal.getInstance(el);
+                if (!modal && el) modal = new bootstrap.Modal(el);
+                modal && modal.hide();
+                } catch (_) {}
+
             // Очищаем поле email
             const emailInput = document.getElementById('subscribe-email');
             if (emailInput) emailInput.value = '';
