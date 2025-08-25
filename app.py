@@ -1114,7 +1114,9 @@ def cleanup_cache():
 @app.route('/admin/subscribers')
 def admin_subscribers():
     """Расширенная админка для просмотра подписчиков"""
-    admin_key = request.args.get('key')
+    admin_key = request.args.get('key') or request.form.get('key')
+    if not session.get('admin_logged_in') and admin_key != os.getenv('ADMIN_KEY'):
+        return "Access Denied", 403
     if admin_key != os.getenv('ADMIN_KEY'):
         return "Access Denied", 403
     
