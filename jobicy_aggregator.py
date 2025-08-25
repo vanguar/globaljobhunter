@@ -264,7 +264,7 @@ class JobicyAggregator:
                 id=f"jobicy_{job_id}",
                 title=title,
                 company=company,
-                location="Remote (Удаленно)",
+                location="Remote",
                 salary=None,
                 description=description,
                 apply_url=apply_url,

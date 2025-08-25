@@ -296,6 +296,29 @@ def _vacancy_forms(lang, n, long=True):
     arr = I18N[lang]['vacancy_forms' if long else 'vacancy_forms_short']
     return arr[idx]
 
+# --- Remote-only sources gating for e-mail ---
+REMOTE_OK_CATS = {
+    '💻 IT И ТЕХНОЛОГИИ',
+    '👔 ОФИС И УПРАВЛЕНИЕ',
+    '🔍 ДРУГОЕ',
+}
+REMOTE_OK_TITLES = {
+    'Переводчик украинского',
+    'Перекладач української',
+}
+
+def _remote_allowed_email(preferences: dict, specific_jobs_map: dict) -> bool:
+    selected = set(preferences.get('selected_jobs') or [])
+    if not selected:
+        return False
+    sj = specific_jobs_map or {}
+    for cat, ru_map in sj.items():
+        if isinstance(ru_map, dict) and cat in REMOTE_OK_CATS:
+            if any(ru in ru_map for ru in selected):
+                return True
+    if any(t in selected for t in REMOTE_OK_TITLES):
+        return True
+    return False
 
 # -----------------------------------------------------------------------------
 # Поиск/агрегация (ваш код — только слегка отрефакторен под lang)
@@ -318,13 +341,19 @@ def _search_all_sources(main_aggregator, additional_aggregators, preferences):
             print(f"   ⚠️ Adzuna ошибка: {e}")
 
     # 2) Дополнительные агрегаторы
+    use_remote = _remote_allowed_email(preferences, getattr(main_aggregator, 'specific_jobs', {}))
     for source_name, aggregator in additional_aggregators.items():
+        # Скипаем remote-only источники при не-удалённых профессиях
+        if source_name in ('remotive', 'jobicy') and not use_remote:
+            print(f"   ⛔ Пропуск {source_name}: выбранные профессии не допускают удалёнку")
+            continue
         try:
             additional_jobs = aggregator.search_jobs(preferences)
             all_found_jobs.extend(additional_jobs)
             print(f"   ✅ {source_name.title()}: найдено {len(additional_jobs)} вакансий")
         except Exception as e:
             print(f"   ⚠️ {source_name.title()} ошибка: {e}")
+
 
     # 3) Дедупликация по apply_url
     seen_urls = set()
@@ -648,6 +677,10 @@ def generate_email_html(subscriber, jobs, preferences, lang='ru'):
             title = getattr(job, 'title', '')
             company = getattr(job, 'company', '')
             location = getattr(job, 'location', '')
+            # Нормализуем/локализуем "Удаленно"
+            if location and ('Удаленно' in location or location.strip().lower().startswith('remote')):
+                location = f"Remote ({_front_tr(lang, 'Удаленно')})"
+
             apply_url = getattr(job, 'apply_url', '')
             salary = getattr(job, 'salary', None)
             refugee = getattr(job, 'refugee_friendly', False)

@@ -194,6 +194,38 @@ if ADDITIONAL_SOURCES_AVAILABLE and aggregator:
 else:
     app.logger.info("ℹ️ Дополнительные источники отключены или основной агрегатор не инициализирован")
 
+# --- Remote-only sources gating (Jobicy/Remotive) ---
+# Разрешаем remote только для этих категорий/позиций:
+REMOTE_OK_CATS = {
+    '💻 IT И ТЕХНОЛОГИИ',
+    '👔 ОФИС И УПРАВЛЕНИЕ',
+    '🔍 ДРУГОЕ',
+}
+# Точные позиции, которые тоже допускают remote (рус/укр)
+REMOTE_OK_TITLES = {
+    'Переводчик украинского',
+    'Перекладач української',
+}
+
+def _remote_allowed(preferences: dict) -> bool:
+    """
+    Возвращает True, если ИЗ ВЫБРАННЫХ ПРОФЕССИЙ есть хотя бы одна,
+    которая допускает remote (по нашим правилам выше).
+    """
+    selected = set(preferences.get('selected_jobs') or [])
+    if not selected:
+        return False
+    # Категория -> {ru_title: [...keywords...]}
+    sj = getattr(aggregator, 'specific_jobs', {}) or {}
+    for cat, ru_map in sj.items():
+        if isinstance(ru_map, dict) and cat in REMOTE_OK_CATS:
+            # попадает ли выбранная профессия в разрешённую категорию
+            if any(ru in ru_map for ru in selected):
+                return True
+    # точечные допуски по названию
+    if any(t in selected for t in REMOTE_OK_TITLES):
+        return True
+    return False
 
 
 # В файле app.py найдите функцию index() и замените её на эту версию:
@@ -276,7 +308,12 @@ def search_jobs():
        
        # Доп. источники (если подключены)
        if additional_aggregators:
+           use_remote = _remote_allowed(preferences)
            for source_name, source_aggregator in additional_aggregators.items():
+               # Блокируем remote-only источники, если выбранные профессии не допускают удалёнку
+               if source_name in ('remotive', 'jobicy') and not use_remote:
+                   app.logger.info(f"⛔ Пропускаем {source_name}: выбранные профессии не допускают удалёнку")
+                   continue
                try:
                    app.logger.info(f"🔄 Дополнительный поиск через {source_name}")
                    additional_jobs = source_aggregator.search_jobs(preferences)
@@ -396,6 +433,13 @@ def _search_worker(sid: str):
     prefs = st['preferences']
 
     for name, src in _sources_iter():
+        # Скипаем remote-only источники, если профессии не допускают удалёнку
+        if name in ('Remotive', 'Jobicy') and not _remote_allowed(prefs):
+            st['sites_status'][name] = 'skipped'
+            st['completed_sources'].append(name)
+            app.logger.info(f"⛔ Пропускаем {name}: выбранные профессии не допускают удалёнку")
+            continue
+
         if st.get('cancel'):
             break
 
