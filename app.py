@@ -868,7 +868,8 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
+            <script defer src="/static/js/localization.js"></script>
+                        
             <title>Ошибка отписки</title>
             <style>
                 body { font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa; }
@@ -905,7 +906,8 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
+            <script defer src="/static/js/localization.js"></script>
+                       
             <title>Отписка выполнена</title>
             <style>
                 body { 
@@ -991,9 +993,10 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang') or request.args.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
+            <script defer src="/static/js/localization.js"></script>
+                        
             <title>Уже отписан</title>
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+            <script defer src="/static/js/localization.js"></script>
                           
             <style>
                 body { 
@@ -1044,7 +1047,7 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
+            <script defer src="/static/js/localization.js"></script>                          
             <title>Подписка не найдена</title>
             <style>
                 body { 
@@ -1137,7 +1140,7 @@ def admin_subscribers():
     <head>
         <title>Админка подписчиков</title>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <script defer src="/static/js/localization.js"></script>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -1348,7 +1351,7 @@ def admin_stats():
     <head>
         <title>Статистика GlobalJobHunter</title>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <script defer src="/static/js/localization.js"></script>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; }}
             .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
@@ -1532,7 +1535,7 @@ def health_check():
         <html lang="{lang}">
         <head>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+            <script defer src="/static/js/localization.js"></script>
             <style>
                 body {{ font-family: -apple-system, Segoe UI, Roboto, Arial; margin:0; padding:16px; background:#f7f7f9; }}
                 .container {{ max-width: 720px; margin:0 auto; }}
@@ -1751,7 +1754,7 @@ def admin_login_page():
     <head>
         <title>Вход в админку</title>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <script defer src="/static/js/localization.js"></script>
         <style>
             body {{ font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                    height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }}
@@ -1855,7 +1858,7 @@ def admin_test_email():
         <head>
             <title>Тестовая отправка</title>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+            <script defer src="/static/js/localization.js"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
@@ -1965,7 +1968,7 @@ def admin_dashboard():
     <head>
         <title>Админка GlobalJobHunter</title>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <script defer src="/static/js/localization.js"></script>
         <style>
             body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2143,7 +2146,7 @@ def admin_cache_page():
     <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <script defer src="/static/js/localization.js"></script>
         <title>Управление кэшем — Admin</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
@@ -2329,7 +2332,7 @@ def admin_subscribers_secure():
         <head>
             <title>Подписчики - Админка</title>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+            <script defer src="/static/js/localization.js"></script>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
                 .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2449,7 +2452,7 @@ def admin_stats_secure():
     <head>
         <title>Статистика - Админка</title>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <script defer src="/static/js/localization.js"></script>
         <style>
             body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2827,7 +2830,7 @@ def upload_backup():
         <head>
             <title>Загрузка бекапа</title>
             <meta charset="utf-8">
-            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+            <script defer src="/static/js/localization.js"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
