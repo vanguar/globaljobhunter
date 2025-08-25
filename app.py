@@ -868,8 +868,7 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
-                        
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Ошибка отписки</title>
             <style>
                 body { font-family: Arial; padding: 40px; text-align: center; background: #f8f9fa; }
@@ -906,8 +905,7 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
-                       
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Отписка выполнена</title>
             <style>
                 body { 
@@ -993,10 +991,9 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang') or request.args.get('lang','ru') }}">
         <head>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
-                        
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Уже отписан</title>
-            <script defer src="/static/js/localization.js"></script>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
                           
             <style>
                 body { 
@@ -1047,7 +1044,7 @@ def unsubscribe():
         <html lang="{{ request.cookies.get('lang','ru') }}"
         <head>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>                          
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>                          
             <title>Подписка не найдена</title>
             <style>
                 body { 
@@ -1117,9 +1114,7 @@ def cleanup_cache():
 @app.route('/admin/subscribers')
 def admin_subscribers():
     """Расширенная админка для просмотра подписчиков"""
-    admin_key = request.args.get('key') or request.form.get('key')
-    if not session.get('admin_logged_in') and admin_key != os.getenv('ADMIN_KEY'):
-        return "Access Denied", 403
+    admin_key = request.args.get('key')
     if admin_key != os.getenv('ADMIN_KEY'):
         return "Access Denied", 403
     
@@ -1140,7 +1135,7 @@ def admin_subscribers():
     <head>
         <title>Админка подписчиков</title>
         <meta charset="utf-8">
-        <script defer src="/static/js/localization.js"></script>
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -1201,7 +1196,6 @@ def admin_subscribers():
                     <th>Город</th>
                     <th>Частота</th>
                     <th>Дата регистрации</th>
-                    <th>Действия</th>
                 </tr>
     """
     
@@ -1229,12 +1223,6 @@ def admin_subscribers():
                 <td>{city}</td>
                 <td>{frequency}</td>
                 <td>{created}</td>
-                <td>
-                    <form method="post" action="/admin/subscribers/delete?key={admin_key}" onsubmit="return confirm('Удалить {sub.email}?');" style="margin:0;">
-                        <input type="hidden" name="id" value="{sub.id}">
-                        <button type="submit" style="background:#dc3545;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Удалить</button>
-                    </form>
-                </td>
             </tr>
         """
     
@@ -1248,7 +1236,6 @@ def admin_subscribers():
                     <th>Email</th>
                     <th>Статус</th>
                     <th>Дата</th>
-                    <th>Действия</th>
                 </tr>
     """
     
@@ -1260,12 +1247,6 @@ def admin_subscribers():
                 <td>{log.email}</td>
                 <td>{status_icon} {log.status}</td>
                 <td>{sent_time}</td>
-                <td>
-                    <form method="post" action="/admin/email-logs/delete?key={admin_key}" onsubmit="return confirm('Удалить лог #{log.id}?');" style="margin:0;">
-                        <input type="hidden" name="id" value="{log.id}">
-                        <button type="submit" style="background:#ffc107;color:#000;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Удалить</button>
-                    </form>
-                </td>
             </tr>
         """
     
@@ -1278,64 +1259,7 @@ def admin_subscribers():
     </html>
     """
     
-    return html 
-
-# --- ADMIN: удалить подписчика ---
-@app.route('/admin/subscribers/delete', methods=['POST'])
-def admin_delete_subscriber():
-    admin_key = request.args.get('key') or request.form.get('key')
-    if admin_key != os.getenv('ADMIN_KEY'):
-        return "Access Denied", 403
-
-    sid = request.form.get('id', type=int)
-    if not sid:
-        return "Missing id", 400
-
-    sub = Subscriber.query.get(sid)
-    if not sub:
-        return "Not found", 404
-
-    # Отвязываем логи, чтобы FK не мешал
-    EmailLog.query.filter_by(subscriber_id=sub.id).update({'subscriber_id': None})
-    db.session.delete(sub)
-    db.session.commit()
-    return redirect(url_for('admin_subscribers', key=admin_key))
-
-
-# --- ADMIN: удалить конкретный лог письма ---
-@app.route('/admin/email-logs/delete', methods=['POST'])
-def admin_delete_email_log():
-    admin_key = request.args.get('key') or request.form.get('key')
-    if admin_key != os.getenv('ADMIN_KEY'):
-        return "Access Denied", 403
-
-    lid = request.form.get('id', type=int)
-    if not lid:
-        return "Missing id", 400
-
-    log = EmailLog.query.get(lid)
-    if not log:
-        return "Not found", 404
-
-    db.session.delete(log)
-    db.session.commit()
-    return redirect(url_for('admin_subscribers', key=admin_key))
-
-
-# --- ADMIN: очистить старые логи писем ---
-@app.route('/admin/email-logs/cleanup', methods=['POST'])
-def admin_cleanup_email_logs():
-    admin_key = request.args.get('key') or request.form.get('key')
-    if admin_key != os.getenv('ADMIN_KEY'):
-        return "Access Denied", 403
-
-    days = int(request.form.get('older_than', 30))
-    cutoff = datetime.utcnow() - timedelta(days=days)
-    # Удаляем пачкой, без загрузки в память
-    deleted = EmailLog.query.filter(EmailLog.sent_at < cutoff).delete(synchronize_session=False)
-    db.session.commit()
-    return redirect(url_for('admin_subscribers', key=admin_key))
-
+    return html  
 
 @app.route('/admin/stats')
 def admin_stats():
@@ -1351,7 +1275,7 @@ def admin_stats():
     <head>
         <title>Статистика GlobalJobHunter</title>
         <meta charset="utf-8">
-        <script defer src="/static/js/localization.js"></script>
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; }}
             .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
@@ -1535,7 +1459,7 @@ def health_check():
         <html lang="{lang}">
         <head>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body {{ font-family: -apple-system, Segoe UI, Roboto, Arial; margin:0; padding:16px; background:#f7f7f9; }}
                 .container {{ max-width: 720px; margin:0 auto; }}
@@ -1754,7 +1678,7 @@ def admin_login_page():
     <head>
         <title>Вход в админку</title>
         <meta charset="utf-8">
-        <script defer src="/static/js/localization.js"></script>
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                    height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }}
@@ -1858,7 +1782,7 @@ def admin_test_email():
         <head>
             <title>Тестовая отправка</title>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
@@ -1968,7 +1892,7 @@ def admin_dashboard():
     <head>
         <title>Админка GlobalJobHunter</title>
         <meta charset="utf-8">
-        <script defer src="/static/js/localization.js"></script>
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2146,7 +2070,7 @@ def admin_cache_page():
     <html lang="{{ request.cookies.get('lang','ru') }}"
     <head>
         <meta charset="utf-8">
-        <script defer src="/static/js/localization.js"></script>
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <title>Управление кэшем — Admin</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
@@ -2225,9 +2149,6 @@ def admin_logout():
 
 @app.route('/admin/subscribers_secure')
 def admin_subscribers_secure():
-    admin_key = request.args.get('key') or request.form.get('key')
-    if admin_key != os.getenv('ADMIN_KEY'):
-        return "Access Denied", 403
     """Защищенная страница подписчиков"""
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login_page'))
@@ -2332,7 +2253,7 @@ def admin_subscribers_secure():
         <head>
             <title>Подписчики - Админка</title>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }}
                 .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2392,18 +2313,9 @@ def admin_subscribers_secure():
                         <th>Страны</th>
                         <th>Город</th>
                         <th>Дата регистрации</th>
-                        <th>Действия</th>
                     </tr>
                     {subscribers_rows}
                 </table>
-
-                <form method="post" action="/admin/email-logs/cleanup?key={admin_key}" style="margin:10px 0 0 0; display:flex; gap:10px; align-items:center;">
-                <span>Очистить логи старше</span>
-                <input type="number" name="older_than" value="30" min="1" style="width:70px;">
-                <span>дней</span>
-                <button type="submit" class="cleanup-btn">Очистить</button>
-                </form>
-
                 
                 <h2>📨 Последние email логи</h2>
                 <table>
@@ -2411,7 +2323,6 @@ def admin_subscribers_secure():
                         <th>Email</th>
                         <th>Статус</th>
                         <th>Дата</th>
-                        <th>Действия</th>
                     </tr>
                     {email_logs_rows}
                 </table>
@@ -2452,7 +2363,7 @@ def admin_stats_secure():
     <head>
         <title>Статистика - Админка</title>
         <meta charset="utf-8">
-        <script defer src="/static/js/localization.js"></script>
+        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
         <style>
             body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
             .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -2830,7 +2741,7 @@ def upload_backup():
         <head>
             <title>Загрузка бекапа</title>
             <meta charset="utf-8">
-            <script defer src="/static/js/localization.js"></script>
+            <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
             <style>
                 body { font-family: Arial; background: #f8f9fa; padding: 20px; }
                 .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
