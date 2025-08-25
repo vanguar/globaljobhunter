@@ -2220,6 +2220,9 @@ def admin_logout():
 
 @app.route('/admin/subscribers_secure')
 def admin_subscribers_secure():
+    admin_key = request.args.get('key') or request.form.get('key')
+    if admin_key != os.getenv('ADMIN_KEY'):
+        return "Access Denied", 403
     """Защищенная страница подписчиков"""
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login_page'))
