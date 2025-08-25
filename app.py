@@ -1196,6 +1196,7 @@ def admin_subscribers():
                     <th>Город</th>
                     <th>Частота</th>
                     <th>Дата регистрации</th>
+                    <th>Действия</th>
                 </tr>
     """
     
@@ -1223,6 +1224,12 @@ def admin_subscribers():
                 <td>{city}</td>
                 <td>{frequency}</td>
                 <td>{created}</td>
+                <td>
+                    <form method="post" action="/admin/subscribers/delete?key={admin_key}" onsubmit="return confirm('Удалить {sub.email}?');" style="margin:0;">
+                        <input type="hidden" name="id" value="{sub.id}">
+                        <button type="submit" style="background:#dc3545;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Удалить</button>
+                    </form>
+                </td>
             </tr>
         """
     
@@ -1236,6 +1243,7 @@ def admin_subscribers():
                     <th>Email</th>
                     <th>Статус</th>
                     <th>Дата</th>
+                    <th>Действия</th>
                 </tr>
     """
     
@@ -1247,6 +1255,12 @@ def admin_subscribers():
                 <td>{log.email}</td>
                 <td>{status_icon} {log.status}</td>
                 <td>{sent_time}</td>
+                <td>
+                    <form method="post" action="/admin/email-logs/delete?key={admin_key}" onsubmit="return confirm('Удалить лог #{log.id}?');" style="margin:0;">
+                        <input type="hidden" name="id" value="{log.id}">
+                        <button type="submit" style="background:#ffc107;color:#000;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Удалить</button>
+                    </form>
+                </td>
             </tr>
         """
     
@@ -1259,7 +1273,64 @@ def admin_subscribers():
     </html>
     """
     
-    return html  
+    return html 
+
+# --- ADMIN: удалить подписчика ---
+@app.route('/admin/subscribers/delete', methods=['POST'])
+def admin_delete_subscriber():
+    admin_key = request.args.get('key') or request.form.get('key')
+    if admin_key != os.getenv('ADMIN_KEY'):
+        return "Access Denied", 403
+
+    sid = request.form.get('id', type=int)
+    if not sid:
+        return "Missing id", 400
+
+    sub = Subscriber.query.get(sid)
+    if not sub:
+        return "Not found", 404
+
+    # Отвязываем логи, чтобы FK не мешал
+    EmailLog.query.filter_by(subscriber_id=sub.id).update({'subscriber_id': None})
+    db.session.delete(sub)
+    db.session.commit()
+    return redirect(url_for('admin_subscribers', key=admin_key))
+
+
+# --- ADMIN: удалить конкретный лог письма ---
+@app.route('/admin/email-logs/delete', methods=['POST'])
+def admin_delete_email_log():
+    admin_key = request.args.get('key') or request.form.get('key')
+    if admin_key != os.getenv('ADMIN_KEY'):
+        return "Access Denied", 403
+
+    lid = request.form.get('id', type=int)
+    if not lid:
+        return "Missing id", 400
+
+    log = EmailLog.query.get(lid)
+    if not log:
+        return "Not found", 404
+
+    db.session.delete(log)
+    db.session.commit()
+    return redirect(url_for('admin_subscribers', key=admin_key))
+
+
+# --- ADMIN: очистить старые логи писем ---
+@app.route('/admin/email-logs/cleanup', methods=['POST'])
+def admin_cleanup_email_logs():
+    admin_key = request.args.get('key') or request.form.get('key')
+    if admin_key != os.getenv('ADMIN_KEY'):
+        return "Access Denied", 403
+
+    days = int(request.form.get('older_than', 30))
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    # Удаляем пачкой, без загрузки в память
+    deleted = EmailLog.query.filter(EmailLog.sent_at < cutoff).delete(synchronize_session=False)
+    db.session.commit()
+    return redirect(url_for('admin_subscribers', key=admin_key))
+
 
 @app.route('/admin/stats')
 def admin_stats():
@@ -2313,9 +2384,18 @@ def admin_subscribers_secure():
                         <th>Страны</th>
                         <th>Город</th>
                         <th>Дата регистрации</th>
+                        <th>Действия</th>
                     </tr>
                     {subscribers_rows}
                 </table>
+
+                <form method="post" action="/admin/email-logs/cleanup?key={admin_key}" style="margin:10px 0 0 0; display:flex; gap:10px; align-items:center;">
+                <span>Очистить логи старше</span>
+                <input type="number" name="older_than" value="30" min="1" style="width:70px;">
+                <span>дней</span>
+                <button type="submit" class="cleanup-btn">Очистить</button>
+                </form>
+
                 
                 <h2>📨 Последние email логи</h2>
                 <table>
@@ -2323,6 +2403,7 @@ def admin_subscribers_secure():
                         <th>Email</th>
                         <th>Статус</th>
                         <th>Дата</th>
+                        <th>Действия</th>
                     </tr>
                     {email_logs_rows}
                 </table>
