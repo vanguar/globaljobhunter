@@ -4,7 +4,13 @@ GlobalJobHunter Web Interface v3.3 - С КЕШИРОВАНИЕМ
 Интеграция с умным кешированием и мониторингом
 """
 
-import os
+import os, sys
+os.environ.setdefault('PYTHONUNBUFFERED', '1')
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+except Exception:
+    pass
 import json
 import time
 from datetime import datetime
