@@ -50,6 +50,11 @@ from dataclasses import asdict
 from pathlib import Path
 import time
 
+from flask import Flask, render_template
+
+app = Flask(__name__)
+
+
 # в app.py (не ломая ничего существующего)
 from flask import send_from_directory
 
