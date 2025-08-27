@@ -1,181 +1,228 @@
-// static/tg/webapp_tg.js
+// /static/tg/webapp_tg.js
 (function(){
   const tg = window.Telegram?.WebApp;
-  const API_BASE = location.origin; // https://globaljobhunter.vip
 
-  // НАСТРОЙКА
-  const FULL_SITE_URL = "https://globaljobhunter.vip";                     // ссылка на полный сайт
-  const REMOTIVE_REF_URL = "https://remotive.com/accelerator?ref=YOUR_ID"; // ← подставь свою рефку
-  const SHOW_REMOTIVE = true;           // включить/выключить баннер
-  const REMOTIVE_AFTER_N_JOBS = 8;      // показать баннер после N карточек
+  // --- язык из ?lang=... (бот его проставляет) ---
+  try {
+    const p = new URLSearchParams(location.search);
+    const L = p.get("lang");
+    if (L) localStorage.setItem("gjh_lang", L);
+  } catch (_) {}
+
+  // --- настройки ---
+  const REMOTIVE_URL = "https://remotive.com/accelerator?ref=YOUR_ID"; // подставь рефку
+  const SHOW_REMOTIVE = true;
+  const REMOTIVE_AFTER_N_SECONDS = 20; // показ через N сек после старта
 
   let currentSearchId = null;
   let pollTimer = null;
-  let jobsRendered = 0;
-  let bannerShown = false;
+  let bannerTimer = null;
 
-  document.addEventListener("DOMContentLoaded", () => {
-    const btnSearch = document.getElementById('btnSearch');
-    const btnStop = document.getElementById('btnStop');
-    const fullSiteLink = document.getElementById('full-site-link');
-    const remLink = document.getElementById('remotive-link');
+  // --- утилиты ---
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-    if (fullSiteLink) fullSiteLink.href = FULL_SITE_URL;
-    if (remLink) remLink.href = REMOTIVE_REF_URL;
+  function setStatus(text){
+    const el = $("#status");
+    if (el) el.textContent = text;
+  }
 
-    btnSearch?.addEventListener('click', startSearch);
-    btnStop?.addEventListener('click', stopSearch);
+  function disableUI(searching){
+    const btnSearch = $("#btnSearch");
+    const btnStop = $("#btnStop");
+    if (btnSearch) btnSearch.disabled = searching;
+    if (btnStop) btnStop.disabled = !searching;
+  }
 
-    if (tg) {
-      tg.BackButton.show();
-      tg.BackButton.onClick(() => tg.close());
+  function getSelectedJobs(){
+    return $$(".job-check:checked").map(i => i.value);
+  }
+  function getSelectedCountries(){
+    return $$(".country-check:checked").map(i => i.value);
+  }
+
+  function renderProgress(data){
+    const box = $("#progress");
+    if (!box) return;
+
+    const statuses = data?.sites_status || {};
+    const items = Object.entries(statuses).map(([name, st]) => {
+      let cls = "status-pending";
+      if (st === "active") cls = "status-active";
+      else if (st === "done") cls = "status-done";
+      else if (st === "error") cls = "status-error";
+      return `<div class="d-flex justify-content-between border rounded p-2 mb-1">
+        <div>${name}</div>
+        <div class="status-pill ${cls}">${st}</div>
+      </div>`;
+    }).join("");
+
+    const jobsCount = data?.jobs_found ?? 0;
+    box.innerHTML = `
+      <div class="muted">Найдено вакансий: <b>${jobsCount}</b></div>
+      ${items || '<div class="muted">Источники в очереди…</div>'}
+    `;
+  }
+
+  function showOpenResults(url){
+    const t = $("#open-results");
+    if (!t) return;
+    t.innerHTML = `
+      <a class="btn btn-success w-100" href="${url}" target="_blank" rel="noopener">Открыть результаты (полная версия)</a>
+      <div class="muted mt-1">В полной версии — карточки, фильтры, сортировка и подписка на email.</div>
+    `;
+    // В Telegram можно открыть во внешнем браузере:
+    try { if (tg?.openLink) tg.openLink(url); } catch(_) {}
+  }
+
+  function showRemotiveLater(){
+    if (!SHOW_REMOTIVE) return;
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => {
+      const b = $("#remotive-banner");
+      const a = $("#remotive-link");
+      if (b && a) {
+        a.href = REMOTIVE_URL;
+        b.style.display = "block";
+      }
+    }, REMOTIVE_AFTER_N_SECONDS * 1000);
+  }
+
+  // --- действия ---
+  async function startSearch(ev){
+    if (ev) ev.preventDefault();
+
+    const jobs = getSelectedJobs();
+    const countries = getSelectedCountries();
+    const is_refugee = $("#is_refugee")?.checked || false;
+
+    if (!jobs.length) {
+      setStatus("Выберите хотя бы одну профессию.");
+      return;
     }
-  });
-
-  function setStatus(t){ const el = document.getElementById('status'); if (el) el.textContent = t || ""; }
-  function t(key, fallback){
-    const map = {
-      apply: { en: "Apply", uk: "Відгукнутись", ru: "Отклик" },
-      searching: { en: "Starting search…", uk: "Починаємо пошук…", ru: "Стартуем поиск…" },
-      in_progress: { en: "Searching…", uk: "Йде пошук…", ru: "Идёт поиск…" },
-      start_error: { en: "Failed to start search", uk: "Не вдалося почати пошук", ru: "Ошибка запуска поиска" },
-      network_error: { en: "Network error, try again", uk: "Помилка мережі, спробуйте ще", ru: "Сетевая ошибка, попробуйте снова" },
-      done: { en: "Done", uk: "Готово", ru: "Готово" },
-      stopped: { en: "Stopped", uk: "Зупинено", ru: "Остановлено" }
-    };
-    const lang = localStorage.getItem("gjh_lang") || "en";
-    return (map[key] && map[key][lang]) || fallback || key;
-  }
-  function escapeHTML(s){
-    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-
-  function addJobs(jobs){
-    const wrap = document.getElementById('list');
-    if (!wrap) return;
-    for(const j of (jobs || [])){
-      const card = document.createElement('div');
-      card.className = 'job';
-      card.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="fw-semibold">${escapeHTML(j.title || "")}</div>
-            <div class="muted">${escapeHTML(j.company || "")} · ${escapeHTML(j.location || "")}</div>
-          </div>
-          <a class="btn btn-sm btn-outline-primary" href="${j.apply_url}" target="_blank" rel="noopener">${t('apply','Apply')}</a>
-        </div>
-        <div class="muted mt-1">${escapeHTML(j.source || "")}${j.posted_date ? " · " + escapeHTML(j.posted_date) : ""}</div>
-      `;
-      wrap.appendChild(card);
-      jobsRendered++;
-      maybeShowRemotiveBanner();
+    if (!countries.length) {
+      setStatus("Выберите хотя бы одну страну.");
+      return;
     }
-  }
 
-  function maybeShowRemotiveBanner(){
-    if (!SHOW_REMOTIVE || bannerShown) return;
-    if (jobsRendered >= REMOTIVE_AFTER_N_JOBS) {
-      const banner = document.getElementById('remotive-banner');
-      if (banner) { banner.style.display = "block"; bannerShown = true; }
-    }
-  }
-  function showRemotiveIfNotShown(){
-    if (!SHOW_REMOTIVE || bannerShown) return;
-    const banner = document.getElementById('remotive-banner');
-    if (banner) { banner.style.display = "block"; bannerShown = true; }
-  }
-
-  async function startSearch(){
-    const qEl = document.getElementById('q');
-    const countryEl = document.getElementById('country');
-    const btnSearch = document.getElementById('btnSearch');
-    const btnStop = document.getElementById('btnStop');
-    const listEl = document.getElementById('list');
-
-    jobsRendered = 0; bannerShown = false;
-    if (listEl) listEl.innerHTML = "";
-    setStatus(t('searching','Starting search…'));
-    if (btnSearch) btnSearch.disabled = true;
-    if (btnStop) btnStop.disabled = false;
+    disableUI(true);
+    setStatus("Запускаем поиск…");
+    $("#open-results").innerHTML = "";
+    $("#progress").innerHTML = "";
 
     const payload = {
-      country: countryEl?.value || null,
-      query: (qEl?.value || "").trim() || null
-      // при необходимости добавь поля под твой бэк (selected_jobs, languages…)
+      is_refugee: is_refugee,
+      selected_jobs: jobs,
+      countries: countries,
+      city: ""
     };
 
-    try{
-      const r = await fetch(`${API_BASE}/search/start`, {
+    let resp, data;
+    try {
+      resp = await fetch("/search/start", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-TG-InitData": tg?.initData || ""
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      const data = await r.json();
-      if(!r.ok || !data.search_id){
-        setStatus(t('start_error','Failed to start search'));
-        if (btnSearch) btnSearch.disabled = false;
-        if (btnStop) btnStop.disabled = true;
-        return;
-      }
-      currentSearchId = data.search_id;
-      setStatus(t('in_progress','Searching…'));
-      poll();
-    }catch(e){
-      setStatus(t('network_error','Network error, try again'));
-      if (btnSearch) btnSearch.disabled = false;
-      if (btnStop) btnStop.disabled = true;
+      data = await resp.json();
+    } catch (e) {
+      setStatus("Сеть недоступна. Повторите позже.");
+      disableUI(false);
+      return;
     }
+
+    if (!resp.ok || !data?.ok) {
+      setStatus(data?.error || "Ошибка старта поиска.");
+      disableUI(false);
+      return;
+    }
+
+    currentSearchId = data.search_id;
+    setStatus("Ищем…");
+    showRemotiveLater();
+    pollProgress();
   }
 
-  async function poll(){
-    if(!currentSearchId) return;
-    try{
-      const r = await fetch(`${API_BASE}/search/progress?id=${encodeURIComponent(currentSearchId)}`, {
-        headers: { "X-TG-InitData": tg?.initData || "" }
-      });
-      const data = await r.json();
-
-      if(Array.isArray(data.new_jobs) && data.new_jobs.length){
-        addJobs(data.new_jobs);
-      }
-      if(data.status === "done"){
-        setStatus(t('done','Done'));
-        finalize();
-        showRemotiveIfNotShown(); // если результатов мало — показать баннер в конце
-        return;
-      }
-      if(currentSearchId) pollTimer = setTimeout(poll, 1200);
-    }catch(e){
-      // мягкий ретрай
-      pollTimer = setTimeout(poll, 2000);
+  async function pollProgress(){
+    if (!currentSearchId) return;
+    let data;
+    try {
+      const resp = await fetch(`/search/progress?id=${encodeURIComponent(currentSearchId)}`);
+      data = await resp.json();
+    } catch (e) {
+      setStatus("Ошибка сети при получении прогресса.");
+      finalize();
+      return;
     }
+
+    if (data?.error) {
+      setStatus(data.error);
+      finalize();
+      return;
+    }
+
+    renderProgress(data);
+
+    if (data?.redirect_url) {
+      setStatus("Готово. Открываем результаты…");
+      showOpenResults(data.redirect_url);
+      finalize();
+      return;
+    }
+
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(pollProgress, 1200);
   }
 
   async function stopSearch(){
-    if(!currentSearchId) return finalize(true);
-    try{
-      await fetch(`${API_BASE}/search/stop`, {
+    if (!currentSearchId) return;
+    disableUI(false);
+    setStatus("Останавливаем поиск…");
+
+    let data;
+    try {
+      const resp = await fetch("/search/stop", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-TG-InitData": tg?.initData || ""
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ search_id: currentSearchId })
       });
-    }catch(_) {}
-    setStatus(t('stopped','Stopped'));
+      data = await resp.json();
+    } catch (e) {
+      setStatus("Ошибка сети при остановке.");
+      finalize(true);
+      return;
+    }
+
+    if (data?.redirect_url) {
+      showOpenResults(data.redirect_url);
+    }
+    setStatus("Остановлено.");
     finalize(true);
   }
 
-  function finalize(resetId=false){
-    const btnSearch = document.getElementById('btnSearch');
-    const btnStop = document.getElementById('btnStop');
-    if (btnSearch) btnSearch.disabled = false;
-    if (btnStop) btnStop.disabled = true;
-    if (resetId) currentSearchId = null;
+  function finalize(reset=false){
+    disableUI(false);
     clearTimeout(pollTimer);
+    clearTimeout(bannerTimer);
+    if (reset) currentSearchId = null;
   }
+
+  // --- мини-переключатель языка (для самой WebApp) ---
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-lang]");
+    if (!btn) return;
+    const lang = btn.getAttribute("data-lang");
+    try { localStorage.setItem("gjh_lang", lang); } catch(_) {}
+    // простейший визуальный отклик
+    btn.classList.add("btn-secondary");
+    setTimeout(() => location.href = `?lang=${lang}`, 150);
+  });
+
+  // --- события ---
+  document.addEventListener("DOMContentLoaded", () => {
+    $("#btnSearch")?.addEventListener("click", startSearch);
+    $("#btnStop")?.addEventListener("click", stopSearch);
+    // инициализация
+    setStatus("Готово к поиску");
+  });
 })();
