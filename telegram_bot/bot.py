@@ -17,7 +17,8 @@ logging.basicConfig(
 log = logging.getLogger("gjh-bot")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBAPP_BASE = os.getenv("WEBAPP_URL", "https://globaljobhunter.vip/static/tg/index.html")
+WEBAPP_BASE = os.getenv("WEBAPP_URL", "https://globaljobhunter.vip/static/tg/webapp.html")
+
 if not BOT_TOKEN:
     log.error("BOT_TOKEN пуст. Установи переменную окружения BOT_TOKEN")
     raise SystemExit(1)
