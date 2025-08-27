@@ -7,6 +7,13 @@ from threading import Thread
 import time
 import json
 
+if os.getenv("FORCE_SMTP_IPV4") == "1":
+    import socket
+    _old_getaddrinfo = socket.getaddrinfo
+    def _ga(host, port, family=0, type=0, proto=0, flags=0):
+        return _old_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+    socket.getaddrinfo = _ga
+
 _UI_DICT_CACHE = {}
 
 def _front_tr(lang: str, s: str) -> str:
@@ -24,6 +31,8 @@ def _front_tr(lang: str, s: str) -> str:
         return d.get(s, s)
     except Exception:
         return s
+    
+
 
 # -----------------------------------------------------------------------------
 # Server-side i18n для писем (минимальный словарь; расширяйте по надобности)
