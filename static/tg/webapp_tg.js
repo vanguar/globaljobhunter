@@ -65,15 +65,25 @@
   }
 
   function showOpenResults(url){
-    const t = $("#open-results");
-    if (!t) return;
+  const t = document.querySelector("#open-results");
+  if (t) {
     t.innerHTML = `
-      <a class="btn btn-success w-100" href="${url}" target="_blank" rel="noopener">Открыть результаты (полная версия)</a>
-      <div class="muted mt-1">В полной версии — карточки, фильтры, сортировка и подписка на email.</div>
+      <a class="btn btn-success w-100" id="open-inplace" href="${url}">Открыть результаты</a>
+      <div class="muted mt-1">Совет: полнофункциональная версия с карточками, фильтрами, сортировкой и e-mail — на сайте.</div>
     `;
-    // В Telegram можно открыть во внешнем браузере:
-    try { if (tg?.openLink) tg.openLink(url); } catch(_) {}
+    // внутри Telegram-окна — переходим по ссылке, НЕ открываем внешний браузер
+    const link = document.getElementById("open-inplace");
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      // просто меняем location внутри той же webview — сессия сохранится
+      window.location.href = url; 
+    });
   }
+
+  // НИЧЕГО НЕ ДЕЛАТЬ: НЕ вызывать tg.openLink(url) — он откроет внешний браузер и потеряет куку
+  // try { if (tg?.openLink) tg.openLink(url); } catch(_) {}
+}
+
 
   function showRemotiveLater(){
     if (!SHOW_REMOTIVE) return;

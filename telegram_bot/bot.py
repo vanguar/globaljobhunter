@@ -120,12 +120,17 @@ async def on_set_lang(cq: CallbackQuery):
     USER_LANG[cq.from_user.id] = lang
     log.info("Set lang for id=%s -> %s", cq.from_user.id, lang)
 
-    # обновим клавиатуру WebApp под новый язык
+    # уведомим
     await cq.message.answer(T["lang_saved"][lang])
+
+    # новая WebApp-кнопка с языком
     await cq.message.answer(pick(lang, "start"), reply_markup=open_button_kb(lang))
-    # добросим кнопку "Сменить язык"
-    await cq.message.answer(" ", reply_markup=lang_menu_kb(lang))
+
+    # показать меню «Сменить язык» (НЕ ПУСТОЙ ТЕКСТ!)
+    await cq.message.answer(pick(lang, "choose"), reply_markup=lang_menu_kb(lang))
+
     await cq.answer()
+
 
 @dp.errors()
 async def on_error(event: types.ErrorEvent):
