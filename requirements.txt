@@ -25,3 +25,4 @@ Flask-Migrate==4.0.5
 psycopg2-binary>=2.9
 Flask-Migrate>=4.0   # (опционально, но очень рекомендую)
 python-dotenv>=1.0   # (если используешь .env локально)
+aiogram==3.10.0

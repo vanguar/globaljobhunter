@@ -1,0 +1,85 @@
+{% extends "layout_mini.html" %}
+{% block title %}GlobalJobHunter · Mini{% endblock %}
+
+{% block content %}
+  <!-- Brand header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="GlobalJobHunter" style="height:48px;width:auto;">
+    <div>
+      <div class="fw-bold" style="font-size:1.2rem;">GlobalJobHunter</div>
+      <div class="muted">Jobs across Europe</div>
+    </div>
+  </div>
+
+  <!-- Step 1: Language selector -->
+  <div id="lang-step">
+    <div class="fw-semibold mb-3">Choose your language</div>
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-sm btn-outline-primary lang-btn" data-lang="en">English</button>
+      <button class="btn btn-sm btn-outline-primary lang-btn" data-lang="uk">Українська</button>
+      <button class="btn btn-sm btn-outline-primary lang-btn" data-lang="ru">Русский</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Intro + search (hidden by default) -->
+  <div id="main-step" style="display:none;">
+    <div class="card-mini mb-3">
+      <div class="fw-semibold mb-1" id="intro-title">What is this?</div>
+      <div id="intro-text" class="muted">
+        GlobalJobHunter is a free meta-search for jobs. We aggregate vacancies from Adzuna, Careerjet, Jobicy and Remotive.  
+        No registration required — just search, view results in real time, and stop anytime.
+      </div>
+    </div>
+
+    <!-- Search UI -->
+    <h6 class="mb-2" id="search-title">Quick search</h6>
+    <div class="mb-3">
+      <label class="form-label" id="label-profession">Profession / keyword</label>
+      <input id="q" class="form-control" placeholder="python developer / driver / cook">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" id="label-country">Country</label>
+      <select id="country" class="form-select">
+        <option value="">{{ '-- any --' }}</option>
+        <option value="de">Germany</option>
+        <option value="pl">Poland</option>
+        <option value="cz">Czechia</option>
+        <option value="at">Austria</option>
+        <option value="nl">Netherlands</option>
+        <option value="es">Spain</option>
+        <option value="pt">Portugal</option>
+        <option value="it">Italy</option>
+        <option value="ro">Romania</option>
+      </select>
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+      <button id="btnSearch" class="btn btn-primary">Search</button>
+      <button id="btnStop" class="btn btn-outline-secondary" disabled>Stop</button>
+    </div>
+
+    <div id="status" class="muted mb-2"></div>
+    <div id="list"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tg_webapp.js') }}" defer></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const langStep = document.getElementById("lang-step");
+    const mainStep = document.getElementById("main-step");
+
+    document.querySelectorAll(".lang-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const lang = btn.dataset.lang;
+        // Можно здесь подключать словари en.json / uk.json / ru.json
+        // Пока просто переключаем шаг
+        langStep.style.display = "none";
+        mainStep.style.display = "block";
+      });
+    });
+  });
+</script>
+{% endblock %}

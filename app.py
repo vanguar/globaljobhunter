@@ -50,6 +50,14 @@ from dataclasses import asdict
 from pathlib import Path
 import time
 
+# в app.py (не ломая ничего существующего)
+from flask import send_from_directory
+
+@app.get("/tg")
+def tg_index_alias():
+    return send_from_directory("static/tg", "index.html")
+
+
 # Rate limiting
 RATE_LIMIT_FILE = "rate_limits.json"
 MAX_SEARCHES_PER_DAY = 5

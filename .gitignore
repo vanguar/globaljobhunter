@@ -84,3 +84,5 @@ testing/
 !static/
 !static/i18n/
 !static/i18n/*.json
+
+!static/tg/**
