@@ -376,6 +376,13 @@
 "странах": "countries",
 "Проверьте email для подтверждения.": "Check your email for confirmation.",
 "Подписка обновлена! Старые параметры заменены новыми. Проверьте email для подтверждения.": "Subscription updated! Your old settings have been replaced with new ones. Check your email for confirmation.",
-"Настройте ваши предпочтения для получения вакансій": "Налаштуйте ваші уподобання для отримання вакансій"
+"Настройте ваши предпочтения для получения вакансій": "Налаштуйте ваші уподобання для отримання вакансій",
+"brand_title": "GlobalJobHunter",
+"short_desc": "Specialized job search for Ukrainians. We remove obstacles so you can focus on what matters.",
+"search_placeholder": "For example: driver, developer",
+"search_btn": "🔎 Search jobs",
+"sources_label": "Sources:",
+"full_site_hint": "Need the full experience? Use the full web version:",
+"full_site_desc": "On the full site you can use advanced search steps, categories, country filters, city and email alerts."
      
 }
