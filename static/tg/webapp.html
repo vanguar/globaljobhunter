@@ -27,13 +27,19 @@
   <!-- Бренд + мини-переключатель языка для самой WebApp -->
   <div class="brand">
     <img src="/static/images/Logo.png" alt="GlobalJobHunter" />
-    <h4 class="m-0">GlobalJobHunter</h4>
+    <h4 class="m-0" data-i18n="brand_title">GlobalJobHunter</h4>
     <div class="ms-auto d-flex gap-1">
       <button class="btn btn-sm btn-outline-secondary" data-lang="en">EN</button>
       <button class="btn btn-sm btn-outline-secondary" data-lang="uk">UA</button>
       <button class="btn btn-sm btn-outline-secondary" data-lang="ru">RU</button>
     </div>
   </div>
+
+  <!-- Короткое описание (НОВЫЙ блок) -->
+<p class="lead mt-3" data-i18n="short_desc">
+  Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
+</p>
+
 
   <!-- Объяснение -->
   <div class="card p-3 mb-3">
@@ -131,6 +137,6 @@
     </div>
   </div>
   <script src="/static/tg/webapp_tg.js"></script>
-  <script src="/static/tg/webapp_tg.js"></script>
+  <script src="/static/tg/localization_tg.js"></script>
 </body>
 </html>
