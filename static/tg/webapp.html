@@ -62,7 +62,7 @@
 
       <!-- Небольшой набор профессий с галочками (значения — RU-названия из твоих мапов) -->
       <div class="col-12">
-        <div class="fw-semibold mb-1">Профессии (выберите хотя бы одну)</div>
+        <div class="fw-semibold mb-1" data-i18n="jobs_title">Профессии (выберите хотя бы одну)</div>
         <div class="d-flex flex-wrap gap-2 jobs-grid">
           <!-- Транспорт -->
           <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Водитель такси" id="j1"><label class="form-check-label" for="j1">Водитель такси</label></div>
@@ -79,12 +79,14 @@
           <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Разнорабочий" id="j9"><label class="form-check-label" for="j9">Разнорабочий</label></div>
           <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Сварщик" id="j10"><label class="form-check-label" for="j10">Сварщик</label></div>
         </div>
-        <div class="mt-1 muted">⚠️ В мини-версии список сокращён. Больше профессий — на полной версии сайта.</div>
+        <div class="mt-1 muted" data-i18n="jobs_hint">
+          ⚠️ В мини-версии список сокращён. Больше профессий — на полной версии сайта.
+        </div>
       </div>
 
       <!-- Страны -->
       <div class="col-12">
-        <div class="fw-semibold mb-1">Страны</div>
+        <div class="fw-semibold mb-1" data-i18n="countries_title">Страны</div>
         <div class="d-flex flex-wrap gap-3">
           <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="de" id="c1" checked><label class="form-check-label" for="c1">Germany</label></div>
           <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="pl" id="c2" checked><label class="form-check-label" for="c2">Poland</label></div>
@@ -96,13 +98,13 @@
 
       <!-- Кнопки -->
       <div class="col-12 d-flex gap-2">
-        <button id="btnSearch" class="btn btn-primary flex-grow-1">Найти</button>
-        <button id="btnStop" class="btn btn-outline-secondary" disabled>Стоп</button>
+        <button id="btnSearch" class="btn btn-primary flex-grow-1" data-i18n="search_btn">Найти</button>
+        <button id="btnStop" class="btn btn-outline-secondary" disabled data-i18n="stop_btn">Стоп</button>
       </div>
 
       <!-- Статус/прогресс -->
       <div class="col-12">
-        <div id="status" class="muted">Готово к поиску</div>
+        <div id="status" class="muted" data-i18n="status_ready">Готово к поиску</div>
         <div id="progress" class="mt-2"></div>
         <div id="open-results" class="mt-2"></div>
       </div>
@@ -122,7 +124,7 @@
 
   <!-- Футер -->
   <div class="mini-footer">
-    <div class="muted">
+    <div class="muted" data-i18n="sources_label">
       Sources:
       <a href="https://www.adzuna.com/" target="_blank" rel="nofollow noopener">Adzuna</a>
       <span class="sep">•</span>
