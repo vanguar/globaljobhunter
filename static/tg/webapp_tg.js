@@ -1,27 +1,32 @@
 // /static/tg/webapp_tg.js
+// Мини-клиент поиска для Telegram WebApp.
+// Делает старт поиска -> поллит прогресс -> открывает /results в той же webview.
+// Прокидывает текущий язык в redirect_url (?lang=..). Не открывает внешний браузер.
+
 (function(){
   const tg = window.Telegram?.WebApp;
 
-  // --- язык из ?lang=... (бот его проставляет) ---
-  try {
-    const p = new URLSearchParams(location.search);
-    const L = p.get("lang");
-    if (L) localStorage.setItem("gjh_lang", L);
-  } catch (_) {}
+  // --- helpers ---
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const getLang = () => {
+    try {
+      const p = new URLSearchParams(location.search);
+      return p.get("lang") || localStorage.getItem("gjh_lang") || "ru";
+    } catch(_) { return "ru"; }
+  };
 
-  // --- настройки ---
-  const REMOTIVE_URL = "https://remotive.com/accelerator?ref=YOUR_ID"; // подставь рефку
-  const SHOW_REMOTIVE = true;
-  const REMOTIVE_AFTER_N_SECONDS = 20; // показ через N сек после старта
-
+  // --- состояние ---
   let currentSearchId = null;
   let pollTimer = null;
   let bannerTimer = null;
 
-  // --- утилиты ---
-  const $ = (s) => document.querySelector(s);
-  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  // --- баннер Remotive (по желанию) ---
+  const REMOTIVE_URL = "https://remotive.com/accelerator?ref=YOUR_ID"; // подставь свой рефкод
+  const SHOW_REMOTIVE = true;
+  const REMOTIVE_AFTER_N_SECONDS = 20;
 
+  // --- UI ---
   function setStatus(text){
     const el = $("#status");
     if (el) el.textContent = text;
@@ -34,12 +39,8 @@
     if (btnStop) btnStop.disabled = !searching;
   }
 
-  function getSelectedJobs(){
-    return $$(".job-check:checked").map(i => i.value);
-  }
-  function getSelectedCountries(){
-    return $$(".country-check:checked").map(i => i.value);
-  }
+  function getSelectedJobs(){      return $$(".job-check:checked").map(i => i.value); }
+  function getSelectedCountries(){ return $$(".country-check:checked").map(i => i.value); }
 
   function renderProgress(data){
     const box = $("#progress");
@@ -65,25 +66,22 @@
   }
 
   function showOpenResults(url){
-  const t = document.querySelector("#open-results");
-  if (t) {
+    const t = $("#open-results");
+    if (!t) return;
+
     t.innerHTML = `
       <a class="btn btn-success w-100" id="open-inplace" href="${url}">Открыть результаты</a>
-      <div class="muted mt-1">Совет: полнофункциональная версия с карточками, фильтрами, сортировкой и e-mail — на сайте.</div>
+      <div class="muted mt-1">Полная версия: карточки, фильтры, сортировка и e-mail.</div>
     `;
-    // внутри Telegram-окна — переходим по ссылке, НЕ открываем внешний браузер
-    const link = document.getElementById("open-inplace");
-    link.addEventListener("click", (e) => {
+
+    // Открываем результаты в ТЕКУЩЕМ webview, чтобы не потерять сессию/куки
+    $("#open-inplace")?.addEventListener("click", (e) => {
       e.preventDefault();
-      // просто меняем location внутри той же webview — сессия сохранится
-      window.location.href = url; 
+      window.location.href = url;
     });
+
+    // НИЧЕГО не делаем через tg.openLink — внешний браузер потеряет cookie
   }
-
-  // НИЧЕГО НЕ ДЕЛАТЬ: НЕ вызывать tg.openLink(url) — он откроет внешний браузер и потеряет куку
-  // try { if (tg?.openLink) tg.openLink(url); } catch(_) {}
-}
-
 
   function showRemotiveLater(){
     if (!SHOW_REMOTIVE) return;
@@ -125,6 +123,8 @@
       selected_jobs: jobs,
       countries: countries,
       city: ""
+      // язык серверу не обязателен, но если хочешь — раскомментируй:
+      // , lang: getLang()
     };
 
     let resp, data;
@@ -174,8 +174,13 @@
     renderProgress(data);
 
     if (data?.redirect_url) {
+      // Прокинем текущий язык в redirect_url
+      const lang = getLang();
+      const u = new URL(data.redirect_url, location.origin);
+      u.searchParams.set("lang", lang);
+
       setStatus("Готово. Открываем результаты…");
-      showOpenResults(data.redirect_url);
+      showOpenResults(u.toString());
       finalize();
       return;
     }
@@ -203,8 +208,11 @@
       return;
     }
 
+    const lang = getLang();
     if (data?.redirect_url) {
-      showOpenResults(data.redirect_url);
+      const u = new URL(data.redirect_url, location.origin);
+      u.searchParams.set("lang", lang);
+      showOpenResults(u.toString());
     }
     setStatus("Остановлено.");
     finalize(true);
@@ -217,22 +225,13 @@
     if (reset) currentSearchId = null;
   }
 
-  // --- мини-переключатель языка (для самой WebApp) ---
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest("button[data-lang]");
-    if (!btn) return;
-    const lang = btn.getAttribute("data-lang");
-    try { localStorage.setItem("gjh_lang", lang); } catch(_) {}
-    // простейший визуальный отклик
-    btn.classList.add("btn-secondary");
-    setTimeout(() => location.href = `?lang=${lang}`, 150);
-  });
-
-  // --- события ---
+  // --- привязки событий ---
   document.addEventListener("DOMContentLoaded", () => {
     $("#btnSearch")?.addEventListener("click", startSearch);
-    $("#btnStop")?.addEventListener("click", stopSearch);
-    // инициализация
+    $("#btnStop")?.addEventListener("click",  stopSearch);
     setStatus("Готово к поиску");
   });
+
+  // Язык: клики обрабатывает localization_tg.js (и .lang-btn, и [data-lang]).
+  // Здесь доп. логики по смене языка нет, чтобы не конфликтовать.
 })();
