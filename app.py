@@ -53,7 +53,7 @@ import time
 # в app.py (не ломая ничего существующего)
 from flask import send_from_directory
 
-@app.get("/tg")
+@app.route("/tg")
 def tg_index_alias():
     return send_from_directory("static/tg", "index.html")
 
