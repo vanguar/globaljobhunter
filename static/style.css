@@ -796,6 +796,12 @@ footer .remotive-footer:hover {
   }
 }
 
+/* Сдвинуть десктопный свитчер языка левее (между ссылками и кнопкой TG) */
+@media (min-width: 992px) {
+  #language-switcher-container { margin-right: auto; }
+}
+
+
 /* кнопки языка читаемые на светлой навбаре */
 .navbar .language-switcher .btn{
   background:#fff;
