@@ -406,7 +406,11 @@
   "sources_label": "Sources: Adzuna, Careerjet, Jobicy, Remotive",
   "full_version_link_text": "Full version of the site (all options): <a href=\"https://globaljobhunter.vip\" target=\"_blank\" rel=\"noopener\">globaljobhunter.vip</a>",
   "open_tg_bot_btn": "Open Telegram bot",
-  "mini_version_title": "Mini version for Telegram"
+  "mini_version_title": "Mini version for Telegram",
+  "Mini-версия для Telegram": "Mini version for Telegram",
+  "Открыть Telegram-бот": "Open Telegram bot",
+  "Открыть результаты": "Open results"
+
 
      
 }

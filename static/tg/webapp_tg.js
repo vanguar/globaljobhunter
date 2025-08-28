@@ -1,12 +1,12 @@
 // /static/tg/webapp_tg.js
 // Мини-клиент поиска для Telegram WebApp.
-// Делает старт поиска -> поллит прогресс -> открывает /results в той же webview.
-// Прокидывает текущий язык в redirect_url (?lang=..). Не открывает внешний браузер.
+// Стартует поиск -> поллит прогресс -> показывает кнопку открытия /results в этой же webview.
+// Всегда прокидывает текущий язык (?lang=..).
 
 (function () {
   const tg = window.Telegram?.WebApp;
 
-  // --- helpers ---
+  // ---------- helpers ----------
   const $  = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
 
@@ -15,31 +15,95 @@
     return c === "ua" ? "uk" : c;
   };
 
-  const getLang = () => "ru";
+  // Язык: ?lang=... > localStorage('gjh_lang') > ru
+  const getLang = () => {
+    try {
+      const p = new URLSearchParams(location.search);
+      const urlLang = p.get("lang");
+      if (urlLang) return normalizeLang(urlLang);
+    } catch (_) {}
+    try {
+      const saved = localStorage.getItem("gjh_lang");
+      if (saved) return normalizeLang(saved);
+    } catch (_) {}
+    return "ru";
+  };
 
+  // Локальный i18n для текста, который мы генерим из JS
+  const I18N = {
+    ru: {
+      ready: "Готово к поиску",
+      start: "Запускаем поиск…",
+      searching: "Ищем…",
+      results_opening: "Готово. Открываем результаты…",
+      choose_job: "Выберите хотя бы одну профессию.",
+      choose_country: "Выберите хотя бы одну страну.",
+      net_error: "Сеть недоступна. Повторите позже.",
+      poll_net_error: "Ошибка сети при получении прогресса.",
+      stop_net_error: "Ошибка сети при остановке.",
+      stopped: "Остановлено.",
+      found: "Найдено вакансий:",
+      sources_queue: "Источники в очереди…",
+      open_results: "Открыть результаты",
+      full_ver_hint: "Полная версия: карточки, фильтры, сортировка и e-mail."
+    },
+    uk: {
+      ready: "Готово до пошуку",
+      start: "Запускаємо пошук…",
+      searching: "Шукаємо…",
+      results_opening: "Готово. Відкриваємо результати…",
+      choose_job: "Оберіть хоча б одну професію.",
+      choose_country: "Оберіть хоча б одну країну.",
+      net_error: "Мережа недоступна. Спробуйте пізніше.",
+      poll_net_error: "Помилка мережі під час отримання прогресу.",
+      stop_net_error: "Помилка мережі під час зупинки.",
+      stopped: "Зупинено.",
+      found: "Знайдено вакансій:",
+      sources_queue: "Джерела в черзі…",
+      open_results: "Відкрити результати",
+      full_ver_hint: "Повна версія: картки, фільтри, сортування та e-mail."
+    },
+    en: {
+      ready: "Ready to search",
+      start: "Starting search…",
+      searching: "Searching…",
+      results_opening: "Done. Opening results…",
+      choose_job: "Select at least one profession.",
+      choose_country: "Select at least one country.",
+      net_error: "Network unavailable. Try again later.",
+      poll_net_error: "Network error while polling progress.",
+      stop_net_error: "Network error while stopping.",
+      stopped: "Stopped.",
+      found: "Jobs found:",
+      sources_queue: "Sources in queue…",
+      open_results: "Open results",
+      full_ver_hint: "Full version: cards, filters, sorting & e-mail."
+    }
+  };
+  const t = (key) => (I18N[getLang()]?.[key] ?? I18N.ru[key] ?? key);
 
-  // Добавляет/перезаписывает ?lang в ссылке, не трогая остальные параметры (rid и пр.)
+  // Добавить/заменить ?lang= в любом URL
   const withLang = (url) => {
     try {
       const u = new URL(url, location.origin);
       u.searchParams.set("lang", getLang());
       return u.toString();
-    } catch (_) {
+    } catch {
       return url;
     }
   };
 
-  // --- состояние ---
+  // ---------- состояние ----------
   let currentSearchId = null;
   let pollTimer = null;
   let bannerTimer = null;
 
-  // --- баннер Remotive (по желанию) ---
-  const REMOTIVE_URL = "https://remotive.com/accelerator?ref=YOUR_ID"; // подставь свой рефкод
+  // ---------- Remotive banner (опционально) ----------
+  const REMOTIVE_URL = "https://remotive.com/accelerator?ref=YOUR_ID";
   const SHOW_REMOTIVE = true;
   const REMOTIVE_AFTER_N_SECONDS = 20;
 
-  // --- UI ---
+  // ---------- UI helpers ----------
   function setStatus(text) {
     const el = $("#status");
     if (el) el.textContent = text;
@@ -73,28 +137,76 @@
 
     const jobsCount = data?.jobs_found ?? 0;
     box.innerHTML = `
-      <div class="muted">Найдено вакансий: <b>${jobsCount}</b></div>
-      ${items || '<div class="muted">Источники в очереди…</div>'}
+      <div class="muted">${t("found")} <b>${jobsCount}</b></div>
+      ${items || `<div class="muted">${t("sources_queue")}</div>`}
     `;
   }
 
-  function showOpenResults(url) {
-    const t = $("#open-results");
-    if (!t) return;
+  // ---------- прогресс ----------
+  async function pollProgress() {
+    if (!currentSearchId) return;
 
-    t.innerHTML = `
-      <a class="btn btn-success w-100" id="open-inplace" href="${url}">Открыть результаты</a>
-      <div class="muted mt-1">Полная версия: карточки, фильтры, сортировка и e-mail.</div>
+    try {
+      const resp = await fetch(`/search/progress?id=${encodeURIComponent(currentSearchId)}`);
+      const data = await resp.json();
+
+      if (data?.error) {
+        console.error("[WebApp] progress error:", data.error);
+        setStatus(data.error);
+        finalize();
+        return;
+      }
+
+      console.log("[WebApp] progress:", data);
+      renderProgress(data);
+
+      // сервер отдал redirect_url -> показываем кнопку открытия
+      if (data?.redirect_url) {
+        const finalUrl = withLang(data.redirect_url);
+        setStatus(t("results_opening"));
+        showOpenResults(finalUrl);
+        finalize();
+        return;
+      }
+
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(pollProgress, 1200);
+    } catch (e) {
+      console.error("[WebApp] poll error:", e);
+      setStatus(t("poll_net_error"));
+      finalize();
+    }
+  }
+
+  // Кнопка "Открыть результаты" внутри WebApp
+  function showOpenResults(url) {
+    const tEl = $("#open-results");
+    if (!tEl) return;
+
+    const finalUrl = withLang(url);
+    const btnText = t("open_results");
+    const hint    = t("full_ver_hint");
+
+    tEl.innerHTML = `
+      <a class="btn btn-success w-100" id="open-inplace" href="${finalUrl}">
+        ${btnText}
+      </a>
+      <div class="muted mt-1">${hint}</div>
     `;
 
-    // Открываем результаты в ТЕКУЩЕМ webview, чтобы не потерять сессию/куки
+    // Открыть в этой же webview (без внешнего браузера)
     $("#open-inplace")?.addEventListener("click", (e) => {
       e.preventDefault();
-      console.log("[WebApp] Navigate inplace ->", url);
-      window.location.href = url;
+      try {
+        if (tg?.openLink) {
+          tg.openLink(finalUrl, { try_instant_view: false });
+        } else {
+          location.href = finalUrl;
+        }
+      } catch {
+        location.href = finalUrl;
+      }
     });
-
-    // НИЧЕГО не делаем через tg.openLink — внешний браузер потеряет cookie
   }
 
   function showRemotiveLater() {
@@ -110,7 +222,7 @@
     }, REMOTIVE_AFTER_N_SECONDS * 1000);
   }
 
-  // --- действия ---
+  // ---------- действия ----------
   async function startSearch(ev) {
     if (ev) ev.preventDefault();
 
@@ -119,16 +231,16 @@
     const is_refugee = $("#is_refugee")?.checked || false;
 
     if (!jobs.length) {
-      setStatus("Выберите хотя бы одну профессию.");
+      setStatus(t("choose_job"));
       return;
     }
     if (!countries.length) {
-      setStatus("Выберите хотя бы одну страну.");
+      setStatus(t("choose_country"));
       return;
     }
 
     disableUI(true);
-    setStatus("Запускаем поиск…");
+    setStatus(t("start"));
     $("#open-results").innerHTML = "";
     $("#progress").innerHTML = "";
 
@@ -137,8 +249,7 @@
       selected_jobs: jobs,
       countries,
       city: ""
-      // язык серверу не обязателен; при желании можно добавить:
-      // , lang: getLang()
+      // при желании можно добавить: lang: getLang()
     };
 
     try {
@@ -159,48 +270,13 @@
 
       currentSearchId = data.search_id;
       console.log("[WebApp] Search started, id =", currentSearchId);
-      setStatus("Ищем…");
+      setStatus(t("searching"));
       showRemotiveLater();
       pollProgress();
     } catch (e) {
       console.error("[WebApp] start network error:", e);
-      setStatus("Сеть недоступна. Повторите позже.");
+      setStatus(t("net_error"));
       disableUI(false);
-    }
-  }
-
-  async function pollProgress() {
-    if (!currentSearchId) return;
-
-    try {
-      const resp = await fetch(`/search/progress?id=${encodeURIComponent(currentSearchId)}`);
-      const data = await resp.json();
-
-      if (data?.error) {
-        console.error("[WebApp] progress error:", data.error);
-        setStatus(data.error);
-        finalize();
-        return;
-      }
-
-      console.log("[WebApp] progress:", data);
-      renderProgress(data);
-
-      // Если сервер готов — отдаёт redirect_url
-      if (data?.redirect_url) {
-        const finalUrl = withLang(data.redirect_url);
-        setStatus("Готово. Открываем результаты…");
-        showOpenResults(data.redirect_url);
-        finalize();
-        return;
-      }
-
-      clearTimeout(pollTimer);
-      pollTimer = setTimeout(pollProgress, 1200);
-    } catch (e) {
-      console.error("[WebApp] poll network error:", e);
-      setStatus("Ошибка сети при получении прогресса.");
-      finalize();
     }
   }
 
@@ -218,14 +294,13 @@
       const data = await resp.json();
 
       const url = data?.redirect_url ? withLang(data.redirect_url) : null;
-      if (url) {
-        showOpenResults(url);
-      }
-      setStatus("Остановлено.");
+      if (url) showOpenResults(url);
+
+      setStatus(t("stopped"));
       finalize(true);
     } catch (e) {
       console.error("[WebApp] stop network error:", e);
-      setStatus("Ошибка сети при остановке.");
+      setStatus(t("stop_net_error"));
       finalize(true);
     }
   }
@@ -237,14 +312,13 @@
     if (reset) currentSearchId = null;
   }
 
-  // --- привязки событий ---
+  // ---------- события ----------
   document.addEventListener("DOMContentLoaded", () => {
     $("#btnSearch")?.addEventListener("click", startSearch);
     $("#btnStop")?.addEventListener("click",  stopSearch);
-    setStatus("Готово к поиску");
+    setStatus(t("ready"));
     console.log("[WebApp] Init language =", getLang());
   });
 
-  // Язык: клики обрабатывает localization_tg.js (и .lang-btn, и [data-lang]).
-  // Здесь доп. логики по смене языка нет, чтобы не конфликтовать.
+  // Смена языка кликами обрабатывается в localization_tg.js.
 })();
