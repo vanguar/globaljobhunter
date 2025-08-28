@@ -149,7 +149,7 @@
                                         {% endif %}
 
                                         {% if job.salary %}
-                                            <div class="salary-badge mt-2">{{ job.salary }}</div>
+                                            <div class="salary-badge mt-2">{{ job.salary|safe }}</div>
                                         {% endif %}
                                     </div>
                                     
