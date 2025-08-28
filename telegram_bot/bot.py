@@ -84,9 +84,9 @@ def _normalize_lang(code: str | None) -> str:
     return c if c in ("ru", "en", "uk") else "ru"
 
 def get_user_lang(user: types.User) -> str:
-    if user.id in USER_LANG:
-        return _normalize_lang(USER_LANG[user.id])
-    return _normalize_lang(user.language_code)
+    # Насильно фиксируем интерфейс бота на русском
+    return "ru"
+
 
 def webapp_url_for(lang: str) -> str:
     return f"{WEBAPP_BASE}?lang={_normalize_lang(lang)}"
@@ -99,13 +99,16 @@ def lang_inline_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Русский",    callback_data="setlang:ru")],
     ])
 
-def open_button_kb(lang: str) -> ReplyKeyboardMarkup:
+def open_button_kb(_: str = "ru") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         resize_keyboard=True,
-        keyboard=[[KeyboardButton(
-            text=pick(lang, "btn_open"),
-            web_app=WebAppInfo(url=WEBAPP_BASE)  # без ?lang
-        )]],
+        keyboard=[[
+            KeyboardButton(
+                text="🔎 Открыть GlobalJobHunter",
+                # важно: без ?lang — открываем мини-апп как есть
+                web_app=WebAppInfo(url=WEBAPP_BASE)
+            )
+        ]],
     )
 
 
