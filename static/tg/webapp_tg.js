@@ -15,16 +15,8 @@
     return c === "ua" ? "uk" : c;
   };
 
-  const getLang = () => {
-    try {
-      const p = new URLSearchParams(location.search);
-      const fromUrl = p.get("lang");
-      const fromLs  = localStorage.getItem("gjh_lang");
-      return normalizeLang(fromUrl || fromLs || "ru");
-    } catch (_) {
-      return "ru";
-    }
-  };
+  const getLang = () => "ru";
+
 
   // Добавляет/перезаписывает ?lang в ссылке, не трогая остальные параметры (rid и пр.)
   const withLang = (url) => {
@@ -198,7 +190,7 @@
       if (data?.redirect_url) {
         const finalUrl = withLang(data.redirect_url);
         setStatus("Готово. Открываем результаты…");
-        showOpenResults(finalUrl);
+        showOpenResults(data.redirect_url);
         finalize();
         return;
       }

@@ -102,9 +102,12 @@ def lang_inline_keyboard() -> InlineKeyboardMarkup:
 def open_button_kb(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         resize_keyboard=True,
-        keyboard=[[KeyboardButton(text=pick(lang, "btn_open"),
-                                  web_app=WebAppInfo(url=webapp_url_for(lang)))]],
+        keyboard=[[KeyboardButton(
+            text=pick(lang, "btn_open"),
+            web_app=WebAppInfo(url=WEBAPP_BASE)  # без ?lang
+        )]],
     )
+
 
 def lang_menu_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[

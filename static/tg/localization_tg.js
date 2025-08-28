@@ -27,9 +27,7 @@
 
   function writeLangToUrl(lang) {
     try {
-      const u = new URL(location.href);
-      u.searchParams.set("lang", lang);
-      history.replaceState({}, "", u.toString());
+      window.location.href = data.redirect_url;
     } catch (_) {}
   }
 
