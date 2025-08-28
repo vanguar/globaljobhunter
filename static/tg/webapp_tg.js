@@ -1,10 +1,9 @@
 // /static/tg/webapp_tg.js
-// Telegram WebApp клиент поиска: старт -> прогресс -> открыть /results в этой же webview.
-// ГЛАВНОЕ: всегда держим и применяем текущий язык (?lang=..), слушаем клики по data-lang.
+// Мини-клиент поиска для Telegram WebApp.
+// Стартует поиск -> поллит прогресс -> показывает кнопку открытия /results в этой же webview.
+// Всегда прокидывает текущий язык (?lang=..).
 
 (function () {
-  "use strict";
-
   const tg = window.Telegram?.WebApp;
 
   // ---------- helpers ----------
@@ -16,7 +15,7 @@
     return c === "ua" ? "uk" : c;
   };
 
-  // URL <-> localStorage('gjh_lang')
+  // Язык: ?lang=... > localStorage('gjh_lang') > ru
   const getLang = () => {
     try {
       const p = new URLSearchParams(location.search);
@@ -30,31 +29,7 @@
     return "ru";
   };
 
-  // На старте — синхронизируем URL с текущим языком (без перезагрузки)
-  (function ensureLangParam() {
-    const lang = getLang();
-    try {
-      const u = new URL(location.href);
-      if (u.searchParams.get("lang") !== lang) {
-        u.searchParams.set("lang", lang);
-        history.replaceState(null, "", u.toString());
-      }
-      try { localStorage.setItem("gjh_lang", lang); } catch (_) {}
-    } catch (_) {}
-  })();
-
-  // Добавить/заменить ?lang= в любом URL
-  const withLang = (url) => {
-    try {
-      const u = new URL(url, location.origin);
-      u.searchParams.set("lang", getLang());
-      return u.toString();
-    } catch {
-      return url;
-    }
-  };
-
-  // Локальный i18n только для текста, который генерит ЭТОТ файл
+  // Локальный i18n для текста, который мы генерим из JS
   const I18N = {
     ru: {
       ready: "Готово к поиску",
@@ -107,17 +82,28 @@
   };
   const t = (key) => (I18N[getLang()]?.[key] ?? I18N.ru[key] ?? key);
 
+  // Добавить/заменить ?lang= в любом URL
+  const withLang = (url) => {
+    try {
+      const u = new URL(url, location.origin);
+      u.searchParams.set("lang", getLang());
+      return u.toString();
+    } catch {
+      return url;
+    }
+  };
+
   // ---------- состояние ----------
   let currentSearchId = null;
   let pollTimer = null;
   let bannerTimer = null;
 
-  // ---------- Remotive banner (по желанию) ----------
+  // ---------- Remotive banner (опционально) ----------
   const REMOTIVE_URL = "https://remotive.com/accelerator?ref=YOUR_ID";
   const SHOW_REMOTIVE = true;
   const REMOTIVE_AFTER_N_SECONDS = 20;
 
-  // ---------- UI ----------
+  // ---------- UI helpers ----------
   function setStatus(text) {
     const el = $("#status");
     if (el) el.textContent = text;
@@ -171,8 +157,10 @@
         return;
       }
 
+      console.log("[WebApp] progress:", data);
       renderProgress(data);
 
+      // сервер отдал redirect_url -> показываем кнопку открытия
       if (data?.redirect_url) {
         const finalUrl = withLang(data.redirect_url);
         setStatus(t("results_opening"));
@@ -190,7 +178,7 @@
     }
   }
 
-  // Кнопка "Открыть результаты" внутри WebApp (в этой же webview)
+  // Кнопка "Открыть результаты" внутри WebApp
   function showOpenResults(url) {
     const tEl = $("#open-results");
     if (!tEl) return;
@@ -200,10 +188,13 @@
     const hint    = t("full_ver_hint");
 
     tEl.innerHTML = `
-      <a class="btn btn-success w-100" id="open-inplace" href="${finalUrl}">${btnText}</a>
+      <a class="btn btn-success w-100" id="open-inplace" href="${finalUrl}">
+        ${btnText}
+      </a>
       <div class="muted mt-1">${hint}</div>
     `;
 
+    // Открыть в этой же webview (без внешнего браузера)
     $("#open-inplace")?.addEventListener("click", (e) => {
       e.preventDefault();
       try {
@@ -258,10 +249,11 @@
       selected_jobs: jobs,
       countries,
       city: ""
-      // можно добавить: lang: getLang()
+      // при желании можно добавить: lang: getLang()
     };
 
     try {
+      console.log("[WebApp] Search start payload:", payload);
       const resp = await fetch("/search/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -277,6 +269,7 @@
       }
 
       currentSearchId = data.search_id;
+      console.log("[WebApp] Search started, id =", currentSearchId);
       setStatus(t("searching"));
       showRemotiveLater();
       pollProgress();
@@ -321,24 +314,11 @@
 
   // ---------- события ----------
   document.addEventListener("DOMContentLoaded", () => {
-    // Кнопки
     $("#btnSearch")?.addEventListener("click", startSearch);
     $("#btnStop")?.addEventListener("click",  stopSearch);
     setStatus(t("ready"));
-
-    // Переключение языка (если вдруг localization_tg.js не отработал)
-    document.addEventListener("click", (e) => {
-      const el = e.target.closest('.dropdown-item[data-lang], .lang-option[data-lang], [data-lang].dropdown-item');
-      if (!el) return;
-      e.preventDefault();
-      const code = normalizeLang(el.getAttribute("data-lang") || "ru");
-      try { localStorage.setItem("gjh_lang", code); } catch (_) {}
-      const u = new URL(location.href);
-      u.searchParams.set("lang", code);
-      location.href = u.toString(); // намеренно перезагружаем, чтобы подтянулись переводы
-    });
-
     console.log("[WebApp] Init language =", getLang());
   });
 
+  // Смена языка кликами обрабатывается в localization_tg.js.
 })();
