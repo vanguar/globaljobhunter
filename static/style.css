@@ -814,3 +814,15 @@ footer .remotive-footer:hover {
   .navbar .language-switcher { margin-left:auto; }
 }
 
+.btn-telegram{
+  background:#229ED9;
+  border-color:#229ED9;
+  color:#fff;
+}
+.btn-telegram:hover,
+.btn-telegram:focus{
+  background:#1a8ec8;
+  border-color:#1a8ec8;
+  color:#fff;
+}
+

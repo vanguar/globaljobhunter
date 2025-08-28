@@ -1,13 +1,13 @@
-// /static/tg/localization_tg.js
+/* Default RU when nothing set */
 (function () {
-  const LS_KEY = "gjh_lang";
-  const SUPPORTED = ["ru", "en", "uk"];
+  try {
+    const hasUrlLang = new URLSearchParams(location.search).has('lang');
+    if (!hasUrlLang && !localStorage.getItem('gjh_lang')) {
+      localStorage.setItem('gjh_lang', 'ru');
+    }
+  } catch (e) {}
+})();
 
-  const normalize = (code) => {
-    const c = String(code || "ru").toLowerCase();
-    if (c === "ua") return "uk";
-    return SUPPORTED.includes(c) ? c : "ru";
-  };
 
   let currentLang = null;
   let translations = {};
@@ -63,30 +63,16 @@
     });
   }
 
-  function setLang(lang) {
-    currentLang = normalize(lang);
-    try { localStorage.setItem(LS_KEY, currentLang); } catch (_) {}
-    writeLangToUrl(currentLang);
-    console.log("[i18n] Switch →", currentLang);
-    return loadAndApply(currentLang);
-  }
-
-  function bindButtons() {
-    const onClick = (e) => {
-      e.preventDefault();
-      const lang = e.currentTarget.getAttribute("data-lang");
-      if (lang) setLang(lang);
-    };
-    document.querySelectorAll(".lang-btn,[data-lang]").forEach((el) => {
-      el.removeEventListener("click", onClick);
-      el.addEventListener("click", onClick);
-    });
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const start = getInitialLang();
-    setLang(start);
-    bindButtons();
-    window.gjhSetLang = setLang; // вдруг пригодится
+  // ▼ ДОБАВЬ ВОТ ЭТО ПОД ИНИЦИАЛИЗАЦИЕЙ ▼
+  document.addEventListener('click', function (e) {
+    const item = e.target.closest('.dropdown-item[data-lang], .lang-option[data-lang], [data-lang].dropdown-item');
+    if (!item) return;
+    e.preventDefault();
+    const code = (item.getAttribute('data-lang') || 'ru').toLowerCase();
+    try { localStorage.setItem('gjh_lang', code); } catch (_) {}
+    if (window.gjhSetLang) { window.gjhSetLang(code); return; }
+    const u = new URL(location.href);
+    u.searchParams.set('lang', code);
+    location.href = u.toString();
   });
-})();
+  // ▲ ДОБАВИЛИ ЗДЕСЬ ▲
