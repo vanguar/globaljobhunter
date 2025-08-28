@@ -24,7 +24,6 @@
 </head>
 <body class="container py-3">
 
-  <!-- Бренд + мини-переключатель языка для самой WebApp -->
   <div class="brand">
     <img src="/static/images/Logo.png" alt="GlobalJobHunter" />
     <h4 class="m-0" data-i18n="brand_title">GlobalJobHunter</h4>
@@ -35,16 +34,15 @@
     </div>
   </div>
 
-  <!-- Короткое описание (НОВЫЙ блок) -->
-<p class="lead mt-3" data-i18n="short_desc">
-  Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
-</p>
-
+  <!-- Короткое описание -->
+  <p class="lead mt-3" data-i18n="short_desc">
+    Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
+  </p>
 
   <!-- Объяснение -->
   <div class="card p-3 mb-3">
-    <div class="fw-semibold mb-1">Mini-версия для Telegram</div>
-    <div class="muted">
+    <div class="fw-semibold mb-1" data-i18n="mini_version_title">Mini-версия для Telegram</div>
+    <div class="muted" data-i18n="mini_version_desc">
       Ищем вакансии из Adzuna, Careerjet, Jobicy, Remotive.
       <br>Расширенный поиск, больше профессий, подписка на email — в полной версии сайта (ссылка внизу).
     </div>
@@ -56,28 +54,57 @@
       <div class="col-12">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="is_refugee">
-          <label for="is_refugee" class="form-check-label">Я украинский беженец</label>
+          <label for="is_refugee" class="form-check-label" data-i18n="refugee_toggle">Я украинский беженец</label>
         </div>
       </div>
 
-      <!-- Небольшой набор профессий с галочками (значения — RU-названия из твоих мапов) -->
+      <!-- Небольшой набор профессий с галочками -->
       <div class="col-12">
         <div class="fw-semibold mb-1" data-i18n="jobs_title">Профессии (выберите хотя бы одну)</div>
         <div class="d-flex flex-wrap gap-2 jobs-grid">
           <!-- Транспорт -->
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Водитель такси" id="j1"><label class="form-check-label" for="j1">Водитель такси</label></div>
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Водитель категории B" id="j2"><label class="form-check-label" for="j2">Водитель категории B</label></div>
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Курьер-доставщик еды" id="j3"><label class="form-check-label" for="j3">Курьер-доставщик еды</label></div>
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Водитель грузовика" id="j4"><label class="form-check-label" for="j4">Водитель грузовика</label></div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Водитель такси" id="j1">
+            <label class="form-check-label" for="j1" data-i18n="job_taxi_driver">Водитель такси</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Водитель категории B" id="j2">
+            <label class="form-check-label" for="j2" data-i18n="job_cat_b_driver">Водитель категории B</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Курьер-доставщик еды" id="j3">
+            <label class="form-check-label" for="j3" data-i18n="job_food_courier">Курьер-доставщик еды</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Водитель грузовика" id="j4">
+            <label class="form-check-label" for="j4" data-i18n="job_truck_driver">Водитель грузовика</label>
+          </div>
           <!-- Общепит -->
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Официант" id="j5"><label class="form-check-label" for="j5">Официант</label></div>
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Повар" id="j6"><label class="form-check-label" for="j6">Повар</label></div>
-          <!-- Клининг/уход -->
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Уборщица" id="j7"><label class="form-check-label" for="j7">Уборщица</label></div>
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Сиделка" id="j8"><label class="form-check-label" for="j8">Сиделка</label></div>
-          <!-- Стройка -->
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Разнорабочий" id="j9"><label class="form-check-label" for="j9">Разнорабочий</label></div>
-          <div class="form-check"><input class="form-check-input job-check" type="checkbox" value="Сварщик" id="j10"><label class="form-check-label" for="j10">Сварщик</label></div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Официант" id="j5">
+            <label class="form-check-label" for="j5" data-i18n="job_waiter">Официант</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Повар" id="j6">
+            <label class="form-check-label" for="j6" data-i18n="job_cook">Повар</label>
+          </div>
+          <!-- Неквалифицированный труд -->
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Уборщица" id="j7">
+            <label class="form-check-label" for="j7" data-i18n="job_cleaner">Уборщица</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Сиделка" id="j8">
+            <label class="form-check-label" for="j8" data-i18n="job_carer">Сиделка</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Разнорабочий" id="j9">
+            <label class="form-check-label" for="j9" data-i18n="job_handyman">Разнорабочий</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input job-check" type="checkbox" value="Сварщик" id="j10">
+            <label class="form-check-label" for="j10" data-i18n="job_welder">Сварщик</label>
+          </div>
         </div>
         <div class="mt-1 muted" data-i18n="jobs_hint">
           ⚠️ В мини-версии список сокращён. Больше профессий — на полной версии сайта.
@@ -88,11 +115,26 @@
       <div class="col-12">
         <div class="fw-semibold mb-1" data-i18n="countries_title">Страны</div>
         <div class="d-flex flex-wrap gap-3">
-          <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="de" id="c1" checked><label class="form-check-label" for="c1">Germany</label></div>
-          <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="pl" id="c2" checked><label class="form-check-label" for="c2">Poland</label></div>
-          <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="cz" id="c3"><label class="form-check-label" for="c3">Czechia</label></div>
-          <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="at" id="c4"><label class="form-check-label" for="c4">Austria</label></div>
-          <div class="form-check"><input class="form-check-input country-check" type="checkbox" value="nl" id="c5"><label class="form-check-label" for="c5">Netherlands</label></div>
+          <div class="form-check">
+            <input class="form-check-input country-check" type="checkbox" value="de" id="c1" checked>
+            <label class="form-check-label" for="c1" data-i18n="country_de">Германия</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input country-check" type="checkbox" value="pl" id="c2" checked>
+            <label class="form-check-label" for="c2" data-i18n="country_pl">Польша</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input country-check" type="checkbox" value="cz" id="c3">
+            <label class="form-check-label" for="c3" data-i18n="country_cz">Чехия</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input country-check" type="checkbox" value="at" id="c4">
+            <label class="form-check-label" for="c4" data-i18n="country_at">Австрия</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input country-check" type="checkbox" value="nl" id="c5">
+            <label class="form-check-label" for="c5" data-i18n="country_nl">Нидерланды</label>
+          </div>
         </div>
       </div>
 
@@ -102,7 +144,7 @@
         <button id="btnStop" class="btn btn-outline-secondary" disabled data-i18n="stop_btn">Стоп</button>
       </div>
 
-      <!-- Статус/прогресс -->
+      <!-- Статус и прогресс -->
       <div class="col-12">
         <div id="status" class="muted" data-i18n="status_ready">Готово к поиску</div>
         <div id="progress" class="mt-2"></div>
@@ -111,21 +153,21 @@
     </div>
   </div>
 
-  <!-- Remotive баннер (CPA) -->
+  <!-- Remotive баннер (опционально) -->
   <div id="remotive-banner" class="card remotive-card p-3">
     <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
       <div class="flex-grow-1">
-        <div class="fw-semibold">Want more remote jobs?</div>
-        <div class="muted">35,000+ curated remote jobs (lifetime access)</div>
+        <div class="fw-semibold" data-i18n="remotive_title">Хотите больше удаленных вакансий?</div>
+        <div class="muted" data-i18n="remotive_desc">35,000+ отобранных удаленных вакансий (пожизненный доступ)</div>
       </div>
-      <a id="remotive-link" class="btn btn-success" target="_blank" rel="noopener">Open Remotive Accelerator</a>
+      <a id="remotive-link" class="btn btn-success" target="_blank" rel="noopener" data-i18n="remotive_btn">Открыть Remotive Accelerator</a>
     </div>
   </div>
 
   <!-- Футер -->
   <div class="mini-footer">
     <div class="muted" data-i18n="sources_label">
-      Sources:
+      Источники:
       <a href="https://www.adzuna.com/" target="_blank" rel="nofollow noopener">Adzuna</a>
       <span class="sep">•</span>
       <a href="https://www.careerjet.com/partners/" target="_blank" rel="nofollow noopener">Careerjet</a>
@@ -134,12 +176,14 @@
       <span class="sep">•</span>
       <a href="https://remotive.com/" target="_blank" rel="nofollow noopener">Remotive</a>
     </div>
-    <div class="mt-1">
+    <div class="mt-1" data-i18n="full_version_link_text">
       Полная версия сайта (все опции): <a href="https://globaljobhunter.vip" target="_blank" rel="noopener">globaljobhunter.vip</a>
     </div>
   </div>
+
+  <!-- ВАЖНО: порядок скриптов -->
   <script src="/static/tg/localization_tg.js"></script>
   <script src="/static/tg/webapp_tg.js"></script>
-  
+
 </body>
 </html>
