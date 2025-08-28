@@ -404,6 +404,9 @@
   "country_at": "Austria",
   "country_nl": "Netherlands",
   "sources_label": "Sources: Adzuna, Careerjet, Jobicy, Remotive",
-  "full_version_link_text": "Full version of the site (all options): <a href=\"https://globaljobhunter.vip\" target=\"_blank\" rel=\"noopener\">globaljobhunter.vip</a>"
+  "full_version_link_text": "Full version of the site (all options): <a href=\"https://globaljobhunter.vip\" target=\"_blank\" rel=\"noopener\">globaljobhunter.vip</a>",
+  "open_tg_bot_btn": "Open Telegram bot",
+  "mini_version_title": "Mini version for Telegram"
+
      
 }

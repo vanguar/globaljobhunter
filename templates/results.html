@@ -14,7 +14,7 @@
                 <i class="bi bi-arrow-left me-2"></i>Изменить параметры поиска
             
             </a>
-            <a href="/static/tg/webapp.html" class="btn btn-success ms-2">Открыть мини-версию в Telegram</a>
+            <a href="/static/tg/webapp.html" class="btn btn-success ms-2" data-i18n="mini_version_title">Mini-версия для Telegram</a>
         </div>
     </section>
     
@@ -597,6 +597,16 @@ function updateSubscription(email, action) {
     });
 }        
 
+</script>
+<!-- Язык обрабатывает общий сайтовый скрипт из layout.html -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const u = new URL(location.href);
+    const lang = (u.searchParams.get("lang") || localStorage.getItem("gjh_lang") || "ru").toLowerCase();
+    try { localStorage.setItem("gjh_lang", lang); } catch(_) {}
+    // если общий скрипт умеет переключать без перезагрузки – дернём:
+    if (window.gjhSetLang) window.gjhSetLang(lang);
+  });
 </script>
 
 {% endblock %}

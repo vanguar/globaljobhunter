@@ -403,6 +403,9 @@
   "country_at": "Австрія",
   "country_nl": "Нідерланди",
   "sources_label": "Джерела: Adzuna, Careerjet, Jobicy, Remotive",
-  "full_version_link_text": "Повна версія сайту (всі опції): <a href=\"https://globaljobhunter.vip\" target=\"_blank\" rel=\"noopener\">globaljobhunter.vip</a>"
+  "full_version_link_text": "Повна версія сайту (всі опції): <a href=\"https://globaljobhunter.vip\" target=\"_blank\" rel=\"noopener\">globaljobhunter.vip</a>",
+  "open_tg_bot_btn": "Відкрити Telegram-бот",
+  "mini_version_title": "Міні-версія для Telegram"
+
 
 } 
