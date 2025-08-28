@@ -58,18 +58,39 @@ T = {
     },
 }
 
+# --- WebApp URL builder (нормализует 'ua' -> 'uk') ---
+WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip()
+
+def _normalize_lang(code: str) -> str:
+    c = (code or "").lower()
+    if c == "ua":
+        return "uk"
+    return c if c in ("ru", "en", "uk") else "ru"
+
+def build_webapp_url(lang: str) -> str:
+    base = WEBAPP_URL or "https://<YOUR-DOMAIN>/static/tg/webapp.html"
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}lang={_normalize_lang(lang)}"
+
+
 def pick(lang: str | None, key: str) -> str:
     code = (lang or "en").split("-")[0]
     return T[key].get(code, T[key]["en"])
 
+def _normalize_lang(code: str | None) -> str:
+    c = (code or "ru").split("-")[0].lower()
+    if c == "ua":
+        return "uk"
+    return c if c in ("ru", "en", "uk") else "ru"
+
 def get_user_lang(user: types.User) -> str:
-    # приоритет: сохранённый выбор → язык Telegram-клиента → en
     if user.id in USER_LANG:
-        return USER_LANG[user.id]
-    return (user.language_code or "en").split("-")[0]
+        return _normalize_lang(USER_LANG[user.id])
+    return _normalize_lang(user.language_code)
 
 def webapp_url_for(lang: str) -> str:
-    return f"{WEBAPP_BASE}?lang={lang}"
+    return f"{WEBAPP_BASE}?lang={_normalize_lang(lang)}"
+
 
 def lang_inline_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[

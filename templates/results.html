@@ -598,12 +598,5 @@ function updateSubscription(email, action) {
 </script>
 <!-- Подключение локализации для Telegram webapp -->
 <script src="/static/tg/localization_tg.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const urlLang = new URLSearchParams(location.search).get("lang");
-    const saved = localStorage.getItem("gjh_lang");
-    const lang = urlLang || saved || "ru";   // по умолчанию русский
-    loadLanguage(lang);
-  });
-</script>
+
 {% endblock %}
