@@ -31,16 +31,26 @@
             </button>
 
             <!-- ✅ Мобильный свитчер — теперь вне collapse, всегда виден на <lg -->
-            <div class="dropdown language-switcher d-inline d-lg-none ms-auto">
-            <button class="btn dropdown-toggle" data-bs-toggle="dropdown" id="langMobileBtn">
-                <span class="fi fi-ru"></span> <span id="langMobileText">Русский</span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item lang-option" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>
-                <li><a class="dropdown-item lang-option" data-lang="uk" href="#"><span class="fi fi-ua"></span> Українська</a></li>
-                <li><a class="dropdown-item lang-option" data-lang="en" href="#"><span class="fi fi-gb"></span> English</a></li>
-            </ul>
+            <div class="d-flex d-lg-none align-items-center ms-auto">
+                <div class="dropdown language-switcher">
+                    <button class="btn dropdown-toggle" data-bs-toggle="dropdown" id="langMobileBtn">
+                    <span class="fi fi-ru"></span> <span id="langMobileText">Русский</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item lang-option" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>
+                    <li><a class="dropdown-item lang-option" data-lang="uk" href="#"><span class="fi fi-ua"></span> Українська</a></li>
+                    <li><a class="dropdown-item lang-option" data-lang="en" href="#"><span class="fi fi-gb"></span> English</a></li>
+                    </ul>
+                </div>
+
+                <a class="btn btn-success ms-2"
+                    href="https://t.me/GlobalJobHunter_bot"
+                    target="_blank" rel="noopener">
+                    <i class="bi bi-telegram me-1"></i>
+                    Открыть бота
+                </a>
             </div>
+
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 
@@ -51,22 +61,7 @@
                     <a href="javascript:void(0)" onclick="checkSystemStatus()" class="nav-link btn-hover">
                         <i class="bi bi-heart-pulse me-1"></i>Статус
                     </a>
-                    <div id="language-switcher-container" class="nav-item dropdown language-switcher d-none d-lg-block">
-                    <button class="btn dropdown-toggle" data-bs-toggle="dropdown"><span class="fi fi-ru"></span> Русский</button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> Русский</a></li>
-                        <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> Українська</a></li>
-                        <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> English</a></li>
-                    </ul>
-                    </div>
-                    <a class="btn btn-success d-none d-lg-inline-flex ms-lg-3"
-                    href="https://t.me/GlobalJobHunter_bot"
-                    target="_blank" rel="noopener">
-                    <i class="bi bi-telegram me-1"></i>
-                    Открыть бота в Telegram
-                    </a>
-
-
+                                       
                 </div>
                 
 
