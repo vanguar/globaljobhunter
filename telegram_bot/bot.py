@@ -120,17 +120,22 @@ async def on_start(m: types.Message):
     lang = get_user_lang(user)
     log.info("START from @%s (id=%s) -> lang=%s", user.username, user.id, lang)
 
-    # клавиатура открытия WebApp на выбранном языке
-    kb = open_button_kb(lang)
-    await m.answer(pick(lang, "start"), reply_markup=kb)
+    kb = open_button_kb(lang)  # открываем мини-апп без ?lang
+    await m.answer(
+    "Привет! 👋 Я GlobalJobHunter Bot.\n\n"
+    "Я делаю 🌐 глобальный поиск вакансий по разным странам и сайтам "
+    "(Adzuna, Careerjet, Jobicy, Remotive). "
+    "Запускай мини-приложение ниже, выбирай профессии и страны, и жми «Найти» 🔎.\n\n"
+    "Готов? Поехали! 🚀",
+    reply_markup=kb
+)
+# меню выбора языка больше не показываем
 
-    # отправим меню для смены языка
-    await m.answer(pick(lang, "choose"), reply_markup=lang_inline_keyboard())
 
 @dp.message(Command("lang"))
 async def on_lang_cmd(m: types.Message):
-    lang = get_user_lang(m.from_user)
-    await m.answer(pick(lang, "choose"), reply_markup=lang_inline_keyboard())
+    await m.answer("Переключение языка отключено.")
+
 
 @dp.callback_query(F.data == "show_lang_menu")
 async def on_show_lang_menu(cq: CallbackQuery):
