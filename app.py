@@ -2412,8 +2412,7 @@ def admin_stats_secure():
             f"<td>{h(c.lang or '')}</td>"
             f"<td>{'Да' if c.is_refugee else 'Нет'}</td>"
             f"<td>{h(pretty_json(c.countries))}</td>"
-            f"<td>{h(prety_json := pretty_json((json.loads(c.jobs) if isinstance(c.jobs, str) and c.jobs.strip().startswith('[') else c.jobs)[:6])
-)}</td>"
+            f"<td>{h(prety_json := pretty_json(c.jobs))}</td>"
             f"</tr>"
         )
         for c in sc
