@@ -2380,17 +2380,17 @@ def admin_subscribers_secure():
 
 @app.route('/admin/stats_secure')
 def admin_stats_secure():
-    """Защищенная страница статистики"""
+    """Защищенная страница статистики."""
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login_page'))
-    
+
     if not aggregator:
         return "Сервис недоступен", 500
-    
-    # старые метрики кеша
-    stats = aggregator.get_cache_stats()
 
-    # новые события
+    # базовые метрики агрегатора
+    stats = aggregator.get_cache_stats()  # dict: cache_hits, api_requests, total_jobs_found
+
+    # безопасно берём события (не падаем, если таблиц ещё нет)
     try:
         from analytics import recent_events
         sc, pc = recent_events(limit=100)
@@ -2401,17 +2401,19 @@ def admin_stats_secure():
     def h(s):
         if s is None:
             return ""
-        return (str(s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;"))
-    
+        return (str(s).replace("&", "&amp;")
+                     .replace("<", "&lt;")
+                     .replace(">", "&gt;"))
+
     search_rows = "".join(
         f"<tr><td>{c.created_at:%Y-%m-%d %H:%M:%S}</td>"
         f"<td>{h(c.ip)}</td>"
         f"<td>{h(c.country or '')}</td>"
         f"<td>{h(c.city or '')}</td>"
         f"<td>{h(c.lang or '')}</td>"
-        f"<td>{h(c.is_refugee)}</td>"
-        f"<td>{h(c.countries)}</td>"
-        f"<td>{h(c.jobs)}</td></tr>"
+        f"<td>{'Да' if c.is_refugee else 'Нет'}</td>"
+        f"<td>{h(c.countries or '')}</td>"
+        f"<td>{h(c.jobs or '')}</td></tr>"
         for c in sc
     )
 
@@ -2421,89 +2423,82 @@ def admin_stats_secure():
         f"<td>{h(c.country or '')}</td>"
         f"<td>{h(c.city or '')}</td>"
         f"<td>{h(c.lang or '')}</td>"
-        f"<td>{h(c.partner or c.target_domain)}</td>"
+        f"<td>{h(c.partner or c.target_domain or '')}</td>"
         f"<td>{h(c.job_id or '')}</td>"
         f"<td>{h(c.job_title or '')}</td>"
         f"<td><a href='{h(c.target_url)}' target='_blank' rel='noopener'>перейти</a></td></tr>"
         for c in pc
     )
 
+    # подставляем значения Python, а не {{ ... }}
+    cache_hits = stats.get('cache_hits', 0)
+    api_requests = stats.get('api_requests', 0)
+    total_jobs_found = stats.get('total_jobs_found', 0)
+
     return f"""
-    <!DOCTYPE html>
-    <html lang="{{{{ request.cookies.get('lang','ru') }}}}">
+    <!doctype html>
+    <html lang="ru">
     <head>
-        <meta charset="utf-8">
-        <title>Статистика - Админка</title>
-        <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial; background:#f6f7fb; margin:0; padding:24px; }}
-            .container {{ max-width:1280px; margin:0 auto; }}
-            .nav a {{ background:#007bff; color:#fff; padding:10px 14px; border-radius:8px; text-decoration:none; margin-right:8px; }}
-            .cards {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin:20px 0; }}
-            .card {{ background:#fff; border-radius:12px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
-            .num {{ font-size:32px; font-weight:700; }}
-            table {{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
-            th, td {{ padding:10px 12px; border-bottom:1px solid #eee; font-size:14px; vertical-align:top; }}
-            th {{ text-align:left; background:#fafbff; font-weight:600; }}
-            tr:hover td {{ background:#fafafa; }}
-            .mt-24 {{ margin-top:24px; }}
-            .mt-8 {{ margin-top:8px; }}
-            .mb-8 {{ margin-bottom:8px; }}
-        </style>
+      <meta charset="utf-8">
+      <title>Статистика - Админка</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial; background:#f6f7fb; margin:0; padding:24px; }}
+        .container {{ max-width:1280px; margin:0 auto; }}
+        .nav a {{ background:#0d6efd; color:#fff; padding:10px 14px; border-radius:8px; text-decoration:none; margin-right:8px; display:inline-block; }}
+        .cards {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin:20px 0; }}
+        .card {{ background:#fff; border-radius:12px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
+        .num {{ font-size:32px; font-weight:700; }}
+        table {{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
+        th, td {{ padding:10px 12px; border-bottom:1px solid #eee; font-size:14px; vertical-align:top; }}
+        th {{ text-align:left; background:#fafbff; font-weight:600; }}
+        tr:hover td {{ background:#fafafa; }}
+        .mt-24 {{ margin-top:24px; }}
+        .mt-8 {{ margin-top:8px; }}
+        .mb-8 {{ margin-bottom:8px; }}
+      </style>
     </head>
     <body>
       <div class="container">
         <h1>📊 Статистика</h1>
         <div class="nav mb-8">
-            <a href="/admin/subscribers_secure">👥 Подписчики</a>
-            <a href="/admin/stats_secure">📊 Статистика</a>
-            <a href="/health">💚 Здоровье</a>
-            <a href="/admin/cache">🧹 Кэш</a>
-            <a href="/admin/logout">🚪 Выйти</a>
+          <a href="/admin/subscribers_secure">👥 Подписчики</a>
+          <a href="/admin/stats_secure">📊 Статистика</a>
+          <a href="/health">💚 Здоровье</a>
+          <a href="/admin/cache">🧹 Кэш</a>
+          <a href="/admin/logout">🚪 Выйти</a>
         </div>
 
         <div class="cards">
-            <div class="card"><div class="num">{{{{stats['cache_hits']}}}}</div><div>Cache Hits</div></div>
-            <div class="card"><div class="num">{{{{stats['api_requests']}}}}</div><div>API Requests</div></div>
-            <div class="card"><div class="num">{{{{stats['total_jobs_found']}}}}</div><div>Jobs Found</div></div>
-            <div class="card"><div class="num">{len(sc)}</div><div>Последние поиски (в таблице ниже)</div></div>
-            <div class="card"><div class="num">{len(pc)}</div><div>Переходы к партнёрам (в таблице ниже)</div></div>
+          <div class="card"><div class="num">{cache_hits}</div><div>Cache Hits</div></div>
+          <div class="card"><div class="num">{api_requests}</div><div>API Requests</div></div>
+          <div class="card"><div class="num">{total_jobs_found}</div><div>Jobs Found</div></div>
+          <div class="card"><div class="num">{len(sc)}</div><div>Последние поиски (в таблице ниже)</div></div>
+          <div class="card"><div class="num">{len(pc)}</div><div>Переходы к партнёрам (в таблице ниже)</div></div>
         </div>
 
         <h2 class="mt-24">🔎 Нажатия «Найти работу» (последние 100)</h2>
         <table class="mt-8">
           <thead><tr>
-            <th>Время</th>
-            <th>IP</th>
-            <th>Страна</th>
-            <th>Город</th>
-            <th>Язык</th>
-            <th>Беженец</th>
-            <th>Страны поиска</th>
-            <th>Профессии</th>
+            <th>Время</th><th>IP</th><th>Страна</th><th>Город</th><th>Язык</th>
+            <th>Беженец</th><th>Страны поиска</th><th>Профессии</th>
           </tr></thead>
-          <tbody>{search_rows or '<tr><td colspan=8 style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
+          <tbody>{search_rows or '<tr><td colspan="8" style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
         </table>
 
         <h2 class="mt-24">↗️ Переходы на сайты-партнёры (последние 100)</h2>
         <table class="mt-8">
           <thead><tr>
-            <th>Время</th>
-            <th>IP</th>
-            <th>Страна</th>
-            <th>Город</th>
-            <th>Язык</th>
-            <th>Партнёр</th>
-            <th>Job ID</th>
-            <th>Заголовок</th>
-            <th>Ссылка</th>
+            <th>Время</th><th>IP</th><th>Страна</th><th>Город</th><th>Язык</th>
+            <th>Партнёр</th><th>Job ID</th><th>Заголовок</th><th>Ссылка</th>
           </tr></thead>
-          <tbody>{partner_rows or '<tr><td colspan=9 style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
+          <tbody>{partner_rows or '<tr><td colspan="9" style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
         </table>
-
       </div>
     </body>
     </html>
     """
+
     
 @app.route('/send-notifications')
 def send_notifications():
