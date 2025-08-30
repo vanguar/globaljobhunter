@@ -110,15 +110,39 @@ def log_search_click(preferences: dict):
     try:
         ip, ua, lang = _extract_request_meta(request)
         geo = _geolocate_ip(ip)
+
+        # --- нормализация стран ---
+        raw_countries = preferences.get("countries") or []
+        if isinstance(raw_countries, str):
+            try:
+                raw_countries = json.loads(raw_countries)
+            except Exception:
+                raw_countries = [raw_countries] if raw_countries.strip() else []
+        countries_json = json.dumps(raw_countries, ensure_ascii=False)
+
+        # --- нормализация профессий ---
+        raw_jobs = preferences.get("selected_jobs") or []
+        if isinstance(raw_jobs, str):
+            try:
+                raw_jobs = json.loads(raw_jobs)
+            except Exception:
+                raw_jobs = [s.strip() for s in raw_jobs.split(",") if s.strip()]
+        jobs_json = json.dumps(raw_jobs, ensure_ascii=False)
+
+        # --- выбор города запроса ---
+        if isinstance(preferences.get("cities"), list) and preferences.get("cities"):
+            city_q = preferences["cities"][0]
+        else:
+            city_q = preferences.get("city")
+
         sc = SearchClick(
             ip=ip, user_agent=ua, lang=lang,
             country=(geo or {}).get("country"), city=(geo or {}).get("city"),
             lat=(geo or {}).get("lat"), lon=(geo or {}).get("lon"),
             is_refugee=bool(preferences.get("is_refugee")),
-            countries = json.dumps(preferences.get('countries') or [], ensure_ascii=False)
-            jobs = json.dumps(preferences.get('selected_jobs') or [], ensure_ascii=False)
-            city_query=(preferences.get("city") or (preferences.get("cities") or [None])[0])
-            if isinstance(preferences.get("cities"), list) else (preferences.get("city") or None),
+            countries=countries_json,
+            jobs=jobs_json,
+            city_query=city_q,
         )
         db.session.add(sc)
         db.session.commit()
@@ -163,7 +187,7 @@ def _geolocate_ip(ip: str) -> Optional[dict]:
         headers = {}
         token = current_app.config.get("GEOIP_TOKEN")
         if token:
-            headers["Authorization"] = f"Bearer {token}"
+            headers["Authorization"] = f"Bearer {token}."
         r = requests.get(url, headers=headers, timeout=1.8)
         if r.ok:
             j = r.json()

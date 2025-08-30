@@ -2433,27 +2433,24 @@ def admin_stats_secure():
 
     import json
 
-    def pretty_json(value):
-        """Вернуть человекочитаемую строку из JSON (список/словарь/строка). Безопасно к ошибкам."""
-        if value is None:
-            return ""
-        # Если это уже список/словарь — приводим к строке
-        if isinstance(value, list):
-            return ", ".join(map(str, value))
-        if isinstance(value, dict):
-            return ", ".join(f"{k}: {v}" for k, v in value.items())
-        # Пытаемся распарсить строку как JSON
-        s = str(value)
-        try:
-            obj = json.loads(s)
-            if isinstance(obj, list):
-                return ", ".join(map(str, obj))
-            if isinstance(obj, dict):
-                return ", ".join(f"{k}: {v}" for k, v in obj.items())
-        except Exception:
-            pass
-        # иначе вернём как есть
-        return s
+def pretty_json(value):
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return ", ".join(map(str, value))
+    if isinstance(value, dict):
+        return ", ".join(f"{k}: {v}" for k, v in value.items())
+    # если строка — пробуем распарсить JSON
+    try:
+        obj = json.loads(str(value))
+        if isinstance(obj, (list, tuple)):
+            return ", ".join(map(str, obj))
+        if isinstance(obj, dict):
+            return ", ".join(f"{k}: {v}" for k, v in obj.items())
+    except Exception:
+        pass
+    return str(value)
+
 
 
     # подставляем значения Python, а не {{ ... }}
