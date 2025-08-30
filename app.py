@@ -31,6 +31,7 @@ from email_service import mail, send_welcome_email, send_preferences_update_emai
 from flask_migrate import Migrate
 from pathlib import Path
 import time
+from sqlalchemy import func
 
 
 from threading import Thread
@@ -2408,46 +2409,57 @@ def admin_stats_secure():
         'cache_hits': 0, 'api_requests': 0, 'total_jobs_found': 0
     }
 
-    # корректный src для JS
+    # путь к статике без Jinja в HTML-строке
     script_src = url_for('static', filename='js/localization.js')
 
-    # события
+    # последние события (100) и счётчик по партнёрам для пирога
     try:
-        from analytics import recent_events
+        from analytics import recent_events, SearchClick, PartnerClick
+        from database import db
         sc, pc = recent_events(limit=100)
-        partner_clicks_count = len(pc)
+        partner_clicks_count_last = len(pc)
+
+        # Итоги по БД (всё время)
+        total_search_clicks = db.session.query(func.count(SearchClick.id)).scalar() or 0
+        total_partner_clicks = db.session.query(func.count(PartnerClick.id)).scalar() or 0
+
+        # Сейчас все исходящие клики идут на сайты-партнёры (логируются в PartnerClick),
+        # поэтому итог по исходящим = итог по партнёрам
+        total_out_clicks = total_partner_clicks
+
+        # распределение по партнёрам
+        from collections import Counter
+        partner_counter = Counter((p.partner or p.target_domain or 'unknown').strip() for p in pc)
+        import json as _json
+        labels_json = _json.dumps(list(partner_counter.keys()), ensure_ascii=False)
+        values_json = _json.dumps([partner_counter[k] for k in partner_counter], ensure_ascii=False)
+
     except Exception as e:
         app.logger.exception("analytics.recent_events failed: %s", e)
-        sc, pc, partner_clicks_count = [], [], 0
-
-    # распределение по партнёрам для диаграммы
-    from collections import Counter
-    import json as _json
-    partner_counter = Counter((p.partner or p.target_domain or 'unknown').strip() for p in pc)
-    chart_labels = list(partner_counter.keys())
-    chart_values = [partner_counter[k] for k in chart_labels]
-    labels_json = _json.dumps(chart_labels, ensure_ascii=False)
-    values_json = _json.dumps(chart_values, ensure_ascii=False)
+        sc, pc = [], []
+        partner_clicks_count_last = 0
+        total_search_clicks = 0
+        total_partner_clicks = 0
+        total_out_clicks = 0
+        labels_json = "[]"
+        values_json = "[]"
 
     h = html_escape  # короткий алиас
 
-    # ===== «Найти работу» — таблица + детали =====
+    # === таблица «Найти работу» с разворотом ===
+    def _details_city_query(c):
+        v = getattr(c, "city_query", None)
+        return f'<div><strong>City query:</strong> {h(v)}</div>' if v else ''
+
+    def _details_ua(obj):
+        ua = getattr(obj, "user_agent", None)
+        return f'<div><strong>User-Agent:</strong> <span class="mono small-ua">{h(ua)}</span></div>' if ua else ''
+
     search_rows_parts = []
     for i, c in enumerate(sc):
         row_id = f"details-s-{i}"
         countries_txt = pretty_json(c.countries)
         jobs_txt = pretty_json(c.jobs)
-
-        city_query_html = (
-            f'<div><strong>City query:</strong> {h(getattr(c, "city_query", "") or "")}</div>'
-            if getattr(c, "city_query", None) else ''
-        )
-        ua_html = (
-            f'<div><strong>User-Agent:</strong> <span class="mono small-ua">{h(getattr(c, "user_agent", "") or "")}</span></div>'
-            if getattr(c, "user_agent", None) else ''
-        )
-
-        # основная строка
         search_rows_parts.append(f"""
 <tr>
   <td class="mono">
@@ -2463,10 +2475,6 @@ def admin_stats_secure():
   <td><div class="line-clamp-2" title="{h(countries_txt)}">{h(countries_txt)}</div></td>
   <td><div class="line-clamp-2" title="{h(jobs_txt)}">{h(jobs_txt)}</div></td>
 </tr>
-""")
-
-        # строка деталей (скрыта по умолчанию)
-        search_rows_parts.append(f"""
 <tr id="{row_id}" class="details-row">
   <td colspan="8">
     <div class="details">
@@ -2474,31 +2482,21 @@ def admin_stats_secure():
       <div><strong>Страна:</strong> {h(c.country or '')} | <strong>Город:</strong> {h(c.city or '')}</div>
       <div><strong>Страны поиска:</strong> {h(countries_txt)}</div>
       <div><strong>Профессии:</strong> {h(jobs_txt)}</div>
-      {city_query_html}{ua_html}
+      {_details_city_query(c)}{_details_ua(c)}
     </div>
   </td>
 </tr>
 """)
-
     search_rows = "".join(search_rows_parts) or '<tr><td colspan="8" class="text-center text-muted">нет данных</td></tr>'
 
-    # ===== Переходы к партнёрам — таблица + детали =====
+    # === таблица «Переходы к партнёрам» с разворотом ===
     partner_rows_parts = []
     for i, p in enumerate(pc):
         row_id = f"details-p-{i}"
         link = (p.target_url or '').strip()
         partner_name = (p.partner or p.target_domain or '').strip()
         title = p.job_title or ''
-
-        link_html = (
-            f'<div><strong>Глубокая ссылка:</strong> <a href="{h(link)}" target="_blank" rel="noopener">{h(link)}</a></div>'
-            if link else ''
-        )
-        ua_html = (
-            f'<div><strong>User-Agent:</strong> <span class="mono small-ua">{h(getattr(p, "user_agent", "") or "")}</span></div>'
-            if getattr(p, "user_agent", None) else ''
-        )
-
+        link_html = f'<div><strong>Глубокая ссылка:</strong> <a href="{h(link)}" target="_blank" rel="noopener">{h(link)}</a></div>' if link else ''
         partner_rows_parts.append(f"""
 <tr>
   <td class="mono">
@@ -2515,20 +2513,16 @@ def admin_stats_secure():
   <td><div class="line-clamp-2" title="{h(title)}">{h(title)}</div></td>
   <td>{(f'<a class="btn btn-sm btn-outline-primary" href="{h(link)}" target="_blank" rel="noopener">Открыть</a>') if link else ''}</td>
 </tr>
-""")
-
-        partner_rows_parts.append(f"""
 <tr id="{row_id}" class="details-row">
   <td colspan="9">
     <div class="details">
       <div><strong>Партнёр:</strong> {h(partner_name)}</div>
       <div><strong>Job ID:</strong> <span class="mono">{h(p.job_id or '')}</span></div>
-      {link_html}{ua_html}
+      {link_html}{_details_ua(p)}
     </div>
   </td>
 </tr>
 """)
-
     partner_rows = "".join(partner_rows_parts) or '<tr><td colspan="9" class="text-center text-muted">нет данных</td></tr>'
 
     # карточки-метрики
@@ -2536,7 +2530,6 @@ def admin_stats_secure():
     api_requests = stats.get('api_requests', 0)
     total_jobs_found = stats.get('total_jobs_found', 0)
 
-    # ====== HTML ======
     return f"""
 <!doctype html>
 <html lang="ru">
@@ -2569,6 +2562,7 @@ def admin_stats_secure():
 <body>
 <div class="container py-4">
 
+  <!-- Навигация -->
   <div class="d-flex gap-2 flex-wrap mb-3">
     <a class="btn btn-outline-primary" href="/admin/subscribers?key={h(os.getenv('ADMIN_KEY') or '')}">👥 Подписчики</a>
     <a class="btn btn-primary" href="/admin/stats_secure">📈 Статистика</a>
@@ -2577,19 +2571,28 @@ def admin_stats_secure():
     <a class="btn btn-outline-secondary" href="/">🏠 Выйти</a>
   </div>
 
-  <div class="row g-3 mb-4">
+  <!-- Карточки (системные) -->
+  <div class="row g-3 mb-3">
     <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{cache_hits}</div><div>Cache Hits</div></div></div>
     <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{api_requests}</div><div>API Requests</div></div></div>
     <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{total_jobs_found}</div><div>Jobs Found</div></div></div>
-    <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{partner_clicks_count}</div><div>Переходы к партнёрам</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{partner_clicks_count_last}</div><div>Переходы к партнёрам (последние 100)</div></div></div>
   </div>
 
+  <!-- Карточки (ИТОГО) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{total_search_clicks}</div><div>Итого «Найти работу»</div></div></div>
+    <div class="col-12 col-md-4"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{total_partner_clicks}</div><div>Итого переходов к партнёрам</div></div></div>
+    <div class="col-12 col-md-4"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{total_out_clicks}</div><div>Итого исходящих кликов</div></div></div>
+  </div>
+
+  <!-- Круговая диаграмма -->
   <div class="row mb-4">
     <div class="col-12 col-lg-6">
       <div class="p-3 chart-card">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0">Распределение переходов по партнёрам</h5>
-          <span class="text-muted">последние {partner_clicks_count}</span>
+          <span class="text-muted">последние {partner_clicks_count_last}</span>
         </div>
         <canvas id="partnersPie" height="220"></canvas>
       </div>
@@ -2638,7 +2641,7 @@ def admin_stats_secure():
 </div>
 
 <script>
-  // Разворот деталей
+  // Тогглер деталей
   document.addEventListener('click', function(e) {{
     const btn = e.target.closest('.toggle');
     if (!btn) return;
@@ -2650,7 +2653,7 @@ def admin_stats_secure():
     btn.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
   }});
 
-  // Круговая диаграмма
+  // Круговая диаграмма (без JS-шаблонных строк — чтобы не конфликтовать с Python f-строкой)
   (function() {{
     const labels = {labels_json};
     const values = {values_json};
@@ -2666,11 +2669,11 @@ def admin_stats_secure():
           legend: {{ position: 'bottom' }},
           tooltip: {{
             callbacks: {{
-              label: function(ctx) {{
+              label: function(ct) {{
                 const total = values.reduce((a,b)=>a+b,0) || 1;
-                const v = ctx.parsed;
+                const v = ct.parsed;
                 const pct = Math.round((v*100)/total);
-                return ' ' + ctx.label + ': ' + v + ' (' + pct + '%)';
+                return ' ' + ct.label + ': ' + v + ' (' + pct + '%)';
               }}
             }}
           }}
