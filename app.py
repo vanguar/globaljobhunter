@@ -51,9 +51,12 @@ from pathlib import Path
 import time
 
 from flask import Flask, render_template
+# === трекинг-логика (минимальные правки) ===
+from analytics import analytics_bp, log_search_click
+
 
 app = Flask(__name__)
-
+app.register_blueprint(analytics_bp)
 
 # в app.py (не ломая ничего существующего)
 from flask import send_from_directory
@@ -274,105 +277,113 @@ def index():
 
 @app.route('/search', methods=['POST'])
 def search_jobs():
-   """API для поиска с кешированием + поддержка нескольких городов через запятую"""
-   if not aggregator:
-       return jsonify({'error': 'Сервис временно недоступен'}), 500
-   
-   # Rate limiting
-   client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
-   allowed, remaining = check_rate_limit(client_ip)
-   if not allowed:
-       app.logger.warning(f"🚫 Rate limit exceeded for IP: {client_ip}")
-       return jsonify({
-           'error': f'Превышен лимит поисков. Максимум {MAX_SEARCHES_PER_DAY} поисков в день.',
-           'remaining_searches': 0,
-           'reset_time': '24 часа'
-       }), 429
-   
-   app.logger.info(f"✅ Rate limit OK for IP: {client_ip}, remaining: {remaining}")
-   
-   try:
-       form_data = request.json or request.form.to_dict()
-       
-       # === НОВОЕ: корректный разбор нескольких городов через запятую ===
-       raw_city = (form_data.get('city') or '').strip()
-       if raw_city:
-           cities = [c.strip() for c in raw_city.split(',') if c.strip()]
-       else:
-           cities = []
-       # ================================================================
-       
-       preferences = {
-           'is_refugee': form_data.get('is_refugee') == 'true',
-           'selected_jobs': form_data.get('selected_jobs', []),
-           'countries': form_data.get('countries', ['de']),
-           # оставляем старое поле для обратной совместимости (UI/шаблоны)
-           'city': None,
-           # НОВОЕ поле — список городов
-           'cities': cities
-       }
-       
-       if not preferences['selected_jobs']:
-           return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
-       
-       if isinstance(preferences['selected_jobs'], str):
-           preferences['selected_jobs'] = [preferences['selected_jobs']]
-       
-       app.logger.info(f"🔍 Начинаем поиск: {preferences}")
-       start_time = time.time()
-       
-       # Основной поиск (Adzuna)
-       jobs = aggregator.search_specific_jobs(preferences)
-       
-       # Доп. источники (если подключены)
-       if additional_aggregators:
-           use_remote = _remote_allowed(preferences)
-           for source_name, source_aggregator in additional_aggregators.items():
-               # Блокируем remote-only источники, если выбранные профессии не допускают удалёнку
-               if source_name in ('remotive', 'jobicy') and not use_remote:
-                   app.logger.info(f"⛔ Пропускаем {source_name}: выбранные профессии не допускают удалёнку")
-                   continue
-               try:
-                   app.logger.info(f"🔄 Дополнительный поиск через {source_name}")
-                   additional_jobs = source_aggregator.search_jobs(preferences)
-                   jobs.extend(additional_jobs)
-                   app.logger.info(f"✅ {source_name}: +{len(additional_jobs)} вакансий")
-               except Exception as e:
-                   app.logger.warning(f"⚠️ {source_name} ошибка: {e}")
-                   continue
-       
-       search_time = time.time() - start_time
-       
-       cache_stats = aggregator.get_cache_stats()
-       app.logger.info(f"⏱️ Поиск завершен за {search_time:.1f}с, найдено {len(jobs)} вакансий")
-       app.logger.info(f"📊 Cache hit rate: {cache_stats['cache_hit_rate']}, API requests: {cache_stats['api_requests']}")
-       
-       if jobs:
-           results_id = str(uuid.uuid4())
-           job_details_map = {job.id: asdict(job) for job in jobs}
-           aggregator.search_cache[results_id] = job_details_map
-           
-           session['results_id'] = results_id
-           session['last_search_preferences'] = preferences
-           session['search_time'] = search_time
-       else:
-           session['results_id'] = None
-           session['last_search_preferences'] = preferences
-           session['search_time'] = search_time
+    """API для поиска с кешированием + поддержка нескольких городов через запятую"""
+    if not aggregator:
+        return jsonify({'error': 'Сервис временно недоступен'}), 500
+    
+    # Rate limiting
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
+    allowed, remaining = check_rate_limit(client_ip)
+    if not allowed:
+        app.logger.warning(f"🚫 Rate limit exceeded for IP: {client_ip}")
+        return jsonify({
+            'error': f'Превышен лимит поисков. Максимум {MAX_SEARCHES_PER_DAY} поисков в день.',
+            'remaining_searches': 0,
+            'reset_time': '24 часа'
+        }), 429
+    
+    app.logger.info(f"✅ Rate limit OK for IP: {client_ip}, remaining: {remaining}")
+    
+    try:
+        form_data = request.json or request.form.to_dict()
+        
+        # === корректный разбор нескольких городов через запятую ===
+        raw_city = (form_data.get('city') or '').strip()
+        if raw_city:
+            cities = [c.strip() for c in raw_city.split(',') if c.strip()]
+        else:
+            cities = []
+        # ==========================================================
+        
+        preferences = {
+            'is_refugee': form_data.get('is_refugee') == 'true',
+            'selected_jobs': form_data.get('selected_jobs', []),
+            'countries': form_data.get('countries', ['de']),
+            # оставляем старое поле для обратной совместимости (UI/шаблоны)
+            'city': None,
+            # новое поле — список городов
+            'cities': cities
+        }
+        
+        if not preferences['selected_jobs']:
+            return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
+        
+        if isinstance(preferences['selected_jobs'], str):
+            preferences['selected_jobs'] = [preferences['selected_jobs']]
+        
+        # === analytics: лог клика "Найти работу" (не влияет на основной поток) ===
+        try:
+            log_search_click(preferences)
+        except Exception as e:
+            app.logger.warning(f"analytics log_search_click failed: {e}")
+        # =======================================================================
+        
+        app.logger.info(f"🔍 Начинаем поиск: {preferences}")
+        start_time = time.time()
 
-       return jsonify({
-           'success': True,
-           'jobs_count': len(jobs),
-           'search_time': round(search_time, 1),
-           'cached': cache_stats['cache_hits'] > 0,
-           'sources_used': ['adzuna'] + list(additional_aggregators.keys()),
-           'remaining_searches': remaining,
-           'redirect_url': url_for('results')
-       })
-       
-   except Exception as e:
-       app.logger.error(f"❌ Ошибка поиска: {e}", exc_info=True)
-       return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+        # Основной поиск (Adzuna)
+        jobs = aggregator.search_specific_jobs(preferences)
+        
+        # Доп. источники (если подключены)
+        if additional_aggregators:
+            use_remote = _remote_allowed(preferences)
+            for source_name, source_aggregator in additional_aggregators.items():
+                # Блокируем remote-only источники, если выбранные профессии не допускают удалёнку
+                if source_name in ('remotive', 'jobicy') and not use_remote:
+                    app.logger.info(f"⛔ Пропускаем {source_name}: выбранные профессии не допускают удалёнку")
+                    continue
+                try:
+                    app.logger.info(f"🔄 Дополнительный поиск через {source_name}")
+                    additional_jobs = source_aggregator.search_jobs(preferences)
+                    jobs.extend(additional_jobs)
+                    app.logger.info(f"✅ {source_name}: +{len(additional_jobs)} вакансий")
+                except Exception as e:
+                    app.logger.warning(f"⚠️ {source_name} ошибка: {e}")
+                    continue
+        
+        search_time = time.time() - start_time
+        
+        cache_stats = aggregator.get_cache_stats()
+        app.logger.info(f"⏱️ Поиск завершен за {search_time:.1f}с, найдено {len(jobs)} вакансий")
+        app.logger.info(f"📊 Cache hit rate: {cache_stats['cache_hit_rate']}, API requests: {cache_stats['api_requests']}")
+        
+        if jobs:
+            results_id = str(uuid.uuid4())
+            job_details_map = {job.id: asdict(job) for job in jobs}
+            aggregator.search_cache[results_id] = job_details_map
+            
+            session['results_id'] = results_id
+            session['last_search_preferences'] = preferences
+            session['search_time'] = search_time
+        else:
+            session['results_id'] = None
+            session['last_search_preferences'] = preferences
+            session['search_time'] = search_time
+
+        return jsonify({
+            'success': True,
+            'jobs_count': len(jobs),
+            'search_time': round(search_time, 1),
+            'cached': cache_stats['cache_hits'] > 0,
+            'sources_used': ['adzuna'] + list(additional_aggregators.keys()),
+            'remaining_searches': remaining,
+            'redirect_url': url_for('results')
+        })
+    
+    except Exception as e:
+        app.logger.error(f"❌ Ошибка поиска: {e}", exc_info=True)
+        return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
+
 
 # ---- LIVE SEARCH: старт → прогресс → стоп ---------------------------------
 
@@ -417,10 +428,18 @@ def search_start():
         'city': None,
         'cities': cities
     }
+
     if isinstance(preferences['selected_jobs'], str):
         preferences['selected_jobs'] = [preferences['selected_jobs']]
     if not preferences['selected_jobs']:
         return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
+
+    # === analytics: лог клика "Найти работу" (не влияет на основной поток) ===
+    try:
+        log_search_click(preferences)
+    except Exception as e:
+        app.logger.warning(f"analytics log_search_click failed: {e}")
+    # =======================================================================
 
     sid = str(uuid.uuid4())
     active_searches[sid] = {
@@ -440,6 +459,7 @@ def search_start():
     t = Thread(target=_search_worker, args=(sid,), daemon=True)
     t.start()
     return jsonify({'ok': True, 'search_id': sid, 'remaining_searches': remaining})
+
 
 def _search_worker(sid: str):
     """Фоновый поток: проходит по источникам и наполняет active_searches[sid]['job_map'].
@@ -2367,54 +2387,124 @@ def admin_stats_secure():
     if not aggregator:
         return "Сервис недоступен", 500
     
+    # старые метрики кеша
     stats = aggregator.get_cache_stats()
+
+    # новые события
+    try:
+        from analytics import recent_events
+        sc, pc = recent_events(limit=100)
+    except Exception as e:
+        current_app.logger.exception("analytics.recent_events failed: %s", e)
+        sc, pc = [], []
+
+    def h(s):
+        if s is None:
+            return ""
+        return (str(s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;"))
     
+    search_rows = "".join(
+        f"<tr><td>{c.created_at:%Y-%m-%d %H:%M:%S}</td>"
+        f"<td>{h(c.ip)}</td>"
+        f"<td>{h(c.country or '')}</td>"
+        f"<td>{h(c.city or '')}</td>"
+        f"<td>{h(c.lang or '')}</td>"
+        f"<td>{h(c.is_refugee)}</td>"
+        f"<td>{h(c.countries)}</td>"
+        f"<td>{h(c.jobs)}</td></tr>"
+        for c in sc
+    )
+
+    partner_rows = "".join(
+        f"<tr><td>{c.created_at:%Y-%m-%d %H:%M:%S}</td>"
+        f"<td>{h(c.ip)}</td>"
+        f"<td>{h(c.country or '')}</td>"
+        f"<td>{h(c.city or '')}</td>"
+        f"<td>{h(c.lang or '')}</td>"
+        f"<td>{h(c.partner or c.target_domain)}</td>"
+        f"<td>{h(c.job_id or '')}</td>"
+        f"<td>{h(c.job_title or '')}</td>"
+        f"<td><a href='{h(c.target_url)}' target='_blank' rel='noopener'>перейти</a></td></tr>"
+        for c in pc
+    )
+
     return f"""
     <!DOCTYPE html>
-    <html lang="{{ request.cookies.get('lang','ru') }}"
+    <html lang="{{{{ request.cookies.get('lang','ru') }}}}">
     <head>
-        <title>Статистика - Админка</title>
         <meta charset="utf-8">
-        <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
+        <title>Статистика - Админка</title>
         <style>
-            body {{ font-family: Arial; background: #f8f9fa; margin: 0; padding: 20px; }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
-            .nav {{ display: flex; gap: 15px; margin: 20px 0; }}
-            .nav a {{ background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; }}
-            .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }}
-            .stat-card {{ background: white; padding: 25px; border-radius: 8px; text-align: center; }}
-            .stat-number {{ font-size: 2em; font-weight: bold; color: #007bff; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial; background:#f6f7fb; margin:0; padding:24px; }}
+            .container {{ max-width:1280px; margin:0 auto; }}
+            .nav a {{ background:#007bff; color:#fff; padding:10px 14px; border-radius:8px; text-decoration:none; margin-right:8px; }}
+            .cards {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin:20px 0; }}
+            .card {{ background:#fff; border-radius:12px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
+            .num {{ font-size:32px; font-weight:700; }}
+            table {{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
+            th, td {{ padding:10px 12px; border-bottom:1px solid #eee; font-size:14px; vertical-align:top; }}
+            th {{ text-align:left; background:#fafbff; font-weight:600; }}
+            tr:hover td {{ background:#fafafa; }}
+            .mt-24 {{ margin-top:24px; }}
+            .mt-8 {{ margin-top:8px; }}
+            .mb-8 {{ margin-bottom:8px; }}
         </style>
     </head>
     <body>
-        <div class="container">
-            <h1>📊 Статистика системы</h1>
-            
-            <div class="nav">
-                <a href="/admin/dashboard">🏠 Главная админки</a>
-                <a href="/admin/subscribers_secure">👥 Подписчики</a>
-                <a href="/admin/cache">🧹 Кэш</a>
-                <a href="/admin/logout">🚪 Выйти</a>
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number">{stats['cache_hits']}</div>
-                    <h3>Cache Hits</h3>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['api_requests']}</div>
-                    <h3>API Requests</h3>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">{stats['total_jobs_found']}</div>
-                    <h3>Jobs Found</h3>
-                </div>
-            </div>
+      <div class="container">
+        <h1>📊 Статистика</h1>
+        <div class="nav mb-8">
+            <a href="/admin/subscribers_secure">👥 Подписчики</a>
+            <a href="/admin/stats_secure">📊 Статистика</a>
+            <a href="/health">💚 Здоровье</a>
+            <a href="/admin/cache">🧹 Кэш</a>
+            <a href="/admin/logout">🚪 Выйти</a>
         </div>
+
+        <div class="cards">
+            <div class="card"><div class="num">{{{{stats['cache_hits']}}}}</div><div>Cache Hits</div></div>
+            <div class="card"><div class="num">{{{{stats['api_requests']}}}}</div><div>API Requests</div></div>
+            <div class="card"><div class="num">{{{{stats['total_jobs_found']}}}}</div><div>Jobs Found</div></div>
+            <div class="card"><div class="num">{len(sc)}</div><div>Последние поиски (в таблице ниже)</div></div>
+            <div class="card"><div class="num">{len(pc)}</div><div>Переходы к партнёрам (в таблице ниже)</div></div>
+        </div>
+
+        <h2 class="mt-24">🔎 Нажатия «Найти работу» (последние 100)</h2>
+        <table class="mt-8">
+          <thead><tr>
+            <th>Время</th>
+            <th>IP</th>
+            <th>Страна</th>
+            <th>Город</th>
+            <th>Язык</th>
+            <th>Беженец</th>
+            <th>Страны поиска</th>
+            <th>Профессии</th>
+          </tr></thead>
+          <tbody>{search_rows or '<tr><td colspan=8 style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
+        </table>
+
+        <h2 class="mt-24">↗️ Переходы на сайты-партнёры (последние 100)</h2>
+        <table class="mt-8">
+          <thead><tr>
+            <th>Время</th>
+            <th>IP</th>
+            <th>Страна</th>
+            <th>Город</th>
+            <th>Язык</th>
+            <th>Партнёр</th>
+            <th>Job ID</th>
+            <th>Заголовок</th>
+            <th>Ссылка</th>
+          </tr></thead>
+          <tbody>{partner_rows or '<tr><td colspan=9 style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
+        </table>
+
+      </div>
     </body>
     </html>
-    """    
+    """
+    
 @app.route('/send-notifications')
 def send_notifications():
     """Отправка уведомлений подписчикам"""
