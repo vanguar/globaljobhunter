@@ -2408,7 +2408,7 @@ def admin_stats_secure():
         'cache_hits': 0, 'api_requests': 0, 'total_jobs_found': 0
     }
 
-    # корректный src для JS (без Jinja в строке)
+    # корректный src для JS
     script_src = url_for('static', filename='js/localization.js')
 
     # события
@@ -2420,77 +2420,115 @@ def admin_stats_secure():
         app.logger.exception("analytics.recent_events failed: %s", e)
         sc, pc, partner_clicks_count = [], [], 0
 
-    # алиас на экранирование
-    h = html_escape
+    # распределение по партнёрам для диаграммы
+    from collections import Counter
+    import json as _json
+    partner_counter = Counter((p.partner or p.target_domain or 'unknown').strip() for p in pc)
+    chart_labels = list(partner_counter.keys())
+    chart_values = [partner_counter[k] for k in chart_labels]
+    labels_json = _json.dumps(chart_labels, ensure_ascii=False)
+    values_json = _json.dumps(chart_values, ensure_ascii=False)
 
-    # --- таблица «Найти работу» с разворачиваемыми деталями ---
+    h = html_escape  # короткий алиас
+
+    # ===== «Найти работу» — таблица + детали =====
     search_rows_parts = []
     for i, c in enumerate(sc):
         row_id = f"details-s-{i}"
         countries_txt = pretty_json(c.countries)
         jobs_txt = pretty_json(c.jobs)
-        # строка-основа
-        search_rows_parts.append(
-            "<tr>"
-            f"<td class='mono'><button class='toggle btn btn-link p-0' data-target='{row_id}' aria-expanded='false' title='Показать подробности'>{c.created_at:%Y-%m-%d}<br>{c.created_at:%H:%M:%S}</button></td>"
-            f"<td class='mono'>{h(c.ip)}</td>"
-            f"<td>{h(c.country or '')}</td>"
-            f"<td>{h(c.city or '')}</td>"
-            f"<td class='mono'>{h(c.lang or '')}</td>"
-            f"<td><span class='badge {('bg-success' if getattr(c,'is_refugee',False) else 'bg-secondary')}'>{'Да' if getattr(c,'is_refugee',False) else 'Нет'}</span></td>"
-            f"<td><div class='line-clamp-2' title='{h(countries_txt)}'>{h(countries_txt)}</div></td>"
-            f"<td><div class='line-clamp-2' title='{h(jobs_txt)}'>{h(jobs_txt)}</div></td>"
-            "</tr>"
+
+        city_query_html = (
+            f'<div><strong>City query:</strong> {h(getattr(c, "city_query", "") or "")}</div>'
+            if getattr(c, "city_query", None) else ''
         )
-        # строка-детали (спрятана)
-        search_rows_parts.append(
-            f"<tr id='{row_id}' class='details-row'>"
-            f"<td colspan='8'>"
-            f"<div class='details'>"
-            f"<div><strong>IP:</strong> {h(c.ip)} | <strong>Язык:</strong> {h(c.lang or '')}</div>"
-            f"<div><strong>Страна:</strong> {h(c.country or '')} | <strong>Город:</strong> {h(c.city or '')}</div>"
-            f"<div><strong>Страны поиска:</strong> {h(countries_txt)}</div>"
-            f"<div><strong>Профессии:</strong> {h(jobs_txt)}</div>"
-            f"{f'<div><strong>City query:</strong> {h(c.city_query or '')}</div>' if getattr(c,'city_query',None) else ''}"
-            f"{f'<div><strong>User-Agent:</strong> <span class=\"mono small-ua\">{h(getattr(c,\"user_agent\",\"\"))}</span></div>' if getattr(c,'user_agent',None) else ''}"
-            f"</div>"
-            f"</td>"
-            f"</tr>"
+        ua_html = (
+            f'<div><strong>User-Agent:</strong> <span class="mono small-ua">{h(getattr(c, "user_agent", "") or "")}</span></div>'
+            if getattr(c, "user_agent", None) else ''
         )
+
+        # основная строка
+        search_rows_parts.append(f"""
+<tr>
+  <td class="mono">
+    <button class="toggle btn btn-link p-0" data-target="{row_id}" aria-expanded="false" title="Показать подробности">
+      {c.created_at:%Y-%m-%d}<br>{c.created_at:%H:%M:%S}
+    </button>
+  </td>
+  <td class="mono">{h(c.ip)}</td>
+  <td>{h(c.country or '')}</td>
+  <td>{h(c.city or '')}</td>
+  <td class="mono">{h(c.lang or '')}</td>
+  <td><span class="badge {'bg-success' if getattr(c,'is_refugee',False) else 'bg-secondary'}">{'Да' if getattr(c,'is_refugee',False) else 'Нет'}</span></td>
+  <td><div class="line-clamp-2" title="{h(countries_txt)}">{h(countries_txt)}</div></td>
+  <td><div class="line-clamp-2" title="{h(jobs_txt)}">{h(jobs_txt)}</div></td>
+</tr>
+""")
+
+        # строка деталей (скрыта по умолчанию)
+        search_rows_parts.append(f"""
+<tr id="{row_id}" class="details-row">
+  <td colspan="8">
+    <div class="details">
+      <div><strong>IP:</strong> {h(c.ip)} | <strong>Язык:</strong> {h(c.lang or '')}</div>
+      <div><strong>Страна:</strong> {h(c.country or '')} | <strong>Город:</strong> {h(c.city or '')}</div>
+      <div><strong>Страны поиска:</strong> {h(countries_txt)}</div>
+      <div><strong>Профессии:</strong> {h(jobs_txt)}</div>
+      {city_query_html}{ua_html}
+    </div>
+  </td>
+</tr>
+""")
+
     search_rows = "".join(search_rows_parts) or '<tr><td colspan="8" class="text-center text-muted">нет данных</td></tr>'
 
-    # --- таблица «Переходы к партнёрам» с разворачиваемыми деталями ---
+    # ===== Переходы к партнёрам — таблица + детали =====
     partner_rows_parts = []
     for i, p in enumerate(pc):
         row_id = f"details-p-{i}"
-        link = h(p.target_url or '')
-        partner = h(p.partner or p.target_domain or '')
-        title = h(p.job_title or '')
-        partner_rows_parts.append(
-            "<tr>"
-            f"<td class='mono'><button class='toggle btn btn-link p-0' data-target='{row_id}' aria-expanded='false' title='Показать подробности'>{p.created_at:%Y-%m-%d}<br>{p.created_at:%H:%M:%S}</button></td>"
-            f"<td class='mono'>{h(p.ip)}</td>"
-            f"<td>{h(p.country or '')}</td>"
-            f"<td>{h(p.city or '')}</td>"
-            f"<td class='mono'>{h(p.lang or '')}</td>"
-            f"<td>{partner}</td>"
-            f"<td class='mono'>{h(p.job_id or '')}</td>"
-            f"<td><div class='line-clamp-2' title='{title}'>{title}</div></td>"
-            f"<td><a class='btn btn-sm btn-outline-primary' href='{link}' target='_blank' rel='noopener'>Открыть</a></td>"
-            "</tr>"
+        link = (p.target_url or '').strip()
+        partner_name = (p.partner or p.target_domain or '').strip()
+        title = p.job_title or ''
+
+        link_html = (
+            f'<div><strong>Глубокая ссылка:</strong> <a href="{h(link)}" target="_blank" rel="noopener">{h(link)}</a></div>'
+            if link else ''
         )
-        partner_rows_parts.append(
-            f"<tr id='{row_id}' class='details-row'>"
-            f"<td colspan='9'>"
-            f"<div class='details'>"
-            f"<div><strong>Партнёр:</strong> {partner}</div>"
-            f"<div><strong>Job ID:</strong> <span class='mono'>{h(p.job_id or '')}</span></div>"
-            f"{f'<div><strong>Глубокая ссылка:</strong> <a href=\"{link}\" target=\"_blank\" rel=\"noopener\">{link}</a></div>' if link else ''}"
-            f"{f'<div><strong>User-Agent:</strong> <span class=\"mono small-ua\">{h(getattr(p,\"user_agent\",\"\"))}</span></div>' if getattr(p,'user_agent',None) else ''}"
-            f"</div>"
-            f"</td>"
-            f"</tr>"
+        ua_html = (
+            f'<div><strong>User-Agent:</strong> <span class="mono small-ua">{h(getattr(p, "user_agent", "") or "")}</span></div>'
+            if getattr(p, "user_agent", None) else ''
         )
+
+        partner_rows_parts.append(f"""
+<tr>
+  <td class="mono">
+    <button class="toggle btn btn-link p-0" data-target="{row_id}" aria-expanded="false" title="Показать подробности">
+      {p.created_at:%Y-%m-%d}<br>{p.created_at:%H:%M:%S}
+    </button>
+  </td>
+  <td class="mono">{h(p.ip)}</td>
+  <td>{h(p.country or '')}</td>
+  <td>{h(p.city or '')}</td>
+  <td class="mono">{h(p.lang or '')}</td>
+  <td>{h(partner_name)}</td>
+  <td class="mono">{h(p.job_id or '')}</td>
+  <td><div class="line-clamp-2" title="{h(title)}">{h(title)}</div></td>
+  <td>{(f'<a class="btn btn-sm btn-outline-primary" href="{h(link)}" target="_blank" rel="noopener">Открыть</a>') if link else ''}</td>
+</tr>
+""")
+
+        partner_rows_parts.append(f"""
+<tr id="{row_id}" class="details-row">
+  <td colspan="9">
+    <div class="details">
+      <div><strong>Партнёр:</strong> {h(partner_name)}</div>
+      <div><strong>Job ID:</strong> <span class="mono">{h(p.job_id or '')}</span></div>
+      {link_html}{ua_html}
+    </div>
+  </td>
+</tr>
+""")
+
     partner_rows = "".join(partner_rows_parts) or '<tr><td colspan="9" class="text-center text-muted">нет данных</td></tr>'
 
     # карточки-метрики
@@ -2498,7 +2536,7 @@ def admin_stats_secure():
     api_requests = stats.get('api_requests', 0)
     total_jobs_found = stats.get('total_jobs_found', 0)
 
-    # HTML
+    # ====== HTML ======
     return f"""
 <!doctype html>
 <html lang="ru">
@@ -2508,28 +2546,24 @@ def admin_stats_secure():
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <script defer src="{script_src}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
     body {{ background:#f6f7fb; }}
+    .stat-card, .chart-card {{ background:#fff; border:1px solid #eaeefc; border-radius:12px; }}
     .card-num {{ font-size:32px; font-weight:700; }}
     .mono {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }}
     .table thead th {{ position: sticky; top: 0; background: #fff; z-index: 2; }}
     .table td, .table th {{ vertical-align: middle; }}
+    .table-bordered > :not(caption) > * > * {{ border-color: #e5e9ff; }}
     .table-striped>tbody>tr:nth-of-type(odd) > * {{ background: #fafbff; }}
-    .line-clamp-2 {{
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden;
-    }}
+    .line-clamp-2 {{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }}
     .small-ua {{ font-size: 12px; word-break: break-all; }}
     .details-row {{ display: none; background: #fff; }}
     .details-row.open {{ display: table-row; }}
     .details {{ padding: 12px 8px; border: 1px dashed #d9e1ff; border-radius: 8px; background: #f9fbff; }}
     .btn-link.toggle {{ text-decoration: none; }}
-    .btn-link.toggle::after {{
-      content: " ▾"; font-size: 12px; transition: transform .2s ease;
-      display: inline-block; transform: rotate(-90deg);
-    }}
+    .btn-link.toggle::after {{ content: " ▾"; font-size: 12px; transition: transform .2s ease; display: inline-block; transform: rotate(-90deg); }}
     .btn-link.toggle[aria-expanded="true"]::after {{ transform: rotate(0deg); }}
-    .stat-card {{ background:#fff; border:1px solid #eaeefc; border-radius:12px; }}
   </style>
 </head>
 <body>
@@ -2544,28 +2578,20 @@ def admin_stats_secure():
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="p-3 text-center stat-card">
-        <div class="card-num text-primary">{cache_hits}</div>
-        <div>Cache Hits</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="p-3 text-center stat-card">
-        <div class="card-num text-primary">{api_requests}</div>
-        <div>API Requests</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="p-3 text-center stat-card">
-        <div class="card-num text-primary">{total_jobs_found}</div>
-        <div>Jobs Found</div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="p-3 text-center stat-card">
-        <div class="card-num text-primary">{partner_clicks_count}</div>
-        <div>Переходы к партнёрам</div>
+    <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{cache_hits}</div><div>Cache Hits</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{api_requests}</div><div>API Requests</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{total_jobs_found}</div><div>Jobs Found</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 text-center stat-card"><div class="card-num text-primary">{partner_clicks_count}</div><div>Переходы к партнёрам</div></div></div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="p-3 chart-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">Распределение переходов по партнёрам</h5>
+          <span class="text-muted">последние {partner_clicks_count}</span>
+        </div>
+        <canvas id="partnersPie" height="220"></canvas>
       </div>
     </div>
   </div>
@@ -2612,7 +2638,7 @@ def admin_stats_secure():
 </div>
 
 <script>
-  // Делегируем клики: сворачиваем/разворачиваем ближайшую строку с деталями
+  // Разворот деталей
   document.addEventListener('click', function(e) {{
     const btn = e.target.closest('.toggle');
     if (!btn) return;
@@ -2623,6 +2649,35 @@ def admin_stats_secure():
     row.classList.toggle('open', nowOpen);
     btn.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
   }});
+
+  // Круговая диаграмма
+  (function() {{
+    const labels = {labels_json};
+    const values = {values_json};
+    const el = document.getElementById('partnersPie');
+    if (!el || !labels.length) return;
+    const ctx = el.getContext('2d');
+    new Chart(ctx, {{
+      type: 'doughnut',
+      data: {{ labels: labels, datasets: [{{ data: values }}] }},
+      options: {{
+        responsive: true,
+        plugins: {{
+          legend: {{ position: 'bottom' }},
+          tooltip: {{
+            callbacks: {{
+              label: function(ctx) {{
+                const total = values.reduce((a,b)=>a+b,0) || 1;
+                const v = ctx.parsed;
+                const pct = Math.round((v*100)/total);
+                return ` ${ctx.label}: ${v} (${pct}%)`;
+              }}
+            }}
+          }}
+        }}
+      }}
+    }});
+  }})();
 </script>
 </body>
 </html>
