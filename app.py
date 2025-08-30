@@ -2670,7 +2670,7 @@ def admin_stats_secure():
                 const total = values.reduce((a,b)=>a+b,0) || 1;
                 const v = ctx.parsed;
                 const pct = Math.round((v*100)/total);
-                return ` ${ctx.label}: ${v} (${pct}%)`;
+                return ' ' + ctx.label + ': ' + v + ' (' + pct + '%)';
               }}
             }}
           }}
