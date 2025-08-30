@@ -115,8 +115,8 @@ def log_search_click(preferences: dict):
             country=(geo or {}).get("country"), city=(geo or {}).get("city"),
             lat=(geo or {}).get("lat"), lon=(geo or {}).get("lon"),
             is_refugee=bool(preferences.get("is_refugee")),
-            countries=json.dumps(preferences.get("countries") or []),
-            jobs=json.dumps(preferences.get("selected_jobs") or []),
+            countries = json.dumps(preferences.get('countries') or [], ensure_ascii=False)
+            jobs = json.dumps(preferences.get('selected_jobs') or [], ensure_ascii=False)
             city_query=(preferences.get("city") or (preferences.get("cities") or [None])[0])
             if isinstance(preferences.get("cities"), list) else (preferences.get("city") or None),
         )

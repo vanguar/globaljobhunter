@@ -2412,8 +2412,9 @@ def admin_stats_secure():
         f"<td>{h(c.city or '')}</td>"
         f"<td>{h(c.lang or '')}</td>"
         f"<td>{'Да' if c.is_refugee else 'Нет'}</td>"
-        f"<td>{h(c.countries or '')}</td>"
-        f"<td>{h(c.jobs or '')}</td></tr>"
+        f"<td>{h(pretty_json(c.countries))}</td>"
+        f"<td>{h(prety_json(c.jobs))}</td>"
+
         for c in sc
     )
 
@@ -2429,6 +2430,31 @@ def admin_stats_secure():
         f"<td><a href='{h(c.target_url)}' target='_blank' rel='noopener'>перейти</a></td></tr>"
         for c in pc
     )
+
+    import json
+
+    def pretty_json(value):
+        """Вернуть человекочитаемую строку из JSON (список/словарь/строка). Безопасно к ошибкам."""
+        if value is None:
+            return ""
+        # Если это уже список/словарь — приводим к строке
+        if isinstance(value, list):
+            return ", ".join(map(str, value))
+        if isinstance(value, dict):
+            return ", ".join(f"{k}: {v}" for k, v in value.items())
+        # Пытаемся распарсить строку как JSON
+        s = str(value)
+        try:
+            obj = json.loads(s)
+            if isinstance(obj, list):
+                return ", ".join(map(str, obj))
+            if isinstance(obj, dict):
+                return ", ".join(f"{k}: {v}" for k, v in obj.items())
+        except Exception:
+            pass
+        # иначе вернём как есть
+        return s
+
 
     # подставляем значения Python, а не {{ ... }}
     cache_hits = stats.get('cache_hits', 0)
