@@ -244,3 +244,12 @@ def pretty_json(value):
 def h(s: str) -> str:
     """Простое экранирование для HTML."""
     return html.escape(s or "")
+
+
+# в analytics.py (уровень модуля, рядом с моделями)
+def counts():
+    """Небольшие агрегаты для админки."""
+    return {
+        'search_clicks': SearchClick.query.count(),
+        'partner_clicks': PartnerClick.query.count(),
+    }

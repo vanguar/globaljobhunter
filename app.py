@@ -2377,72 +2377,93 @@ def admin_subscribers_secure():
         </body>
         </html>
         """, 500
+    
+def _pretty_json(value):
+    """Возвращает человекочитаемую строку из JSON/списка/словаря."""
+    try:
+        if value is None or value == "":
+            return ""
+        # если передана строка с JSON — распарсим
+        if isinstance(value, str):
+            s = value.strip()
+            if (s.startswith('[') and s.endswith(']')) or (s.startswith('{') and s.endswith('}')):
+                value = json.loads(s)
+        if isinstance(value, (list, tuple, set)):
+            return ", ".join(map(str, value))
+        if isinstance(value, dict):
+            return ", ".join(f"{k}: {v}" for k, v in value.items())
+        return str(value)
+    except Exception:
+        return str(value)
+
 
 @app.route('/admin/stats_secure')
 def admin_stats_secure():
-    # безопасно считаем метрики кэша
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+
     stats = aggregator.get_cache_stats() if aggregator else {
         'cache_hits': 0, 'api_requests': 0, 'total_jobs_found': 0
     }
 
-    # для нормального подключения JS без Jinja внутри строки
-    script_src = url_for('static', filename='js/localization.js')
-
-    # вытягиваем последние события (если у тебя есть recent_events — ок; если нет, просто покажет пусто)
+    # Берём события напрямую, без внешних хелперов
+    insp = inspect(db.engine)
+    sc = pc = []
     try:
-        from analytics import recent_events, counts
-        sc, pc = recent_events(limit=100)
-        cnt = counts()
-        partner_clicks_count = cnt.get('partner_clicks', 0)
+        if insp.has_table('search_click'):
+            sc = SearchClick.query.order_by(SearchClick.created_at.desc()).limit(100).all()
+        if insp.has_table('partner_click'):
+            pc = PartnerClick.query.order_by(PartnerClick.created_at.desc()).limit(100).all()
     except Exception as e:
-        app.logger.exception("analytics.recent_events failed: %s", e)
-        sc, pc, partner_clicks_count = [], [], 0
+        app.logger.exception("admin_stats_secure query failed: %s", e)
+        sc, pc = [], []
 
-    # короткий алиас на экранирование
-    h = html_escape
-
-    # строки таблицы «Найти работу»
-    search_rows = "".join(
-        (
-            f"<tr>"
-            f"<td>{c.created_at.strftime('%Y-%m-%d %H:%M:%S')}</td>"
-            f"<td>{h(c.ip)}</td>"
-            f"<td>{h(c.country or '')}</td>"
-            f"<td>{h(c.city or '')}</td>"
-            f"<td>{h(c.lang or '')}</td>"
-            f"<td>{'Да' if c.is_refugee else 'Нет'}</td>"
-            f"<td>{h(pretty_json(c.countries))}</td>"
-            f"<td>{h(prety_json := pretty_json(c.jobs))}</td>"
-            f"</tr>"
+    # Сборка строк (простой и безопасный рендер)
+    search_rows_parts = []
+    for c in sc:
+        search_rows_parts.append(
+            "<tr>"
+            f"<td>{c.created_at:%Y-%m-%d %H:%M:%S}</td>"
+            f"<td>{_h(c.ip)}</td>"
+            f"<td>{_h(c.country or '')}</td>"
+            f"<td>{_h(c.city or '')}</td>"
+            f"<td>{_h(c.lang or '')}</td>"
+            f"<td>{'Да' if getattr(c, 'is_refugee', False) else 'Нет'}</td>"
+            f"<td>{_h(_pretty_json(c.countries))}</td>"
+            f"<td>{_h(_pretty_json(c.jobs))}</td>"
+            "</tr>"
         )
-        for c in sc
-    ) or '<tr><td colspan="8" style="text-align:center;color:#999">нет данных</td></tr>'
+    search_rows = "".join(search_rows_parts) or '<tr><td colspan="8" class="text-center text-muted">нет данных</td></tr>'
 
-    # строки таблицы «Переходы к партнёрам»
-    partner_rows = "".join(
-        (
-            f"<tr>"
-            f"<td>{p.created_at.strftime('%Y-%m-%d %H:%M:%S')}</td>"
-            f"<td>{h(p.ip)}</td>"
-            f"<td>{h(p.country or '')}</td>"
-            f"<td>{h(p.city or '')}</td>"
-            f"<td>{h(p.lang or '')}</td>"
-            f"<td>{h(p.partner or '')}</td>"
-            f"<td>{h(p.job_id or '')}</td>"
-            f"<td>{h(p.job_title or '')}</td>"
-            f"<td><a href='{h(p.target_url or '')}' target='_blank'>{h(p.target_url or '')}</a></td>"
-            f"</tr>"
+    partner_rows_parts = []
+    for p in pc:
+        partner_rows_parts.append(
+            "<tr>"
+            f"<td>{p.created_at:%Y-%m-%d %H:%M:%S}</td>"
+            f"<td>{_h(p.ip)}</td>"
+            f"<td>{_h(p.country or '')}</td>"
+            f"<td>{_h(p.city or '')}</td>"
+            f"<td>{_h(p.lang or '')}</td>"
+            f"<td>{_h(p.partner or p.target_domain or '')}</td>"
+            f"<td>{_h(p.job_id or '')}</td>"
+            f"<td>{_h(p.job_title or '')}</td>"
+            f"<td><a href='{_h(p.target_url or '')}' target='_blank' rel='noopener'>перейти</a></td>"
+            "</tr>"
         )
-        for p in pc
-    ) or '<tr><td colspan="9" style="text-align:center;color:#999">нет данных</td></tr>'
+    partner_rows = "".join(partner_rows_parts) or '<tr><td colspan="9" class="text-center text-muted">нет данных</td></tr>'
 
-    # собираем HTML (без Jinja-плейсхолдеров!)
+    # Готовый HTML (без Jinja в строках)
+    script_src = url_for('static', filename='js/localization.js')
+    cache_hits = stats.get('cache_hits', 0)
+    api_requests = stats.get('api_requests', 0)
+    total_jobs_found = stats.get('total_jobs_found', 0)
+
     return f"""
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Статистика — Админка</title>
+  <title>Статистика - Админка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <script defer src="{script_src}"></script>
@@ -2452,50 +2473,20 @@ def admin_stats_secure():
 
   <h1 class="mb-4">📊 Статистика</h1>
 
-  <div class="d-flex gap-2 flex-wrap mb-3">
-    <a class="btn btn-outline-primary" href="/admin/subscribers?key={h(os.getenv('ADMIN_KEY') or '')}">👥 Подписчики</a>
-    <a class="btn btn-outline-primary" href="/admin/stats_secure">📈 Статистика</a>
-    <a class="btn btn-outline-success" href="/health">💚 Здоровье</a>
-    <a class="btn btn-outline-warning" href="/admin/cache">🧹 Кэш</a>
-    <a class="btn btn-outline-secondary" href="/">🏠 Выйти</a>
-  </div>
-
   <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-lg-3">
-      <div class="border rounded p-3 bg-white text-center">
-        <div class="h2 text-primary">{stats.get('cache_hits', 0)}</div>
-        <div>Cache Hits</div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-lg-3">
-      <div class="border rounded p-3 bg-white text-center">
-        <div class="h2 text-primary">{stats.get('api_requests', 0)}</div>
-        <div>API Requests</div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-lg-3">
-      <div class="border rounded p-3 bg-white text-center">
-        <div class="h2 text-primary">{stats.get('total_jobs_found', 0)}</div>
-        <div>Jobs Found</div>
-      </div>
-    </div>
-    <div class="col-12 col-sm-6 col-lg-3">
-      <div class="border rounded p-3 bg-white text-center">
-        <div class="h2 text-primary">{partner_clicks_count}</div>
-        <div>Переходы к партнёрам</div>
-      </div>
-    </div>
+    <div class="col-6 col-md-3"><div class="p-3 bg-white border rounded text-center"><div class="h2 text-primary">{cache_hits}</div><div>Cache Hits</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 bg-white border rounded text-center"><div class="h2 text-primary">{api_requests}</div><div>API Requests</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 bg-white border rounded text-center"><div class="h2 text-primary">{total_jobs_found}</div><div>Jobs Found</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-3 bg-white border rounded text-center"><div class="h2 text-primary">{len(pc)}</div><div>Переходы к партнёрам</div></div></div>
   </div>
 
-  <h4 class="mt-4">🔎 Нажатия «Найти работу» (последние 100)</h4>
+  <h4 class="mt-3">🔎 Нажатия «Найти работу» (последние 100)</h4>
   <div class="table-responsive">
     <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>Время</th><th>IP</th><th>Страна</th><th>Город</th>
-          <th>Язык</th><th>Беженец</th><th>Страны поиска</th><th>Профессии</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th>Время</th><th>IP</th><th>Страна</th><th>Город</th>
+        <th>Язык</th><th>Беженец</th><th>Страны поиска</th><th>Профессии</th>
+      </tr></thead>
       <tbody>{search_rows}</tbody>
     </table>
   </div>
@@ -2503,12 +2494,10 @@ def admin_stats_secure():
   <h4 class="mt-5">↗ Переходы на сайты-партнёры (последние 100)</h4>
   <div class="table-responsive">
     <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>Время</th><th>IP</th><th>Страна</th><th>Город</th>
-          <th>Язык</th><th>Партнёр</th><th>Job ID</th><th>Заголовок</th><th>Ссылка</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th>Время</th><th>IP</th><th>Страна</th><th>Город</th>
+        <th>Язык</th><th>Партнёр</th><th>Job ID</th><th>Заголовок</th><th>Ссылка</th>
+      </tr></thead>
       <tbody>{partner_rows}</tbody>
     </table>
   </div>
@@ -2517,6 +2506,7 @@ def admin_stats_secure():
 </body>
 </html>
 """
+
 
 
     
