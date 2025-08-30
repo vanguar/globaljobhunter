@@ -2433,23 +2433,23 @@ def admin_stats_secure():
 
     import json
 
-def pretty_json(value):
-    if value is None:
-        return ""
-    if isinstance(value, (list, tuple)):
-        return ", ".join(map(str, value))
-    if isinstance(value, dict):
-        return ", ".join(f"{k}: {v}" for k, v in value.items())
-    # если строка — пробуем распарсить JSON
-    try:
-        obj = json.loads(str(value))
-        if isinstance(obj, (list, tuple)):
-            return ", ".join(map(str, obj))
-        if isinstance(obj, dict):
-            return ", ".join(f"{k}: {v}" for k, v in obj.items())
-    except Exception:
-        pass
-    return str(value)
+    def pretty_json(value):
+        if value is None:
+            return ""
+        if isinstance(value, (list, tuple)):
+            return ", ".join(map(str, value))
+        if isinstance(value, dict):
+            return ", ".join(f"{k}: {v}" for k, v in value.items())
+        try:
+            obj = json.loads(str(value))
+            if isinstance(obj, (list, tuple)):
+                return ", ".join(map(str, obj))
+            if isinstance(obj, dict):
+                return ", ".join(f"{k}: {v}" for k, v in obj.items())
+        except Exception:
+            pass
+        return str(value)
+
 
 
 
