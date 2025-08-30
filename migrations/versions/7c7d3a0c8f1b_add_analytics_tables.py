@@ -1,8 +1,9 @@
-"""Create analytics tables: search_click, partner_click"""
+"""Create analytics tables (idempotent): search_click, partner_click"""
 
 from alembic import op
 import sqlalchemy as sa
 
+# Alembic identifiers
 revision = '7c7d3a0c8f1b'
 down_revision = 'e94ba5b3824d'
 branch_labels = None
@@ -10,48 +11,52 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table(
-        'search_click',
-        sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
-        sa.Column('ip', sa.String(length=64), index=True),
-        sa.Column('country', sa.String(length=2)),
-        sa.Column('city', sa.String(length=128)),
-        sa.Column('lat', sa.Float()),
-        sa.Column('lon', sa.Float()),
-        sa.Column('user_agent', sa.String(length=512)),
-        sa.Column('lang', sa.String(length=8)),
-        sa.Column('is_refugee', sa.Boolean()),
-        sa.Column('countries', sa.Text()),
-        sa.Column('jobs', sa.Text()),
-        sa.Column('city_query', sa.String(length=256)),
+    # --- search_click (создать, если нет) ---
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS search_click (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ip VARCHAR(64),
+        country VARCHAR(2),
+        city VARCHAR(128),
+        lat DOUBLE PRECISION,
+        lon DOUBLE PRECISION,
+        user_agent VARCHAR(512),
+        lang VARCHAR(8),
+        is_refugee BOOLEAN,
+        countries TEXT,
+        jobs TEXT,
+        city_query VARCHAR(256)
     )
-    op.create_index('ix_search_click_created_at', 'search_click', ['created_at'])
-    op.create_index('ix_search_click_ip', 'search_click', ['ip'])
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_search_click_created_at ON search_click (created_at)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_search_click_ip ON search_click (ip)")
 
-    op.create_table(
-        'partner_click',
-        sa.Column('id', sa.Integer(), primary_key=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
-        sa.Column('ip', sa.String(length=64), index=True),
-        sa.Column('country', sa.String(length=2)),
-        sa.Column('city', sa.String(length=128)),
-        sa.Column('lat', sa.Float()),
-        sa.Column('lon', sa.Float()),
-        sa.Column('user_agent', sa.String(length=512)),
-        sa.Column('lang', sa.String(length=8)),
-        sa.Column('partner', sa.String(length=32), index=True),
-        sa.Column('target_domain', sa.String(length=128)),
-        sa.Column('target_url', sa.Text()),
-        sa.Column('job_id', sa.String(length=128)),
-        sa.Column('job_title', sa.String(length=256)),
+    # --- partner_click (создать, если нет) ---
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS partner_click (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        ip VARCHAR(64),
+        country VARCHAR(2),
+        city VARCHAR(128),
+        lat DOUBLE PRECISION,
+        lon DOUBLE PRECISION,
+        user_agent VARCHAR(512),
+        lang VARCHAR(8),
+        partner VARCHAR(32),
+        target_domain VARCHAR(128),
+        target_url TEXT,
+        job_id VARCHAR(128),
+        job_title VARCHAR(256)
     )
-    op.create_index('ix_partner_click_created_at', 'partner_click', ['created_at'])
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_partner_click_created_at ON partner_click (created_at)")
 
 
 def downgrade():
-    op.drop_index('ix_partner_click_created_at', table_name='partner_click')
-    op.drop_table('partner_click')
-    op.drop_index('ix_search_click_ip', table_name='search_click')
-    op.drop_index('ix_search_click_created_at', table_name='search_click')
-    op.drop_table('search_click')
+    op.execute("DROP INDEX IF EXISTS ix_partner_click_created_at")
+    op.execute("DROP TABLE IF EXISTS partner_click")
+    op.execute("DROP INDEX IF EXISTS ix_search_click_ip")
+    op.execute("DROP INDEX IF EXISTS ix_search_click_created_at")
+    op.execute("DROP TABLE IF EXISTS search_click")
