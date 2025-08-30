@@ -218,3 +218,29 @@ def recent_events(limit=50):
     if has_pc:
         pc = PartnerClick.query.order_by(PartnerClick.created_at.desc()).limit(limit).all()
     return sc, pc
+
+# analytics.py (в самом верху рядом с импортами)
+import json
+import html
+
+def pretty_json(value):
+    """Аккуратно вывести список/JSON человекочитаемо."""
+    try:
+        if value is None or value == "":
+            return ""
+        # если это строка с JSON — распарсим
+        if isinstance(value, str):
+            s = value.strip()
+            if (s.startswith('[') and s.endswith(']')) or (s.startswith('{') and s.endswith('}')):
+                value = json.loads(s)
+        if isinstance(value, (list, tuple, set)):
+            return ", ".join(map(str, value))
+        if isinstance(value, dict):
+            return ", ".join(f"{k}: {v}" for k, v in value.items())
+        return str(value)
+    except Exception:
+        return str(value)
+
+def h(s: str) -> str:
+    """Простое экранирование для HTML."""
+    return html.escape(s or "")

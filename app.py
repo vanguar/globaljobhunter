@@ -52,7 +52,7 @@ import time
 
 from flask import Flask, render_template
 # === трекинг-логика (минимальные правки) ===
-from analytics import analytics_bp, log_search_click
+from analytics import analytics_bp, log_search_click, pretty_json, h as html_escape
 
 
 app = Flask(__name__)
@@ -2380,147 +2380,145 @@ def admin_subscribers_secure():
 
 @app.route('/admin/stats_secure')
 def admin_stats_secure():
-    """Защищенная страница статистики."""
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login_page'))
+    # безопасно считаем метрики кэша
+    stats = aggregator.get_cache_stats() if aggregator else {
+        'cache_hits': 0, 'api_requests': 0, 'total_jobs_found': 0
+    }
 
-    if not aggregator:
-        return "Сервис недоступен", 500
+    # для нормального подключения JS без Jinja внутри строки
+    script_src = url_for('static', filename='js/localization.js')
 
-    # базовые метрики агрегатора
-    stats = aggregator.get_cache_stats()  # dict: cache_hits, api_requests, total_jobs_found
-
-    # безопасно берём события (не падаем, если таблиц ещё нет)
+    # вытягиваем последние события (если у тебя есть recent_events — ок; если нет, просто покажет пусто)
     try:
-        from analytics import recent_events
+        from analytics import recent_events, counts
         sc, pc = recent_events(limit=100)
+        cnt = counts()
+        partner_clicks_count = cnt.get('partner_clicks', 0)
     except Exception as e:
         app.logger.exception("analytics.recent_events failed: %s", e)
-        sc, pc = [], []
+        sc, pc, partner_clicks_count = [], [], 0
 
-    def h(s):
-        if s is None:
-            return ""
-        return (str(s).replace("&", "&amp;")
-                     .replace("<", "&lt;")
-                     .replace(">", "&gt;"))
+    # короткий алиас на экранирование
+    h = html_escape
 
+    # строки таблицы «Найти работу»
     search_rows = "".join(
-        f"<tr><td>{c.created_at:%Y-%m-%d %H:%M:%S}</td>"
-        f"<td>{h(c.ip)}</td>"
-        f"<td>{h(c.country or '')}</td>"
-        f"<td>{h(c.city or '')}</td>"
-        f"<td>{h(c.lang or '')}</td>"
-        f"<td>{'Да' if c.is_refugee else 'Нет'}</td>"
-        f"<td>{h(pretty_json(c.countries))}</td>"
-        f"<td>{h(prety_json(c.jobs))}</td>"
-
+        (
+            f"<tr>"
+            f"<td>{c.created_at.strftime('%Y-%m-%d %H:%M:%S')}</td>"
+            f"<td>{h(c.ip)}</td>"
+            f"<td>{h(c.country or '')}</td>"
+            f"<td>{h(c.city or '')}</td>"
+            f"<td>{h(c.lang or '')}</td>"
+            f"<td>{'Да' if c.is_refugee else 'Нет'}</td>"
+            f"<td>{h(pretty_json(c.countries))}</td>"
+            f"<td>{h(prety_json := pretty_json((json.loads(c.jobs) if isinstance(c.jobs, str) and c.jobs.strip().startswith('[') else c.jobs)[:6])
+)}</td>"
+            f"</tr>"
+        )
         for c in sc
-    )
+    ) or '<tr><td colspan="8" style="text-align:center;color:#999">нет данных</td></tr>'
 
+    # строки таблицы «Переходы к партнёрам»
     partner_rows = "".join(
-        f"<tr><td>{c.created_at:%Y-%m-%d %H:%M:%S}</td>"
-        f"<td>{h(c.ip)}</td>"
-        f"<td>{h(c.country or '')}</td>"
-        f"<td>{h(c.city or '')}</td>"
-        f"<td>{h(c.lang or '')}</td>"
-        f"<td>{h(c.partner or c.target_domain or '')}</td>"
-        f"<td>{h(c.job_id or '')}</td>"
-        f"<td>{h(c.job_title or '')}</td>"
-        f"<td><a href='{h(c.target_url)}' target='_blank' rel='noopener'>перейти</a></td></tr>"
-        for c in pc
-    )
+        (
+            f"<tr>"
+            f"<td>{p.created_at.strftime('%Y-%m-%d %H:%M:%S')}</td>"
+            f"<td>{h(p.ip)}</td>"
+            f"<td>{h(p.country or '')}</td>"
+            f"<td>{h(p.city or '')}</td>"
+            f"<td>{h(p.lang or '')}</td>"
+            f"<td>{h(p.partner or '')}</td>"
+            f"<td>{h(p.job_id or '')}</td>"
+            f"<td>{h(p.job_title or '')}</td>"
+            f"<td><a href='{h(p.target_url or '')}' target='_blank'>{h(p.target_url or '')}</a></td>"
+            f"</tr>"
+        )
+        for p in pc
+    ) or '<tr><td colspan="9" style="text-align:center;color:#999">нет данных</td></tr>'
 
-    import json
-
-    def pretty_json(value):
-        if value is None:
-            return ""
-        if isinstance(value, (list, tuple)):
-            return ", ".join(map(str, value))
-        if isinstance(value, dict):
-            return ", ".join(f"{k}: {v}" for k, v in value.items())
-        try:
-            obj = json.loads(str(value))
-            if isinstance(obj, (list, tuple)):
-                return ", ".join(map(str, obj))
-            if isinstance(obj, dict):
-                return ", ".join(f"{k}: {v}" for k, v in obj.items())
-        except Exception:
-            pass
-        return str(value)
-
-
-
-
-    # подставляем значения Python, а не {{ ... }}
-    cache_hits = stats.get('cache_hits', 0)
-    api_requests = stats.get('api_requests', 0)
-    total_jobs_found = stats.get('total_jobs_found', 0)
-
+    # собираем HTML (без Jinja-плейсхолдеров!)
     return f"""
-    <!doctype html>
-    <html lang="ru">
-    <head>
-      <meta charset="utf-8">
-      <title>Статистика - Админка</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial; background:#f6f7fb; margin:0; padding:24px; }}
-        .container {{ max-width:1280px; margin:0 auto; }}
-        .nav a {{ background:#0d6efd; color:#fff; padding:10px 14px; border-radius:8px; text-decoration:none; margin-right:8px; display:inline-block; }}
-        .cards {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin:20px 0; }}
-        .card {{ background:#fff; border-radius:12px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
-        .num {{ font-size:32px; font-weight:700; }}
-        table {{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
-        th, td {{ padding:10px 12px; border-bottom:1px solid #eee; font-size:14px; vertical-align:top; }}
-        th {{ text-align:left; background:#fafbff; font-weight:600; }}
-        tr:hover td {{ background:#fafafa; }}
-        .mt-24 {{ margin-top:24px; }}
-        .mt-8 {{ margin-top:8px; }}
-        .mb-8 {{ margin-bottom:8px; }}
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>📊 Статистика</h1>
-        <div class="nav mb-8">
-          <a href="/admin/subscribers_secure">👥 Подписчики</a>
-          <a href="/admin/stats_secure">📊 Статистика</a>
-          <a href="/health">💚 Здоровье</a>
-          <a href="/admin/cache">🧹 Кэш</a>
-          <a href="/admin/logout">🚪 Выйти</a>
-        </div>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Статистика — Админка</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script defer src="{script_src}"></script>
+</head>
+<body class="bg-light">
+<div class="container py-4">
 
-        <div class="cards">
-          <div class="card"><div class="num">{cache_hits}</div><div>Cache Hits</div></div>
-          <div class="card"><div class="num">{api_requests}</div><div>API Requests</div></div>
-          <div class="card"><div class="num">{total_jobs_found}</div><div>Jobs Found</div></div>
-          <div class="card"><div class="num">{len(sc)}</div><div>Последние поиски (в таблице ниже)</div></div>
-          <div class="card"><div class="num">{len(pc)}</div><div>Переходы к партнёрам (в таблице ниже)</div></div>
-        </div>
+  <h1 class="mb-4">📊 Статистика</h1>
 
-        <h2 class="mt-24">🔎 Нажатия «Найти работу» (последние 100)</h2>
-        <table class="mt-8">
-          <thead><tr>
-            <th>Время</th><th>IP</th><th>Страна</th><th>Город</th><th>Язык</th>
-            <th>Беженец</th><th>Страны поиска</th><th>Профессии</th>
-          </tr></thead>
-          <tbody>{search_rows or '<tr><td colspan="8" style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
-        </table>
+  <div class="d-flex gap-2 flex-wrap mb-3">
+    <a class="btn btn-outline-primary" href="/admin/subscribers?key={h(os.getenv('ADMIN_KEY') or '')}">👥 Подписчики</a>
+    <a class="btn btn-outline-primary" href="/admin/stats_secure">📈 Статистика</a>
+    <a class="btn btn-outline-success" href="/health">💚 Здоровье</a>
+    <a class="btn btn-outline-warning" href="/admin/cache">🧹 Кэш</a>
+    <a class="btn btn-outline-secondary" href="/">🏠 Выйти</a>
+  </div>
 
-        <h2 class="mt-24">↗️ Переходы на сайты-партнёры (последние 100)</h2>
-        <table class="mt-8">
-          <thead><tr>
-            <th>Время</th><th>IP</th><th>Страна</th><th>Город</th><th>Язык</th>
-            <th>Партнёр</th><th>Job ID</th><th>Заголовок</th><th>Ссылка</th>
-          </tr></thead>
-          <tbody>{partner_rows or '<tr><td colspan="9" style="text-align:center; padding:16px;">нет данных</td></tr>'}</tbody>
-        </table>
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="border rounded p-3 bg-white text-center">
+        <div class="h2 text-primary">{stats.get('cache_hits', 0)}</div>
+        <div>Cache Hits</div>
       </div>
-    </body>
-    </html>
-    """
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="border rounded p-3 bg-white text-center">
+        <div class="h2 text-primary">{stats.get('api_requests', 0)}</div>
+        <div>API Requests</div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="border rounded p-3 bg-white text-center">
+        <div class="h2 text-primary">{stats.get('total_jobs_found', 0)}</div>
+        <div>Jobs Found</div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="border rounded p-3 bg-white text-center">
+        <div class="h2 text-primary">{partner_clicks_count}</div>
+        <div>Переходы к партнёрам</div>
+      </div>
+    </div>
+  </div>
+
+  <h4 class="mt-4">🔎 Нажатия «Найти работу» (последние 100)</h4>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Время</th><th>IP</th><th>Страна</th><th>Город</th>
+          <th>Язык</th><th>Беженец</th><th>Страны поиска</th><th>Профессии</th>
+        </tr>
+      </thead>
+      <tbody>{search_rows}</tbody>
+    </table>
+  </div>
+
+  <h4 class="mt-5">↗ Переходы на сайты-партнёры (последние 100)</h4>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Время</th><th>IP</th><th>Страна</th><th>Город</th>
+          <th>Язык</th><th>Партнёр</th><th>Job ID</th><th>Заголовок</th><th>Ссылка</th>
+        </tr>
+      </thead>
+      <tbody>{partner_rows}</tbody>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>
+"""
+
 
     
 @app.route('/send-notifications')
