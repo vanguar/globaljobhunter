@@ -2395,7 +2395,7 @@ def admin_stats_secure():
         from analytics import recent_events
         sc, pc = recent_events(limit=100)
     except Exception as e:
-        current_app.logger.exception("analytics.recent_events failed: %s", e)
+        app.logger.exception("analytics.recent_events failed: %s", e)
         sc, pc = [], []
 
     def h(s):

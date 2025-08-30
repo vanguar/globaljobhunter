@@ -179,8 +179,18 @@ def _geolocate_ip(ip: str) -> Optional[dict]:
 
 # --- ДЛЯ АДМИНКИ -------------------------------------------------------------
 
+from sqlalchemy import inspect
+
 def recent_events(limit=50):
-    """Последние записи по обоим типам кликов."""
-    sc = SearchClick.query.order_by(SearchClick.created_at.desc()).limit(limit).all()
-    pc = PartnerClick.query.order_by(PartnerClick.created_at.desc()).limit(limit).all()
+    """Последние записи по обоим типам кликов; безопасно работает, если таблиц ещё нет."""
+    insp = inspect(db.engine)
+    has_sc = insp.has_table("search_click")
+    has_pc = insp.has_table("partner_click")
+
+    sc = []
+    pc = []
+    if has_sc:
+        sc = SearchClick.query.order_by(SearchClick.created_at.desc()).limit(limit).all()
+    if has_pc:
+        pc = PartnerClick.query.order_by(PartnerClick.created_at.desc()).limit(limit).all()
     return sc, pc
