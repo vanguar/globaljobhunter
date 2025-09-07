@@ -50,6 +50,9 @@ import threading, inspect
 from dataclasses import asdict
 from pathlib import Path
 import time
+from flask import redirect, request, Response
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 
 from flask import Flask, render_template
 # === трекинг-логика (минимальные правки) ===
@@ -58,6 +61,36 @@ from analytics import analytics_bp, log_search_click, pretty_json, h as html_esc
 
 app = Flask(__name__)
 app.register_blueprint(analytics_bp)
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+CANONICAL_HOST = "www.globaljobhunter.vip"
+CANONICAL_SCHEME = "https"
+
+@app.before_request
+def enforce_canonical_host_and_https():
+    # Редиректим только "безопасные" методы, чтобы не ломать POST/PUT и т.п.
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        return
+
+    # Что видим "снаружи" с учётом прокси
+    host  = request.headers.get("X-Forwarded-Host", request.host)
+    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+
+    need_host_fix  = (host != CANONICAL_HOST)
+    need_proto_fix = (proto != CANONICAL_SCHEME)
+
+    if need_host_fix or need_proto_fix:
+        # Соберём канонический URL, сохранив путь и query
+        url = f"{CANONICAL_SCHEME}://{CANONICAL_HOST}{request.path}"
+        if request.query_string:
+            url += "?" + request.query_string.decode("utf-8", errors="ignore")
+
+        # Если хочешь, можешь не редиректить health-чек:
+        # if request.path == "/health": return
+
+        return redirect(url, code=301)
+
 
 # === SEO: robots.txt и sitemap.xml (AUTO) ==========================
 # Явно укажем важные публичные URL, которые хотим видеть в индексе всегда.
