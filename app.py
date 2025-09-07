@@ -74,7 +74,8 @@ SEO_DISALLOW_PREFIXES = (
     "/subscribe", "/analytics", "/health", "/static"
 )
 SEO_DISALLOW_EXACT = {
-    "/favicon.ico", "/robots.txt", "/sitemap.xml"
+    "/favicon.ico", "/robots.txt", "/sitemap.xml",
+    "/send-notifications"
 }
 
 def _xml_escape(s: str) -> str:
@@ -84,11 +85,10 @@ def _xml_escape(s: str) -> str:
              .replace('"', "&quot;")
              .replace("'", "&apos;"))
 
+BASE_URL = "https://www.globaljobhunter.vip"   # <- канон. домен + HTTPS
+
 def _absolute_url(path: str) -> str:
-    # Будем строить абсолютные URL динамически от текущего хоста
-    # Пример: https://www.globaljobhunter.vip + / = https://www.globaljobhunter.vip/
-    base = (request.host_url or "https://www.globaljobhunter.vip").rstrip("/")
-    return f"{base}{path}"
+    return f"{BASE_URL}{path}"
 
 def _collect_public_paths() -> list[str]:
     """Берём все GET-роуты БЕЗ параметров и фильтруем внутренние/служебные."""
@@ -160,6 +160,7 @@ def robots_txt():
         "Disallow: /health\n"
         # Уберём дубли по языкам: /?lang=ru|uk|en и т.п.
         "Disallow: /*?lang=\n"
+        "Disallow: /*&lang=\n"
         # Ссылка на карту сайта
         "Sitemap: https://www.globaljobhunter.vip/sitemap.xml\n"
     )
