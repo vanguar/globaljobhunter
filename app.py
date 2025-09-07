@@ -71,7 +71,9 @@ EXTRA_PUBLIC_URLS = [
 # Блэклист — эти разделы и страницы НЕЛЬЗЯ индексировать и в sitemap они не попадут
 SEO_DISALLOW_PREFIXES = (
     "/results", "/search", "/api", "/admin", "/subscription", "/unsubscribe",
-    "/subscribe", "/analytics", "/health", "/static"
+    "/subscribe", "/analytics", "/health", "/static",
+    "/out",       # ← добавили: не индексируем редирект
+    "/google"     # ← добавили: отрежет google*.html (верификацию)
 )
 SEO_DISALLOW_EXACT = {
     "/favicon.ico", "/robots.txt", "/sitemap.xml",

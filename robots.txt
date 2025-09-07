@@ -11,6 +11,11 @@ Disallow: /subscription/
 Disallow: /analytics
 Disallow: /analytics/
 Disallow: /health
+Disallow: /out
+Disallow: /out/
+Disallow: /google
+Disallow: /google*.html
+
 
 # Режем дубли по параметру языка
 Disallow: /*?lang=
