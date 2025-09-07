@@ -21,7 +21,7 @@ from collections import defaultdict        # ← ДОБАВИТЬ это!
 import secrets
 import uuid
 from dataclasses import asdict
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, render_template_string
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, render_template_string,  Response
 from email_service import mail, send_welcome_email, send_preferences_update_email, send_job_notifications, run_scheduled_notifications
 
 # Добавить эти импорты ПОСЛЕ существующих
@@ -58,6 +58,120 @@ from analytics import analytics_bp, log_search_click, pretty_json, h as html_esc
 
 app = Flask(__name__)
 app.register_blueprint(analytics_bp)
+
+# === SEO: robots.txt и sitemap.xml (AUTO) ==========================
+# Явно укажем важные публичные URL, которые хотим видеть в индексе всегда.
+# Если у тебя есть /support — оставь строку. Если нет — просто удали её.
+EXTRA_PUBLIC_URLS = [
+    "/",                # главная
+    "/support",         # страница поддержки проекта (если есть роут)
+    "/tg",              # лендинг для TG WebApp (если пусть индексируется)
+]
+
+# Блэклист — эти разделы и страницы НЕЛЬЗЯ индексировать и в sitemap они не попадут
+SEO_DISALLOW_PREFIXES = (
+    "/results", "/search", "/api", "/admin", "/subscription", "/unsubscribe",
+    "/subscribe", "/analytics", "/health", "/static"
+)
+SEO_DISALLOW_EXACT = {
+    "/favicon.ico", "/robots.txt", "/sitemap.xml"
+}
+
+def _xml_escape(s: str) -> str:
+    return (s.replace("&", "&amp;")
+             .replace("<", "&lt;")
+             .replace(">", "&gt;")
+             .replace('"', "&quot;")
+             .replace("'", "&apos;"))
+
+def _absolute_url(path: str) -> str:
+    # Будем строить абсолютные URL динамически от текущего хоста
+    # Пример: https://www.globaljobhunter.vip + / = https://www.globaljobhunter.vip/
+    base = (request.host_url or "https://www.globaljobhunter.vip").rstrip("/")
+    return f"{base}{path}"
+
+def _collect_public_paths() -> list[str]:
+    """Берём все GET-роуты БЕЗ параметров и фильтруем внутренние/служебные."""
+    out = set()
+
+    # 1) из карты маршрутов Flask
+    for rule in app.url_map.iter_rules():
+        if "GET" not in rule.methods:
+            continue
+        if rule.arguments:  # у правил есть <param>? — такие не берём
+            continue
+        path = str(rule.rule)
+        if path in SEO_DISALLOW_EXACT:
+            continue
+        if path.startswith(SEO_DISALLOW_PREFIXES):
+            continue
+        out.add(path)
+
+    # 2) добавим принудительно важные страницы (если они есть в приложении)
+    for path in EXTRA_PUBLIC_URLS:
+        out.add(path)
+
+    # Нормализуем: корень — первым, остальные по алфавиту
+    paths = sorted(out)
+    if "/" in paths:
+        paths.remove("/")
+        paths.insert(0, "/")
+    return paths
+
+def _render_sitemap(paths: list[str]) -> str:
+    today = datetime.now(timezone.utc).date().isoformat()
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for p in paths:
+        loc = _xml_escape(_absolute_url(p))
+        # Простая логика: корень — priority 1.0, остальное — 0.5
+        prio = "1.0" if p == "/" else "0.5"
+        lines += [
+            "  <url>",
+            f"    <loc>{loc}</loc>",
+            f"    <lastmod>{today}</lastmod>",
+            f"    <changefreq>daily</changefreq>",
+            f"    <priority>{prio}</priority>",
+            "  </url>"
+        ]
+    lines.append("</urlset>")
+    return "\n".join(lines)
+
+@app.route("/robots.txt")
+def robots_txt():
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        # Результаты поиска/служебка — не индексируем
+        "Disallow: /results\n"
+        "Disallow: /results/\n"
+        "Disallow: /search\n"
+        "Disallow: /search/\n"
+        "Disallow: /api\n"
+        "Disallow: /api/\n"
+        "Disallow: /admin\n"
+        "Disallow: /admin/\n"
+        "Disallow: /subscription\n"
+        "Disallow: /subscription/\n"
+        "Disallow: /subscribe\n"
+        "Disallow: /unsubscribe\n"
+        "Disallow: /analytics\n"
+        "Disallow: /analytics/\n"
+        "Disallow: /health\n"
+        # Уберём дубли по языкам: /?lang=ru|uk|en и т.п.
+        "Disallow: /*?lang=\n"
+        # Ссылка на карту сайта
+        "Sitemap: https://www.globaljobhunter.vip/sitemap.xml\n"
+    )
+    return Response(body, mimetype="text/plain; charset=utf-8")
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    paths = _collect_public_paths()
+    xml = _render_sitemap(paths)
+    return Response(xml, mimetype="application/xml; charset=utf-8")
+# === /SEO ===========================================================
+
 
 # в app.py (не ломая ничего существующего)
 from flask import send_from_directory
