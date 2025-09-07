@@ -137,6 +137,16 @@ def _render_sitemap(paths: list[str]) -> str:
     lines.append("</urlset>")
     return "\n".join(lines)
 
+from flask import Response
+
+VERIFICATION_FILENAME = "googleab1f551714c95e9d.html"  # замени на свой
+
+@app.route(f"/{VERIFICATION_FILENAME}")
+def google_site_verification():
+    body = f"google-site-verification: {VERIFICATION_FILENAME}"
+    return Response(body, mimetype="text/plain; charset=utf-8")
+
+
 @app.route("/robots.txt")
 def robots_txt():
     body = (
