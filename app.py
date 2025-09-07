@@ -119,7 +119,7 @@ def _collect_public_paths() -> list[str]:
     return paths
 
 def _render_sitemap(paths: list[str]) -> str:
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.utcnow().date().isoformat()
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for p in paths:
