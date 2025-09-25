@@ -69,17 +69,17 @@
                         <div class="row g-2">
                             <div class="col-sm-4">
                                 <select id="filter-date" class="form-select">
-                                    <option value="any">Дата: за всё время</option>
-                                    <option value="1">За 24 часа</option>
-                                    <option value="3">За 3 дня</option>
-                                    <option value="7">За 7 дней</option>
-                                    <option value="14">За 14 дней</option>
-                                    <option value="30">За 30 дней</option>
+                                    <option value="any" data-i18n="Дата: за всё время">Дата: за всё время</option>
+                                    <option value="1" data-i18n="За 24 часа">За 24 часа</option>
+                                    <option value="3" data-i18n="За 3 дня">За 3 дня</option>
+                                    <option value="7" data-i18n="За 7 дней">За 7 дней</option>
+                                    <option value="14" data-i18n="За 14 дней">За 14 дней</option>
+                                    <option value="30" data-i18n="За 30 дней">За 30 дней</option>
                                 </select>
                             </div>
                             <div class="col-sm-4">
                                 <select id="filter-emp" class="form-select">
-                                    <option value="any">Тип занятости: любой</option>
+                                    <option value="any" data-i18n="Тип занятости: любой">Тип занятости: любой</option>
                                     <option value="full-time">Full-time</option>
                                     <option value="part-time">Part-time</option>
                                     <option value="contract">Contract</option>
@@ -89,7 +89,7 @@
                             </div>
                             <div class="col-sm-4">
                                 <select id="filter-remote" class="form-select">
-                                    <option value="any">Формат: любой</option>
+                                    <option value="any" data-i18n="Формат: любой">Формат: любой</option>
                                     <option value="remote">Remote</option>
                                     <option value="hybrid">Hybrid</option>
                                     <option value="onsite">Onsite</option>
@@ -100,18 +100,18 @@
                         <!-- Базовые переключатели -->
                         <div class="btn-group w-100 mt-2" role="group">
                             <input type="radio" class="btn-check" name="filter-type" id="all" value="all" checked>
-                            <label class="btn btn-outline-primary" for="all"><i class="bi bi-list-ul me-1"></i>Все</label>
+                            <label class="btn btn-outline-primary" for="all" data-i18n="Все"><i class="bi bi-list-ul me-1"></i>Все</label>
                             
                             <input type="radio" class="btn-check" name="filter-type" id="refugees" value="refugees">
-                            <label class="btn btn-outline-primary" for="refugees"><i class="bi bi-house-heart me-1"></i>Только для беженцев</label>
+                            <label class="btn btn-outline-primary" for="refugees" data-i18n="Только для беженцев"><i class="bi bi-house-heart me-1"></i>Только для беженцев</label>
                             
                             <input type="radio" class="btn-check" name="filter-type" id="no-lang" value="no-lang">
-                            <label class="btn btn-outline-primary" for="no-lang"><i class="bi bi-volume-mute me-1"></i>Только без языка</label>
+                            <label class="btn btn-outline-primary" for="no-lang" data-i18n="Только без языка"><i class="bi bi-volume-mute me-1"></i>Только без языка</label>
                         </div>
 
                         <!-- Сброс фильтров -->
                         <div class="d-flex justify-content-end mt-2">
-                            <button id="filter-reset" type="button" class="btn btn-light border">
+                            <button id="filter-reset" type="button" class="btn btn-light border" data-i18n="Сбросить фильтры">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i> Сбросить фильтры
                             </button>
                         </div>

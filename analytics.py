@@ -58,17 +58,13 @@ analytics_bp = Blueprint("analytics", __name__)
 def outbound():
     """
     Безопасный редиректор на сайт-партнёр:
-    /out?partner=Adzuna&u=<full url>&job_id=...&title=...&sid=...
-    Логируем клик и делаем 302 на партнёра.
+    /out?partner=Adzuna&u=<full url>&job_id=...&title=...
+    Логируем клик и тут же делаем 302 на партнёра.
     """
-    # локальные импорты, чтобы не трогать остальной код файла
-    from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
-    import os
-
-    raw_url = (request.args.get("u", "") or "").strip()
+    raw_url = request.args.get("u", "").strip()
     partner = (request.args.get("partner", "") or "").strip() or None
-    job_id  = request.args.get("job_id")
-    title   = request.args.get("title")
+    job_id = request.args.get("job_id")
+    title = request.args.get("title")
 
     if not raw_url:
         abort(400, "Missing 'u' parameter")
@@ -84,54 +80,66 @@ def outbound():
     if not parsed.netloc:
         abort(400, "Invalid URL host")
 
-    # --- Гарантируем атрибуцию Careerjet: доклеиваем affid и sid ---
+    # --- Careerjet: гарантируем sid и affid ---------------------------------
     try:
-        host = (parsed.netloc or "").lower()
-        if ("careerjet" in host) or host.endswith("jobviewtrack.com"):
-            # Разобрать query без потери существующих параметров
-            q = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        host = parsed.netloc.lower()
+        # кто партнёр по факту
+        partner_name = (partner or _guess_partner_from_host(host) or "").lower()
+        is_careerjet = (
+            partner_name == "careerjet"
+            or "careerjet." in host
+            or "jobviewtrack.com" in host
+        )
 
-            # 1) sid — удобная метка источника в отчётах Careerjet
-            # порядок приоритета: из запроса → из ENV → дефолт
-            sid = (request.args.get("sid") or
-                   os.getenv("CAREERJET_SID") or
-                   "globaljobhunter")
-            sid = (sid or "").strip()
-            if sid and not q.get("sid"):
-                q["sid"] = sid
+        if is_careerjet:
+            # разбираем query штатно, чтобы сохранить все параметры и порядок
+            pairs = parse_qsl(parsed.query, keep_blank_values=True)
+            keys_lower = [k.lower() for k, _ in pairs]
 
-            # 2) affid — ваш affiliate id
-            cj_affid = (os.getenv("CAREERJET_AFFID") or "").strip()
-            if cj_affid and not q.get("affid"):
-                q["affid"] = cj_affid
+            # 1) sid (для внутреннего разделения источников)
+            if "sid" not in keys_lower:
+                pairs.append(("sid", "globaljobhunter"))
 
-            # Собрать URL обратно
-            new_query = urlencode(q, doseq=True)
-            raw_url = urlunparse(parsed._replace(query=new_query))
-            parsed = urlparse(raw_url)  # чтобы в лог попал обновлённый URL/host
-    except Exception as e:
-        current_app.logger.warning("Affid/SID attach skipped: %s", e)
-    # --- конец блока гарантирования affid/sid ---
+            # 2) affid (из переменной окружения)
+            if "affid" not in keys_lower:
+                cj_affid = (os.getenv("CAREERJET_AFFID") or "").strip()
+                if cj_affid:
+                    pairs.append(("affid", cj_affid))
+
+            # пересобираем URL с дополненными параметрами
+            new_query = urlencode(pairs, doseq=True)
+            parsed = parsed._replace(query=new_query)
+    except Exception as _e:
+        # не ломаем редирект даже если что-то пошло не так
+        current_app.logger.warning("Careerjet param ensure failed: %s", _e)
+
+    target_url = urlunparse(parsed)
 
     # логирование (не блокируем редирект)
     try:
         ip, ua, lang = _extract_request_meta(request)
         geo = _geolocate_ip(ip)
         pc = PartnerClick(
-            ip=ip, user_agent=ua, lang=lang,
-            country=(geo or {}).get("country"), city=(geo or {}).get("city"),
-            lat=(geo or {}).get("lat"), lon=(geo or {}).get("lon"),
+            ip=ip,
+            user_agent=ua,
+            lang=lang,
+            country=(geo or {}).get("country"),
+            city=(geo or {}).get("city"),
+            lat=(geo or {}).get("lat"),
+            lon=(geo or {}).get("lon"),
             partner=partner or _guess_partner_from_host(parsed.netloc),
-            target_domain=(parsed.netloc or "").lower(),
-            target_url=raw_url,          # уже с affid/sid (если это careerjet)
-            job_id=job_id, job_title=title,
+            target_domain=parsed.netloc.lower(),
+            target_url=target_url,
+            job_id=job_id,
+            job_title=title,
         )
         db.session.add(pc)
         db.session.commit()
     except Exception as e:
         current_app.logger.exception("PartnerClick log failed: %s", e)
 
-    return redirect(raw_url, code=302)
+    return redirect(target_url, code=302)
+
 
 # --- ЛОГ ПОИСКА --------------------------------------------------------------
 
