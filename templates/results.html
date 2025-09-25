@@ -12,7 +12,6 @@
             </p>
             <a href="{{ url_for('index') }}" class="btn btn-outline-primary mt-3">
                 <i class="bi bi-arrow-left me-2"></i>Изменить параметры поиска
-            
             </a>
             <a href="/static/tg/webapp.html" class="btn btn-success ms-2" data-i18n="mini_version_title">Mini-версия для Telegram</a>
         </div>
@@ -57,14 +56,49 @@
         <div class="container">
             <div class="filter-bar sticky-top mb-4">
                 <div class="row g-3 align-items-center">
-                    <div class="col-md-6">
+                    <!-- Поиск -->
+                    <div class="col-lg-4">
                         <div class="input-group">
                              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                              <input type="text" class="form-control" id="job-filter" placeholder="Фильтр по названию, компании..." data-i18n="attr=placeholder">
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="btn-group w-100" role="group">
+
+                    <!-- Новые селекты -->
+                    <div class="col-lg-8">
+                        <div class="row g-2">
+                            <div class="col-sm-4">
+                                <select id="filter-date" class="form-select">
+                                    <option value="any">Дата: за всё время</option>
+                                    <option value="1">За 24 часа</option>
+                                    <option value="3">За 3 дня</option>
+                                    <option value="7">За 7 дней</option>
+                                    <option value="14">За 14 дней</option>
+                                    <option value="30">За 30 дней</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <select id="filter-emp" class="form-select">
+                                    <option value="any">Тип занятости: любой</option>
+                                    <option value="full-time">Full-time</option>
+                                    <option value="part-time">Part-time</option>
+                                    <option value="contract">Contract</option>
+                                    <option value="temporary">Temporary</option>
+                                    <option value="internship">Internship</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <select id="filter-remote" class="form-select">
+                                    <option value="any">Формат: любой</option>
+                                    <option value="remote">Remote</option>
+                                    <option value="hybrid">Hybrid</option>
+                                    <option value="onsite">Onsite</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Базовые переключатели -->
+                        <div class="btn-group w-100 mt-2" role="group">
                             <input type="radio" class="btn-check" name="filter-type" id="all" value="all" checked>
                             <label class="btn btn-outline-primary" for="all"><i class="bi bi-list-ul me-1"></i>Все</label>
                             
@@ -74,6 +108,13 @@
                             <input type="radio" class="btn-check" name="filter-type" id="no-lang" value="no-lang">
                             <label class="btn btn-outline-primary" for="no-lang"><i class="bi bi-volume-mute me-1"></i>Только без языка</label>
                         </div>
+
+                        <!-- Сброс фильтров -->
+                        <div class="d-flex justify-content-end mt-2">
+                            <button id="filter-reset" type="button" class="btn btn-light border">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Сбросить фильтры
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -81,7 +122,7 @@
             <div id="jobs-container">
                 {% if jobs_by_country %}
                     {% for country_name, country_jobs in jobs_by_country.items() %}
-                        <!-- НОВЫЙ КРАСИВЫЙ РАЗДЕЛИТЕЛЬ СТРАНЫ -->
+                        <!-- Разделитель страны -->
                         <div class="country-divider" data-country="{{ country_name }}">
                             <div class="country-header">
                                 <div class="country-flag">
@@ -115,10 +156,33 @@
 
                         <!-- Вакансии этой страны -->
                         {% for job in country_jobs %}
+                        {% set _text = ((job.title or '') ~ ' ' ~ (job.description or '') ~ ' ' ~ (job.location or '')) | lower %}
+                        {% set emp = 'unknown' %}
+                        {% if 'full time' in _text or 'full-time' in _text or 'vollzeit' in _text %}
+                          {% set emp = 'full-time' %}
+                        {% elif 'part time' in _text or 'part-time' in _text or 'teilzeit' in _text %}
+                          {% set emp = 'part-time' %}
+                        {% elif 'contract' in _text or 'freelance' in _text %}
+                          {% set emp = 'contract' %}
+                        {% elif 'temporary' in _text or 'befristet' in _text %}
+                          {% set emp = 'temporary' %}
+                        {% elif 'intern' in _text or 'praktik' in _text %}
+                          {% set emp = 'internship' %}
+                        {% endif %}
+                        {% set remote = 'onsite' %}
+                        {% if 'remote' in _text or 'home office' in _text or 'home-office' in _text or 'wfh' in _text or 'удален' in _text or 'віддален' in _text %}
+                          {% set remote = 'remote' %}
+                        {% elif 'hybrid' in _text or 'teil-remote' in _text or 'hybrid-' in _text %}
+                          {% set remote = 'hybrid' %}
+                        {% endif %}
+
                         <div class="job-card" 
                              data-refugee="{{ job.refugee_friendly|lower }}" 
                              data-no-language="{{ (job.language_requirement == 'no_language_required')|lower }}"
-                             data-country="{{ country_name }}">
+                             data-country="{{ country_name }}"
+                             data-emp="{{ emp }}"
+                             data-remote="{{ remote }}"
+                             data-posted-iso="{{ job.posted_date.split('T')[0] if job.posted_date }}">
                             <div class="row g-3">
                                 <div class="col-lg-8">
                                     <div class="d-flex align-items-start mb-3">
@@ -130,7 +194,6 @@
                                     <div class="job-meta mb-3">
                                         <span><i class="bi bi-geo-alt-fill me-2"></i>{{ job.location }}</span>
                                         <span><i class="bi bi-calendar3 me-2"></i>{{ job.posted_date.split('T')[0] }}</span>
-                                        <!-- ДОБАВЛЯЕМ отображение источника -->
                                         <span class="source-badge">
                                             <i class="bi bi-database me-1"></i>{{ job.source }}
                                         </span>
@@ -138,16 +201,15 @@
                                     {% if job.description %}
                                         <p class="job-description">{{ job.description | striptags }}</p>
                                     {% endif %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if emp != 'unknown' %}<span class="badge bg-light text-dark border">{{ emp }}</span>{% endif %}
+                                        <span class="badge bg-light text-dark border">{{ remote }}</span>
+                                        {% if job.refugee_friendly %}<span class="badge bg-success-subtle text-success-emphasis border"><i class="bi bi-house-heart"></i> для беженцев</span>{% endif %}
+                                        {% if job.language_requirement == 'no_language_required' %}<span class="badge bg-info-subtle text-info-emphasis border"><i class="bi bi-volume-mute"></i> без языка</span>{% endif %}
+                                    </div>
                                 </div>
                                 <div class="col-lg-4 d-flex flex-column justify-content-between align-items-lg-end">
                                     <div class="w-100">
-                                        {% if job.refugee_friendly %}
-                                            <span class="badge-custom bg-success mb-2"><i class="bi bi-house-heart"></i> Для беженцев</span>
-                                        {% endif %}
-                                        {% if job.language_requirement == 'no_language_required' %}
-                                            <span class="badge-custom bg-info mb-2"><i class="bi bi-volume-mute"></i> Без языка</span>
-                                        {% endif %}
-
                                         {% if job.salary %}
                                             <div class="salary-badge mt-2">{{ job.salary|safe }}</div>
                                         {% endif %}
@@ -159,9 +221,9 @@
                                                             partner=job.source,
                                                             job_id=job.id,
                                                             title=job.title) }}"
-                                        target="_blank" rel="noopener" class="btn btn-primary">
-                                        Откликнуться <i class="bi bi-box-arrow-up-right ms-2"></i>
-                                        </a>
+                                            target="_blank" rel="noopener" class="btn btn-primary">
+                                            Откликнуться <i class="bi bi-box-arrow-up-right ms-2"></i>
+                                         </a>
 
                                          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('{{ job.apply_url }}')">
                                             <i class="bi bi-clipboard me-1"></i>Копировать ссылку
@@ -183,14 +245,14 @@
         </div>
     </section>
 
-<!-- БЛОК ПОДДЕРЖКИ ПРОЕКТА -->
+<!-- Блок поддержки -->
 <section class="support-promo-section py-5">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-6">
                 <div class="support-promo-card text-center" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-radius: 20px; padding: 40px; border: 2px solid #e1f5fe;">
                     <div style="font-size: 3rem; margin-bottom: 20px;">💙</div>
-                    <h3 style="color: #1976d2; font-weight: 600; margin-bottom: 15px;">Понравился проект?</h3>
+                    <h3 style="color: #1976D2; font-weight: 600; margin-bottom: 15px;">Понравился проект?</h3>
                     <p class="text-muted mb-4">Ваша поддержка помогает сайту развиваться. Узнайте, как можно помочь и связаться с автором.</p>
                     <a href="/support" class="btn btn-primary btn-lg" style="border-radius: 12px; padding: 12px 30px; font-weight: 600;">
                         Перейти на страницу поддержки
@@ -201,7 +263,7 @@
     </div>
 </section>    
 
-    <!-- ДОБАВИТЬ ЭТОТ БЛОК ПЕРЕД ЗАКРЫВАЮЩИМ </main> -->
+<!-- Подписка -->
 <section class="subscription-section py-5 border-top">
     <div class="container">
         <div class="row justify-content-center">
@@ -209,7 +271,6 @@
                 <div class="text-center">
                     <h4 class="mb-3">📧 Получать новые вакансии на email</h4>
                     <p class="text-muted mb-4">Еженедельные уведомления о подходящих вакансиях на основе вашего поиска</p>
-                    
                     <div class="row justify-content-center">
                         <div class="col-md-8">
                             <div class="input-group input-group-lg">
@@ -261,55 +322,99 @@
 {% block scripts %}
 <script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
 <script>
+/* ======= Новые слушатели для расширенных фильтров ======= */
 document.getElementById('job-filter').addEventListener('input', filterJobs);
-document.querySelectorAll('input[name="filter-type"]').forEach(radio => {
-    radio.addEventListener('change', filterJobs);
+document.querySelectorAll('input[name="filter-type"]').forEach(radio => radio.addEventListener('change', filterJobs));
+['filter-date','filter-emp','filter-remote'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('change', filterJobs);
+    el.addEventListener('input', filterJobs);
+  }
 });
-
-function filterJobs() {
-    const searchTerm = document.getElementById('job-filter').value.toLowerCase();
-    const filterType = document.querySelector('input[name="filter-type"]:checked').value;
-    const jobCards = document.querySelectorAll('.job-card');
-    const countryDividers = document.querySelectorAll('.country-divider');
-    
-    let visibleCount = 0;
-    const visibleCountries = new Set();
-    
-    jobCards.forEach(card => {
-        const title = card.querySelector('.job-title').textContent.toLowerCase();
-        const company = card.querySelector('.company-name').textContent.toLowerCase();
-        const country = card.dataset.country;
-        const matchesSearch = title.includes(searchTerm) || company.includes(searchTerm);
-        
-        let matchesFilter = true;
-        if (filterType === 'refugees') {
-            matchesFilter = card.dataset.refugee === 'true';
-        } else if (filterType === 'no-lang') {
-            matchesFilter = card.dataset.noLanguage === 'true';
-        }
-        
-        if (matchesSearch && matchesFilter) {
-           card.style.display = 'block';
-           visibleCount++;
-           visibleCountries.add(country);
-       } else {
-           card.style.display = 'none';
-       }
-   });
-   
-   // Показываем/скрываем разделители стран
-   countryDividers.forEach(divider => {
-       const country = divider.dataset.country;
-       if (visibleCountries.has(country)) {
-           divider.style.display = 'block';
-       } else {
-           divider.style.display = 'none';
-       }
-   });
-   
-   updateResultsCount(visibleCount, jobCards.length);
+const resetBtn = document.getElementById('filter-reset');
+if (resetBtn){
+  resetBtn.addEventListener('click', () => {
+    const q = document.getElementById('job-filter'); if (q) q.value = '';
+    const d = document.getElementById('filter-date'); if (d) d.value = 'any';
+    const e = document.getElementById('filter-emp'); if (e) e.value = 'any';
+    const r = document.getElementById('filter-remote'); if (r) r.value = 'any';
+    const all = document.getElementById('all'); if (all) all.checked = true;
+    filterJobs();
+  });
 }
 
+/* ======= Вспомогательные функции ======= */
+function daysBetween(iso){
+  if (!iso) return 9999;
+  const d = new Date(iso + 'T00:00:00Z');
+  const now = new Date();
+  return Math.floor((now - d)/86400000);
+}
+function matchDate(card, val){
+  if (val === 'any') return true;
+  const maxDays = parseInt(val, 10);
+  return daysBetween(card.dataset.postedIso || '') <= maxDays;
+}
+function matchEmp(card, val){
+  if (val === 'any') return true;
+  return (card.dataset.emp || 'unknown') === val;
+}
+function matchRemote(card, val){
+  if (val === 'any') return true;
+  return (card.dataset.remote || 'onsite') === val;
+}
+
+/* ======= Основной фильтр ======= */
+function filterJobs() {
+  const searchTerm = (document.getElementById('job-filter').value || '').toLowerCase().trim();
+  const filterType = document.querySelector('input[name="filter-type"]:checked')?.value || 'all';
+  const dateVal    = document.getElementById('filter-date')?.value || 'any';
+  const empVal     = document.getElementById('filter-emp')?.value || 'any';
+  const remoteVal  = document.getElementById('filter-remote')?.value || 'any';
+
+  const jobCards = document.querySelectorAll('.job-card');
+  const countryDividers = document.querySelectorAll('.country-divider');
+
+  let visibleCount = 0;
+  const visibleCountries = new Set();
+
+  jobCards.forEach(card => {
+      const title = card.querySelector('.job-title')?.textContent.toLowerCase() || '';
+      const company = card.querySelector('.company-name')?.textContent.toLowerCase() || '';
+      const country = card.dataset.country || '';
+
+      const matchesSearch = !searchTerm || title.includes(searchTerm) || company.includes(searchTerm);
+
+      let matchesFilter = true;
+      if (filterType === 'refugees') {
+          matchesFilter = card.dataset.refugee === 'true';
+      } else if (filterType === 'no-lang') {
+          matchesFilter = card.dataset.noLanguage === 'true';
+      }
+
+      const okDate   = matchDate(card, dateVal);
+      const okEmp    = matchEmp(card,  empVal);
+      const okRemote = matchRemote(card, remoteVal);
+
+      const show = matchesSearch && matchesFilter && okDate && okEmp && okRemote;
+
+      card.style.display = show ? 'block' : 'none';
+      if (show) {
+         visibleCount++;
+         visibleCountries.add(country);
+      }
+  });
+
+  // Показываем/скрываем разделители стран
+  countryDividers.forEach(divider => {
+      divider.style.display = visibleCountries.has(divider.dataset.country) ? 'block' : 'none';
+  });
+
+  updateResultsCount(visibleCount, jobCards.length);
+}
+
+/* ======= Счётчик результатов (оставлен как был) ======= */
 function updateResultsCount(count, total) {
    let counterElement = document.getElementById('results-counter');
    const jobsContainer = document.getElementById('jobs-container');
@@ -334,6 +439,7 @@ function updateResultsCount(count, total) {
    }
 }
 
+/* ======= Остальной ваш код: копирование, тосты, подписки, статус ======= */
 function copyToClipboard(text) {
    navigator.clipboard.writeText(text).then(() => {
        showToast('✅ Ссылка скопирована!', 'success');
@@ -341,7 +447,6 @@ function copyToClipboard(text) {
        showToast('❌ Не удалось скопировать', 'danger');
    });
 }
-
 function showToast(message, type = 'info') {
    const toastContainer = document.getElementById('toast-container') || createToastContainer();
    const toast = document.createElement('div');
@@ -349,13 +454,10 @@ function showToast(message, type = 'info') {
    toast.setAttribute('role', 'alert');
    toast.style.minWidth = '250px';
    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
-   
    toastContainer.appendChild(toast);
-   
    const bsAlert = new bootstrap.Alert(toast);
    setTimeout(() => bsAlert.close(), 3000);
 }
-
 function createToastContainer() {
     const container = document.createElement('div');
     container.id = 'toast-container';
@@ -363,16 +465,13 @@ function createToastContainer() {
     document.body.appendChild(container);
     return container;
 }
-
 function subscribeToEmails() {
     const emailInput = document.getElementById('subscribe-email');
     const email = emailInput.value.trim();
-    
     if (!email || !email.includes('@')) {
         showToast('❌ Введите корректный email адрес', 'warning');
         return;
     }
-    
     fetch('/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -397,28 +496,21 @@ function subscribeToEmails() {
         emailInput.value = '';
     })
     .catch(error => {
-        if (error.message === 'HANDLED_409') {
-            return;
-        }
+        if (error.message === 'HANDLED_409') return;
         console.error('Ошибка подписки:', error);
         showToast('❌ ' + error.message, 'danger');
     });
 }
-
 function showManageSubscriptionInfo() {
     alert('📧 Ссылка на управление подпиской будет в каждом email уведомлении!\n\nВы сможете:\n• Изменить профессии\n• Изменить страны\n• Изменить частоту уведомлений\n• Отписаться');
 }
-
 function checkSystemStatus() {
     fetch('/health')
         .then(response => {
-            if (response.ok) {
-                return response.text();
-            }
+            if (response.ok) return response.text();
             throw new Error('Сервис недоступен');
         })
         .then(html => {
-            // Создаем модальное окно с содержимым статуса
             const modal = document.createElement('div');
             modal.className = 'modal fade';
             modal.id = 'status-modal';
@@ -433,38 +525,25 @@ function checkSystemStatus() {
                             <iframe srcdoc="${html.replace(/"/g, '&quot;')}" style="width: 100%; height: 400px; border: none;"></iframe>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             document.body.appendChild(modal);
-            
             const bootstrapModal = new bootstrap.Modal(modal);
             bootstrapModal.show();
-            
-            // Удаляем модальное окно после закрытия
-            modal.addEventListener('hidden.bs.modal', () => {
-                modal.remove();
-            });
+            modal.addEventListener('hidden.bs.modal', () => modal.remove());
         })
-        .catch(error => {
-            alert('❌ Ошибка загрузки статуса: ' + error.message);
-        });
-        }
-
+        .catch(error => alert('❌ Ошибка загрузки статуса: ' + error.message));
+}
 function showSubscriptionChoiceModal(email, data) {
     if (!data || !data.current_subscription || !data.new_subscription) {
-        showToast('❌ Ошибка данных подписки', 'danger');
-        return;
+        showToast('❌ Ошибка данных подписки', 'danger'); return;
     }
-    
     const modal = document.createElement('div');
     modal.className = 'modal fade';
     modal.id = 'subscription-choice-modal';
-    
     const currentJobs = data.current_subscription.jobs.slice(0, 3).join(', ') + 
                        (data.current_subscription.jobs.length > 3 ? ` (+${data.current_subscription.jobs.length - 3})` : '');
     const newJobs = data.new_subscription.jobs.slice(0, 3).join(', ') + 
                    (data.new_subscription.jobs.length > 3 ? ` (+${data.new_subscription.jobs.length - 3})` : '');
-    
     modal.innerHTML = `
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="border: none; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
@@ -480,14 +559,12 @@ function showSubscriptionChoiceModal(email, data) {
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="filter: brightness(0) invert(1);"></button>
                 </div>
-                
                 <div class="modal-body" style="padding: 30px;">
                     <div class="alert alert-info" style="border: none; background: linear-gradient(45deg, #e3f2fd, #f3e5f5); border-radius: 15px; border-left: 4px solid #2196F3;">
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>У вас уже есть подписка на этот email!</strong>
                         <br><small class="text-muted">Выберите, как поступить с новыми параметрами поиска</small>
                     </div>
-                    
                     <div class="row g-4 mt-2">
                         <div class="col-md-6">
                             <div class="subscription-card current" style="background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%); border: 2px solid #e3f2fd; border-radius: 15px; padding: 20px; height: 100%; position: relative;">
@@ -519,7 +596,6 @@ function showSubscriptionChoiceModal(email, data) {
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="col-md-6">
                             <div class="subscription-card new" style="background: linear-gradient(135deg, #f0fff4 0%, #e8f5e8 100%); border: 2px solid #e8f5e8; border-radius: 15px; padding: 20px; height: 100%; position: relative;">
                                 <div class="d-flex align-items-center mb-3">
@@ -551,12 +627,10 @@ function showSubscriptionChoiceModal(email, data) {
                             </div>
                         </div>
                     </div>
-                    
                     <div class="text-center mt-4">
                         <h6 class="mb-3" style="color: #666;">Выберите действие:</h6>
                     </div>
                 </div>
-                
                 <div class="modal-footer" style="border: none; padding: 20px 30px 30px; gap: 15px;">
                     <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal" style="border-radius: 12px; padding: 12px; font-weight: 500;">
                         <i class="bi bi-x-circle me-2"></i>Отмена
@@ -569,23 +643,19 @@ function showSubscriptionChoiceModal(email, data) {
                     </button>
                 </div>
             </div>
-        </div>
-    `;
-    
+        </div>`;
     document.body.appendChild(modal);
     const bootstrapModal = new bootstrap.Modal(modal);
     bootstrapModal.show();
-    
     modal.addEventListener('hidden.bs.modal', () => modal.remove());
 }
-
 function updateSubscription(email, action) {
     fetch('/subscribe/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, action: action })
     })
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
         if (data.success) {
             showToast('✅ ' + data.message, 'success');
@@ -597,22 +667,19 @@ function updateSubscription(email, action) {
             showToast('❌ ' + data.error, 'warning');
         }
     })
-    .catch(error => {
-        console.error('Ошибка обновления подписки:', error);
-        showToast('❌ Ошибка обновления подписки', 'danger');
-    });
-}        
+    .catch(() => showToast('❌ Ошибка обновления подписки', 'danger'));
+}
 
-</script>
-<!-- Язык обрабатывает общий сайтовый скрипт из layout.html -->
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const u = new URL(location.href);
-    const lang = (u.searchParams.get("lang") || localStorage.getItem("gjh_lang") || "ru").toLowerCase();
-    try { localStorage.setItem("gjh_lang", lang); } catch(_) {}
-    // если общий скрипт умеет переключать без перезагрузки – дернём:
-    if (window.gjhSetLang) window.gjhSetLang(lang);
-  });
-</script>
+/* Автозапуск фильтра при загрузке */
+document.addEventListener('DOMContentLoaded', filterJobs);
+if (document.readyState === 'complete' || document.readyState === 'interactive') { filterJobs(); }
 
+/* Язык (как было) */
+document.addEventListener("DOMContentLoaded", () => {
+  const u = new URL(location.href);
+  const lang = (u.searchParams.get("lang") || localStorage.getItem("gjh_lang") || "ru").toLowerCase();
+  try { localStorage.setItem("gjh_lang", lang); } catch(_) {}
+  if (window.gjhSetLang) window.gjhSetLang(lang);
+});
+</script>
 {% endblock %}
