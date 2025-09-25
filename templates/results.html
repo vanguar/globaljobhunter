@@ -225,9 +225,15 @@
                                             Откликнуться <i class="bi bi-box-arrow-up-right ms-2"></i>
                                          </a>
 
-                                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('{{ job.apply_url }}')">
-                                            <i class="bi bi-clipboard me-1"></i>Копировать ссылку
-                                         </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                onclick="copyToClipboard(`{{ url_for('analytics.outbound',
+                                                                                    u=job.apply_url,
+                                                                                    partner=job.source,
+                                                                                    job_id=job.id,
+                                                                                    title=job.title) }}`)">
+                                        <i class="bi bi-clipboard me-1"></i>Копировать ссылку
+                                        </button>
+
                                     </div>
                                 </div>
                             </div>
