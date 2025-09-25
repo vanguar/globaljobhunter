@@ -204,8 +204,8 @@
                                     <div class="d-flex flex-wrap gap-2">
                                         {% if emp != 'unknown' %}<span class="badge bg-light text-dark border">{{ emp }}</span>{% endif %}
                                         <span class="badge bg-light text-dark border">{{ remote }}</span>
-                                        {% if job.refugee_friendly %}<span class="badge bg-success-subtle text-success-emphasis border"><i class="bi bi-house-heart"></i> для беженцев</span>{% endif %}
-                                        {% if job.language_requirement == 'no_language_required' %}<span class="badge bg-info-subtle text-info-emphasis border"><i class="bi bi-volume-mute"></i> без языка</span>{% endif %}
+                                        {% if job.refugee_friendly %}<span class="badge bg-success-subtle text-success-emphasis border" data-i18n="для беженцев"><i class="bi bi-house-heart"></i> для беженцев</span>{% endif %}
+                                        {% if job.language_requirement == 'no_language_required' %}<span class="badge bg-info-subtle text-info-emphasis border" data-i18n="без языка"><i class="bi bi-volume-mute"></i> без языка</span>{% endif %}
                                     </div>
                                 </div>
                                 <div class="col-lg-4 d-flex flex-column justify-content-between align-items-lg-end">
