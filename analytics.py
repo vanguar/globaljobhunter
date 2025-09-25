@@ -2,10 +2,11 @@
 import json
 from datetime import datetime
 from typing import Optional, Tuple
-from urllib.parse import urlparse
-
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+import os
 import requests
 from flask import Blueprint, current_app, request, redirect, abort
+from typing import Optional
 
 from database import db  # используем уже сконфигурированный SQLAlchemy из проекта
 
@@ -58,12 +59,15 @@ def outbound():
     """
     Безопасный редиректор на сайт-партнёр:
     /out?partner=Adzuna&u=<full url>&job_id=...&title=...
-    Логируем клик и тут же делаем 302 на партнёра.
+    Логируем клик и делаем 302 на партнёра.
     """
-    raw_url = request.args.get("u", "").strip()
+    from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+    import os
+
+    raw_url = (request.args.get("u", "") or "").strip()
     partner = (request.args.get("partner", "") or "").strip() or None
-    job_id = request.args.get("job_id")
-    title = request.args.get("title")
+    job_id  = request.args.get("job_id")
+    title   = request.args.get("title")
 
     if not raw_url:
         abort(400, "Missing 'u' parameter")
@@ -79,6 +83,23 @@ def outbound():
     if not parsed.netloc:
         abort(400, "Invalid URL host")
 
+    # --- Гарантируем атрибуцию Careerjet: доклеиваем affid, если его нет ---
+    try:
+        host = (parsed.netloc or "").lower()
+        if ("careerjet" in host) or host.endswith("jobviewtrack.com"):
+            cj_affid = (os.getenv("CAREERJET_AFFID") or "").strip()
+            if cj_affid:
+                q = dict(parse_qsl(parsed.query, keep_blank_values=True))
+                if not q.get("affid"):
+                    q["affid"] = cj_affid
+                    # собираем URL обратно с добавленным affid
+                    new_query = urlencode(q, doseq=True)
+                    raw_url = urlunparse(parsed._replace(query=new_query))
+                    parsed = urlparse(raw_url)  # чтобы в лог попал обновлённый host/URL
+    except Exception as e:
+        current_app.logger.warning("Affid attach skipped: %s", e)
+    # --- конец блока гарантирования affid ---
+
     # логирование (не блокируем редирект)
     try:
         ip, ua, lang = _extract_request_meta(request)
@@ -88,8 +109,8 @@ def outbound():
             country=(geo or {}).get("country"), city=(geo or {}).get("city"),
             lat=(geo or {}).get("lat"), lon=(geo or {}).get("lon"),
             partner=partner or _guess_partner_from_host(parsed.netloc),
-            target_domain=parsed.netloc.lower(),
-            target_url=raw_url,
+            target_domain=(parsed.netloc or "").lower(),
+            target_url=raw_url,          # <-- уже с affid (если это careerjet)
             job_id=job_id, job_title=title,
         )
         db.session.add(pc)
@@ -98,6 +119,7 @@ def outbound():
         current_app.logger.exception("PartnerClick log failed: %s", e)
 
     return redirect(raw_url, code=302)
+
 
 
 # --- ЛОГ ПОИСКА --------------------------------------------------------------
@@ -154,11 +176,16 @@ def log_search_click(preferences: dict):
 
 def _guess_partner_from_host(host: str) -> Optional[str]:
     h = (host or "").lower()
-    if "adzuna" in h: return "Adzuna"
-    if "careerjet" in h: return "Careerjet"
-    if "jobicy" in h: return "Jobicy"
-    if "remotive" in h: return "Remotive"
+    if "adzuna" in h: 
+        return "Adzuna"
+    if "careerjet" in h or "jobviewtrack" in h:   # ← добавили трекер Careerjet
+        return "Careerjet"
+    if "jobicy" in h: 
+        return "Jobicy"
+    if "remotive" in h: 
+        return "Remotive"
     return None
+
 
 
 def _extract_request_meta(req) -> Tuple[str, str, str]:
