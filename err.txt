@@ -1,0 +1,139 @@
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>set "URL=https://jobviewtrack.com/v2/FSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis?affid=26c47a2a1e35259d580a7641eafdf46b"
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>for /f "usebackq delims=" %E in (`powershell -NoProfile -Command "[uri]::EscapeDataString($env:URL)"`) do set "ENC=%E"
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>set "ENC=https%3A%2F%2Fjobviewtrack.com%2Fv2%2FFSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis%3Faffid%3D26c47a2a1e35259d580a7641eafdf46b"
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>curl -s -I "https://www.globaljobhunter.vip/out?u=%ENC%&partner=Careerjet" -A "Mozilla/5.0"
+HTTP/1.1 302 Found
+Content-Length: 791
+Content-Type: text/html; charset=utf-8
+Date: Thu, 25 Sep 2025 13:07:24 GMT
+Location: https://jobviewtrack.com/v2/FSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis?affid=26c47a2a1e35259d580a7641eafdf46b
+Server: railway-edge
+X-Railway-Edge: railway/europe-west4-drams3a
+X-Railway-Request-Id: zhKBrC1AR4-eBn-9w9P4nw
+
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>curl -s -I "https://www.globaljobhunter.vip/out?u=%ENC%&partner=Careerjet" -A "Mozilla/5.0" | findstr /i Location
+Location: https://jobviewtrack.com/v2/FSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis?affid=26c47a2a1e35259d580a7641eafdf46b
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>curl -s -L -v -o NUL "https://www.globaljobhunter.vip/out?u=%ENC%&partner=Careerjet" -A "Mozilla/5.0"
+* Host www.globaljobhunter.vip:443 was resolved.
+* IPv6: (none)
+* IPv4: 66.33.22.19
+*   Trying 66.33.22.19:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server accepted http/1.1
+* Connected to www.globaljobhunter.vip (66.33.22.19) port 443
+* using HTTP/1.x
+> GET /out?u=https%3A%2F%2Fjobviewtrack.com%2Fv2%2FFSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis%3Faffid%3D26c47a2a1e35259d580a7641eafdf46b&partner=Careerjet HTTP/1.1
+> Host: www.globaljobhunter.vip
+> User-Agent: Mozilla/5.0
+> Accept: */*
+>
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+* Request completely sent off
+< HTTP/1.1 302 Found
+< Content-Length: 791
+< Content-Type: text/html; charset=utf-8
+< Date: Thu, 25 Sep 2025 13:07:50 GMT
+< Location: https://jobviewtrack.com/v2/FSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis?affid=26c47a2a1e35259d580a7641eafdf46b
+< Server: railway-edge
+< X-Railway-Edge: railway/europe-west4-drams3a
+< X-Railway-Request-Id: 4O8FWEBnS0KZxEArYqdHTg
+* Ignoring the response-body
+* setting size while ignoring
+<
+* Connection #0 to host www.globaljobhunter.vip left intact
+* Issue another request to this URL: 'https://jobviewtrack.com/v2/FSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis?affid=26c47a2a1e35259d580a7641eafdf46b'
+* Host jobviewtrack.com:443 was resolved.
+* IPv6: (none)
+* IPv4: 46.105.110.179
+*   Trying 46.105.110.179:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server did not agree on a protocol. Uses default.
+* Connected to jobviewtrack.com (46.105.110.179) port 443
+* using HTTP/1.x
+> GET /v2/FSza9FPJTgdlfNQPlF6OhgwGdZpF_kqdNuo32ClSW3a6GxqSQf7Rq9Xnh0SXdASOb3dAoKdg3tVp1booWu-0m6mRIza_tfeiWWmthZvt-jYtIuOx9oh3OM4sOpFHVeWz_7gZ9YYRolo_TPICPZP5hD2eXKIEsX4h0QhUxKPEOg_Aj-wPdApUSpDLEojNyZE1XpC5aYq-MZoRKiuANlb2CxAio517Lwju-iwAD5TBuis?affid=26c47a2a1e35259d580a7641eafdf46b HTTP/1.1
+> Host: jobviewtrack.com
+> User-Agent: Mozilla/5.0
+> Accept: */*
+>
+* Request completely sent off
+< HTTP/1.1 302 Found
+< Server: nginx
+< Content-Length: 0
+< Connection: keep-alive
+< Location: https://www.careerjet.de/clk/b56cbb7d96a3056a7e9a0785694a1123.html?psk=1327099e6f3b999094e292726e27f6e7&affid=26c47a2a1e35259d580a7641eafdf46b
+< Date: Thu, 25 Sep 2025 13:07:52 GMT
+* Ignoring the response-body
+* setting size while ignoring
+<
+* Connection #1 to host jobviewtrack.com left intact
+* Issue another request to this URL: 'https://www.careerjet.de/clk/b56cbb7d96a3056a7e9a0785694a1123.html?psk=1327099e6f3b999094e292726e27f6e7&affid=26c47a2a1e35259d580a7641eafdf46b'
+* Host www.careerjet.de:443 was resolved.
+* IPv6: (none)
+* IPv4: 193.164.202.149, 193.164.202.147, 193.164.202.148
+*   Trying 193.164.202.149:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server accepted http/1.1
+* Connected to www.careerjet.de (193.164.202.149) port 443
+* using HTTP/1.x
+> GET /clk/b56cbb7d96a3056a7e9a0785694a1123.html?psk=1327099e6f3b999094e292726e27f6e7&affid=26c47a2a1e35259d580a7641eafdf46b HTTP/1.1
+> Host: www.careerjet.de
+> User-Agent: Mozilla/5.0
+> Accept: */*
+>
+* Request completely sent off
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: SSL/TLS connection renegotiated
+< HTTP/1.1 302 Found
+< Server: nginx
+< Content-Length: 0
+< Connection: keep-alive
+< Set-Cookie: t=7f3c0c1a58bdce1e988f425dee1ef297; expires=Sun, 23 Sep 2035 13:07:53 GMT; path=/; secure; HttpOnly
+< Set-Cookie: affid=26c47a2a1e35259d580a7641eafdf46b; expires=Thu, 25 Sep 2025 13:22:53 GMT; path=/; secure; HttpOnly
+< Set-Cookie: psk=1327099e6f3b999094e292726e27f6e7; expires=Thu, 25 Sep 2025 13:22:53 GMT; path=/; secure; HttpOnly
+< Set-Cookie: s=d089cafe46185a6020424ff2d4035ebfa710fc553f98a124c5a3d1f0c81e3f0d; expires=Sun, 23 Sep 2035 13:07:53 GMT; path=/; secure; HttpOnly
+< Set-Cookie: u=4ec2304d73d1998cc68edc9a564bdd89; expires=Sun, 23 Sep 2035 13:07:53 GMT; path=/; secure
+< Location: https://www.careerjet.de/jobad/deb56cbb7d96a3056a7e9a0785694a1123
+< Date: Thu, 25 Sep 2025 13:07:53 GMT
+< Strict-Transport-Security: max-age=31536000; includeSubDomains; always
+* Ignoring the response-body
+* setting size while ignoring
+<
+* Connection #2 to host www.careerjet.de left intact
+* Issue another request to this URL: 'https://www.careerjet.de/jobad/deb56cbb7d96a3056a7e9a0785694a1123'
+* Re-using existing https: connection with host www.careerjet.de
+> GET /jobad/deb56cbb7d96a3056a7e9a0785694a1123 HTTP/1.1
+> Host: www.careerjet.de
+> User-Agent: Mozilla/5.0
+> Accept: */*
+>
+* Request completely sent off
+< HTTP/1.1 200 OK
+< Server: nginx
+< Content-Type: text/html;charset=UTF-8
+< Content-Length: 4317
+< Connection: keep-alive
+< Set-Cookie: t=7f3c0c1a58bdce1e988f425dee1ef297; expires=Sun, 23 Sep 2035 13:07:53 GMT; path=/; secure; HttpOnly
+< Set-Cookie: s=d089cafe46185a6020424ff2d4035ebfa710fc553f98a124c5a3d1f0c81e3f0d; expires=Sun, 23 Sep 2035 13:07:53 GMT; path=/; secure; HttpOnly
+< Set-Cookie: u=ac5aaf741950e2ea18cac0fcddc1ba50; expires=Sun, 23 Sep 2035 13:07:53 GMT; path=/; secure
+< Date: Thu, 25 Sep 2025 13:07:53 GMT
+< Strict-Transport-Security: max-age=31536000; includeSubDomains; always
+<
+{ [4317 bytes data]
+* Connection #2 to host www.careerjet.de left intact
+
+(venv) C:\Users\tzvan\Desktop\JobHunterBot>

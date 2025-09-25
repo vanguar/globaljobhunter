@@ -58,9 +58,10 @@ analytics_bp = Blueprint("analytics", __name__)
 def outbound():
     """
     Безопасный редиректор на сайт-партнёр:
-    /out?partner=Adzuna&u=<full url>&job_id=...&title=...
+    /out?partner=Adzuna&u=<full url>&job_id=...&title=...&sid=...
     Логируем клик и делаем 302 на партнёра.
     """
+    # локальные импорты, чтобы не трогать остальной код файла
     from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
     import os
 
@@ -83,22 +84,34 @@ def outbound():
     if not parsed.netloc:
         abort(400, "Invalid URL host")
 
-    # --- Гарантируем атрибуцию Careerjet: доклеиваем affid, если его нет ---
+    # --- Гарантируем атрибуцию Careerjet: доклеиваем affid и sid ---
     try:
         host = (parsed.netloc or "").lower()
         if ("careerjet" in host) or host.endswith("jobviewtrack.com"):
+            # Разобрать query без потери существующих параметров
+            q = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+            # 1) sid — удобная метка источника в отчётах Careerjet
+            # порядок приоритета: из запроса → из ENV → дефолт
+            sid = (request.args.get("sid") or
+                   os.getenv("CAREERJET_SID") or
+                   "globaljobhunter")
+            sid = (sid or "").strip()
+            if sid and not q.get("sid"):
+                q["sid"] = sid
+
+            # 2) affid — ваш affiliate id
             cj_affid = (os.getenv("CAREERJET_AFFID") or "").strip()
-            if cj_affid:
-                q = dict(parse_qsl(parsed.query, keep_blank_values=True))
-                if not q.get("affid"):
-                    q["affid"] = cj_affid
-                    # собираем URL обратно с добавленным affid
-                    new_query = urlencode(q, doseq=True)
-                    raw_url = urlunparse(parsed._replace(query=new_query))
-                    parsed = urlparse(raw_url)  # чтобы в лог попал обновлённый host/URL
+            if cj_affid and not q.get("affid"):
+                q["affid"] = cj_affid
+
+            # Собрать URL обратно
+            new_query = urlencode(q, doseq=True)
+            raw_url = urlunparse(parsed._replace(query=new_query))
+            parsed = urlparse(raw_url)  # чтобы в лог попал обновлённый URL/host
     except Exception as e:
-        current_app.logger.warning("Affid attach skipped: %s", e)
-    # --- конец блока гарантирования affid ---
+        current_app.logger.warning("Affid/SID attach skipped: %s", e)
+    # --- конец блока гарантирования affid/sid ---
 
     # логирование (не блокируем редирект)
     try:
@@ -110,7 +123,7 @@ def outbound():
             lat=(geo or {}).get("lat"), lon=(geo or {}).get("lon"),
             partner=partner or _guess_partner_from_host(parsed.netloc),
             target_domain=(parsed.netloc or "").lower(),
-            target_url=raw_url,          # <-- уже с affid (если это careerjet)
+            target_url=raw_url,          # уже с affid/sid (если это careerjet)
             job_id=job_id, job_title=title,
         )
         db.session.add(pc)
@@ -119,8 +132,6 @@ def outbound():
         current_app.logger.exception("PartnerClick log failed: %s", e)
 
     return redirect(raw_url, code=302)
-
-
 
 # --- ЛОГ ПОИСКА --------------------------------------------------------------
 
