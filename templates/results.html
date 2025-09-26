@@ -60,7 +60,9 @@
                     <div class="col-lg-4">
                         <div class="input-group">
                              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                             <input type="text" class="form-control" id="job-filter" placeholder="Фильтр по названию, компании..." data-i18n="attr=placeholder">
+                             <input type="text" class="form-control input-neo" id="job-filter"
+                                    placeholder="Фільтр за назвою, компанією…" data-i18n="attr=placeholder">
+
                         </div>
                     </div>
 
@@ -68,7 +70,7 @@
                     <div class="col-lg-8">
                         <div class="row g-2">
                             <div class="col-sm-4">
-                                <select id="filter-date" class="form-select">
+                                <select id="filter-date" class="form-select select-neo">
                                     <option value="any" data-i18n="Дата: за всё время">Дата: за всё время</option>
                                     <option value="1" data-i18n="За 24 часа">За 24 часа</option>
                                     <option value="3" data-i18n="За 3 дня">За 3 дня</option>
@@ -78,7 +80,7 @@
                                 </select>
                             </div>
                             <div class="col-sm-4">
-                                <select id="filter-emp" class="form-select">
+                                <select id="filter-emp" class="form-select select-neo">
                                     <option value="any" data-i18n="Тип занятости: любой">Тип занятости: любой</option>
                                     <option value="full-time">Full-time</option>
                                     <option value="part-time">Part-time</option>
@@ -88,7 +90,7 @@
                                 </select>
                             </div>
                             <div class="col-sm-4">
-                                <select id="filter-remote" class="form-select">
+                                <select id="filter-remote" class="form-select select-neo">
                                     <option value="any" data-i18n="Формат: любой">Формат: любой</option>
                                     <option value="remote">Remote</option>
                                     <option value="hybrid">Hybrid</option>
@@ -123,7 +125,7 @@
             <div id="gjh-pager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <div class="d-flex align-items-center gap-2">
                 <label for="gjh-per-page" class="text-muted small">На странице:</label>
-                <select id="gjh-per-page" class="form-select form-select-sm" style="width:auto;">
+                <select id="gjh-per-page" class="form-select form-select-sm select-neo" style="width:auto;">
                 <option value="50">50</option>
                 <option value="100">100</option>
                 <option value="150" selected>150</option>
