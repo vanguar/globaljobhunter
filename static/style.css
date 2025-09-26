@@ -827,40 +827,38 @@ footer .remotive-footer:hover {
 }
 
 
-/* === FILTER CONTROLS — нео-микро (поиск + селекты) === */
-.filter-bar .input-group {
+/* === FILTER CONTROLS (поиск + селекты) === */
+
+/* Коробочка для поля поиска */
+.filter-bar .input-group{
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-sm);
-  background: var(--white);
+  background: #fff;
   border: 1px solid #e7eaf0;
   overflow: hidden;
 }
-
-/* Иконка слева — плоская, без лишних рамок */
-.filter-bar .input-group-text {
+.filter-bar .input-group-text{
   background: transparent;
   border: 0;
   padding-left: .9rem;
   padding-right: .4rem;
-  color: var(--secondary-gray);
+  color: #8a94a4;
 }
 
-/* Красивое поле */
-.input-neo {
-  border: 0 !important;                 /* рамку берём у .input-group */
+/* Красивое текстовое поле */
+.input-neo{
+  border: 0 !important;
   background: transparent;
   padding: .75rem 1rem;
   height: 44px;
   outline: none;
   box-shadow: none !important;
 }
-.input-neo::placeholder { color: #9aa3ae; }
-.input-neo:focus {
-  box-shadow: none !important;
-}
+.input-neo::placeholder{ color:#9aa3ae; }
+.input-neo:focus{ box-shadow:none !important; }
 
 /* Современный select с кастомной стрелкой */
-.select-neo {
+.select-neo{
   border-radius: var(--border-radius) !important;
   border: 1px solid #e7eaf0 !important;
   background-color: #fff !important;
@@ -868,46 +866,55 @@ footer .remotive-footer:hover {
   padding: .55rem 2.25rem .55rem .9rem !important;
   line-height: 1.2;
   box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-  appearance: none;                   /* убираем системную стрелку */
+  transition: var(--transition, .2s ease);
+  appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 16 16' fill='%23677' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.2 5.6a.75.75 0 011.06 0L8 9.34l3.74-3.74a.75.75 0 111.06 1.06L8.53 10.93a.75.75 0 01-1.06 0L3.2 6.66a.75.75 0 010-1.06z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right .65rem center;
   background-size: 18px 18px;
 }
-.select-neo:hover { border-color: #d6dae2 !important; }
-.select-neo:focus {
+.select-neo:hover{ border-color:#d6dae2 !important; }
+.select-neo:focus{
   border-color: var(--primary-blue) !important;
   box-shadow: 0 0 0 4px rgba(0,87,183,.12);
 }
 
-/* Кнопки-фильтры в баре — мягкие */
-.filter-bar .btn {
+/* Кнопки фильтров мягче */
+.filter-bar .btn{
   border-radius: 12px;
   border: 1px solid #e7eaf0;
   background: #fff;
   color: #1f2a37;
   box-shadow: var(--shadow-sm);
-  transition: var(--transition);
+  transition: var(--transition, .2s ease);
 }
-.filter-bar .btn:hover {
+.filter-bar .btn:hover{
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-.filter-bar .btn.btn-primary,
-.filter-bar .btn.active {
-  border-color: var(--primary-blue);
-  background: var(--primary-blue);
-  color: #fff;
+  box-shadow: var(--shadow-md, 0 6px 18px rgba(0,0,0,.06));
 }
 
-/* Разделители и отступы, чтобы всё «дышало» */
-.filter-bar .row.g-3 > [class*="col-"] { display: flex; align-items: stretch; }
-.filter-bar select.form-select,
-.filter-bar .input-group { width: 100%; }
+/* FIX: не растягиваем колонки насильно (убирает сдвиг) */
+.filter-bar .row.g-3 > [class*="col-"]{ display:block; }
 
-/* На мобиле — плотнее */
+/* FIX: селекты не сжимаются и не обрезают текст */
+.select-neo{
+  flex: 0 0 auto;
+  min-width: 230px;
+  white-space: nowrap;
+  max-width: none;
+  box-sizing: border-box;
+}
+/* поиск тянется, но не выдавливает селекты */
+.filter-bar .input-group{ flex: 1 1 360px; min-width: 280px; }
+
+@media (max-width: 991.98px){
+  .select-neo{ min-width: 180px; }
+}
 @media (max-width: 575.98px){
-  .select-neo, .input-neo { height: 42px; }
+  .select-neo, .input-neo{ height: 42px; }
+  .select-neo{ min-width: 150px; }
 }
+
+/* Пагинационная панель: чуть воздуха */
+.gjh-pager{ margin: .5rem 0 1rem; }
 
