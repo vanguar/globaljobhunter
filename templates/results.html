@@ -405,8 +405,8 @@ function matchRemote(card, val){
   return (card.dataset.remote || 'onsite') === val;
 }
 
-/* ======= Основной фильтр ======= */
-function filterJobs() {
+/* ======= Legacy: старая DOM-фильтрация (не используется) ======= */
+function filterJobsLegacy() {
   const searchTerm = (document.getElementById('job-filter').value || '').toLowerCase().trim();
   const filterType = document.querySelector('input[name="filter-type"]:checked')?.value || 'all';
   const dateVal    = document.getElementById('filter-date')?.value || 'any';
@@ -457,7 +457,7 @@ function filterJobs() {
 /* ======= Счётчик результатов (оставлен как был) ======= */
 function updateResultsCount(count, total) {
    let counterElement = document.getElementById('results-counter');
-   const jobsContainer = document.getElementById('jobs-container');
+   if (!jobsContainer) jobsContainer = document.getElementById('jobs-container'); // используем внешний let
    
    if (!counterElement) {
        counterElement = document.createElement('div');
@@ -508,11 +508,12 @@ function updateResultsCount(count, total) {
   let PAGE = 1;
   let PER_PAGE = 150;
 
-  const jobsContainer = document.getElementById('jobs-container');
+  let jobsContainer = document.getElementById('jobs-container');
 
   // --- два набора контролов (верх/низ) ---
-  const uiTop    = pickPager('top');
-  const uiBottom = pickPager('bottom');
+  let uiTop = null;
+  let uiBottom = null;
+
 
   function pickPager(pos){
     const root = document.getElementById(`gjh-pager-${pos}`);
@@ -552,7 +553,12 @@ function updateResultsCount(count, total) {
   }
 
   function paginateInit(){
+    // пересобираем ссылки, когда DOM уже готов
+    jobsContainer = document.getElementById('jobs-container');
     if (!jobsContainer) return;
+
+    uiTop    = pickPager('top');
+    uiBottom = pickPager('bottom');
 
     detachOldListeners();
 
@@ -647,7 +653,12 @@ function updateResultsCount(count, total) {
     applyFilters(true);
   }
 
-  document.addEventListener('DOMContentLoaded', paginateInit, { once: true });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', paginateInit, { once: true });
+    } else {
+    paginateInit();
+    }
+
 })();
 
 /* ======= Остальной ваш код: копирование, тосты, подписки, статус ======= */
