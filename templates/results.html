@@ -457,13 +457,14 @@ function filterJobsLegacy() {
 /* ======= Счётчик результатов (оставлен как был) ======= */
 function updateResultsCount(count, total) {
    let counterElement = document.getElementById('results-counter');
-   if (!jobsContainer) jobsContainer = document.getElementById('jobs-container'); // используем внешний let
+   const containerEl = document.getElementById('jobs-container');
+   if (!containerEl) return;
    
    if (!counterElement) {
        counterElement = document.createElement('div');
        counterElement.id = 'results-counter';
        const pagerTop = document.getElementById('gjh-pager-top');
-       (pagerTop?.parentNode || jobsContainer).insertBefore(counterElement, pagerTop?.nextSibling || jobsContainer.firstChild);
+       (pagerTop?.parentNode || containerEl).insertBefore(counterElement, pagerTop?.nextSibling || containerEl.firstChild);
    }
    
    if (count === total) {
