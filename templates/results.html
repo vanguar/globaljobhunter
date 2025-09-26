@@ -3,7 +3,7 @@
 {% block title %}Результаты поиска - GlobalJobHunter{% endblock %}
 
 {% block content %}
-
+<main>
     <section class="results-header">
         <div class="container">
             <h1 class="display-5 fw-bold mb-2">🏆 Результаты поиска</h1>
@@ -60,9 +60,7 @@
                     <div class="col-lg-4">
                         <div class="input-group">
                              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                             <input type="text" class="form-control input-neo" id="job-filter"
-                                    placeholder="Фільтр за назвою, компанією…" data-i18n="attr=placeholder">
-
+                             <input type="text" class="form-control" id="job-filter" placeholder="Фильтр по названию, компании..." data-i18n="attr=placeholder">
                         </div>
                     </div>
 
@@ -70,7 +68,7 @@
                     <div class="col-lg-8">
                         <div class="row g-2">
                             <div class="col-sm-4">
-                                <select id="filter-date" class="form-select select-neo">
+                                <select id="filter-date" class="form-select">
                                     <option value="any" data-i18n="Дата: за всё время">Дата: за всё время</option>
                                     <option value="1" data-i18n="За 24 часа">За 24 часа</option>
                                     <option value="3" data-i18n="За 3 дня">За 3 дня</option>
@@ -80,7 +78,7 @@
                                 </select>
                             </div>
                             <div class="col-sm-4">
-                                <select id="filter-emp" class="form-select select-neo">
+                                <select id="filter-emp" class="form-select">
                                     <option value="any" data-i18n="Тип занятости: любой">Тип занятости: любой</option>
                                     <option value="full-time">Full-time</option>
                                     <option value="part-time">Part-time</option>
@@ -90,7 +88,7 @@
                                 </select>
                             </div>
                             <div class="col-sm-4">
-                                <select id="filter-remote" class="form-select select-neo">
+                                <select id="filter-remote" class="form-select">
                                     <option value="any" data-i18n="Формат: любой">Формат: любой</option>
                                     <option value="remote">Remote</option>
                                     <option value="hybrid">Hybrid</option>
@@ -121,11 +119,11 @@
                 </div>
             </div>
 
-            <!-- PAGINATION BAR (top) -->
-            <div id="gjh-pager-top" class="gjh-pager d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <!-- PAGINATION BAR -->
+            <div id="gjh-pager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <div class="d-flex align-items-center gap-2">
-                <label for="gjh-per-page-top" class="text-muted small">На странице:</label>
-                <select id="gjh-per-page-top" class="form-select form-select-sm select-neo" style="width:auto;">
+                <label for="gjh-per-page" class="text-muted small">На странице:</label>
+                <select id="gjh-per-page" class="form-select form-select-sm" style="width:auto;">
                 <option value="50">50</option>
                 <option value="100">100</option>
                 <option value="150" selected>150</option>
@@ -134,12 +132,11 @@
                 </select>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <button id="gjh-prev-top" class="btn btn-outline-secondary btn-sm" disabled>← Назад</button>
-                <span id="gjh-page-label-top" class="small text-muted">Страница 1 из 1</span>
-                <button id="gjh-next-top" class="btn btn-outline-secondary btn-sm" disabled>Вперёд →</button>
+                <button id="gjh-prev" class="btn btn-outline-secondary btn-sm" disabled>← Назад</button>
+                <span id="gjh-page-label" class="small text-muted">Страница 1 из 1</span>
+                <button id="gjh-next" class="btn btn-outline-secondary btn-sm" disabled>Вперёд →</button>
             </div>
             </div>
-
 
 
             <div id="jobs-container">
@@ -271,26 +268,6 @@
                     </div>
                 {% endif %}
             </div>
-
-            <!-- PAGINATION BAR (bottom) -->
-            <div id="gjh-pager-bottom" class="gjh-pager d-flex flex-wrap align-items-center justify-content-between gap-2 my-4">
-              <div class="d-flex align-items-center gap-2">
-                <label for="gjh-per-page-bottom" class="text-muted small">На странице:</label>
-                <select id="gjh-per-page-bottom" class="form-select form-select-sm select-neo" style="width:auto;">
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                  <option value="150" selected>150</option>
-                  <option value="250">250</option>
-                  <option value="500">500</option>
-                </select>
-              </div>
-              <div class="d-flex align-items-center gap-2">
-                <button id="gjh-prev-bottom" class="btn btn-outline-secondary btn-sm" disabled>← Назад</button>
-                <span id="gjh-page-label-bottom" class="small text-muted">Страница 1 из 1</span>
-                <button id="gjh-next-bottom" class="btn btn-outline-secondary btn-sm" disabled>Вперёд →</button>
-              </div>
-            </div>
-
         </div>
     </section>
 
@@ -364,12 +341,23 @@
         </div>
     </div>
 </section>
+
+</main>
 {% endblock %}
 
 {% block scripts %}
-
+<script defer src="{{ url_for('static', filename='js/localization.js') }}"></script>
 <script>
-/* ======= Reset-функция для фильтров (работает с новой filterJobs) ======= */
+/* ======= Новые слушатели для расширенных фильтров ======= */
+document.getElementById('job-filter').addEventListener('input', filterJobs);
+document.querySelectorAll('input[name="filter-type"]').forEach(radio => radio.addEventListener('change', filterJobs));
+['filter-date','filter-emp','filter-remote'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('change', filterJobs);
+    el.addEventListener('input', filterJobs);
+  }
+});
 const resetBtn = document.getElementById('filter-reset');
 if (resetBtn){
   resetBtn.addEventListener('click', () => {
@@ -378,11 +366,9 @@ if (resetBtn){
     const e = document.getElementById('filter-emp'); if (e) e.value = 'any';
     const r = document.getElementById('filter-remote'); if (r) r.value = 'any';
     const all = document.getElementById('all'); if (all) all.checked = true;
-    // вызываем новую (переопределённую) filterJobs из модуля пагинации
-    if (typeof window.filterJobs === 'function') window.filterJobs();
+    filterJobs();
   });
 }
-
 
 /* ======= Вспомогательные функции ======= */
 function daysBetween(iso){
@@ -405,8 +391,8 @@ function matchRemote(card, val){
   return (card.dataset.remote || 'onsite') === val;
 }
 
-/* ======= Legacy: старая DOM-фильтрация (не используется) ======= */
-function filterJobsLegacy() {
+/* ======= Основной фильтр ======= */
+function filterJobs() {
   const searchTerm = (document.getElementById('job-filter').value || '').toLowerCase().trim();
   const filterType = document.querySelector('input[name="filter-type"]:checked')?.value || 'all';
   const dateVal    = document.getElementById('filter-date')?.value || 'any';
@@ -457,14 +443,12 @@ function filterJobsLegacy() {
 /* ======= Счётчик результатов (оставлен как был) ======= */
 function updateResultsCount(count, total) {
    let counterElement = document.getElementById('results-counter');
-   const containerEl = document.getElementById('jobs-container');
-   if (!containerEl) return;
+   const jobsContainer = document.getElementById('jobs-container');
    
    if (!counterElement) {
        counterElement = document.createElement('div');
        counterElement.id = 'results-counter';
-       const pagerTop = document.getElementById('gjh-pager-top');
-       (pagerTop?.parentNode || containerEl).insertBefore(counterElement, pagerTop?.nextSibling || containerEl.firstChild);
+       jobsContainer.insertBefore(counterElement, jobsContainer.firstChild);
    }
    
    if (count === total) {
@@ -481,25 +465,24 @@ function updateResultsCount(count, total) {
    }
 }
 
-
-// ======= ПАГИНАЦИЯ / ВИРТУАЛИЗАЦИЯ (top + bottom, синхронизированы) =======
+// ======= ПАГИНАЦИЯ / ВИРТУАЛИЗАЦИЯ (работает со встроенными фильтрами) =======
 (() => {
+  // Сохраним старую функцию фильтрации и снимем старые слушатели,
+  // чтобы они не дергали "тяжёлую" DOM-фильтрацию.
   const oldFilterJobs = window.filterJobs;
 
   function detachOldListeners(){
     const q = document.getElementById('job-filter');
-    if (q && typeof oldFilterJobs === 'function') q.removeEventListener('input', oldFilterJobs);
+    if (q && typeof oldFilterJobs === 'function') {
+      q.removeEventListener('input', oldFilterJobs);
+    }
     document.querySelectorAll('input[name="filter-type"]').forEach(r => {
       if (typeof oldFilterJobs === 'function') r.removeEventListener('change', oldFilterJobs);
     });
     ['filter-date','filter-emp','filter-remote'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el && typeof oldFilterJobs === 'function') {
-    el.removeEventListener('change', oldFilterJobs);
-    el.removeEventListener('input',  oldFilterJobs);   // <— добавили снятие input
-  }
-});
-
+      const el = document.getElementById(id);
+      if (el && typeof oldFilterJobs === 'function') el.removeEventListener('change', oldFilterJobs);
+    });
   }
 
   let ALL = [];                 // [{el, country}]
@@ -507,91 +490,39 @@ function updateResultsCount(count, total) {
   const COUNTRY_HEADERS = new Map();
   let ORDERED_COUNTRIES = [];
   let PAGE = 1;
-  let PER_PAGE = 50;
+  let PER_PAGE = 150;
 
-  let jobsContainer = document.getElementById('jobs-container');
-
-  // --- два набора контролов (верх/низ) ---
-  let uiTop = null;
-  let uiBottom = null;
-
-
-  function pickPager(pos){
-    const root = document.getElementById(`gjh-pager-${pos}`);
-    if (!root) return null;
-    return {
-      root,
-      per:   root.querySelector(`#gjh-per-page-${pos}`),
-      prev:  root.querySelector(`#gjh-prev-${pos}`),
-      next:  root.querySelector(`#gjh-next-${pos}`),
-      label: root.querySelector(`#gjh-page-label-${pos}`),
-    };
-  }
-
-  function totalPages(){ return Math.max(1, Math.ceil(FILTERED.length / PER_PAGE)); }
-
-  function syncUI(){
-    const tp = totalPages();
-    [uiTop, uiBottom].forEach(ui => {
-      if (!ui) return;
-      if (ui.label) ui.label.textContent = `Страница ${PAGE} из ${tp}`;
-      if (ui.prev)  ui.prev.disabled  = (PAGE <= 1);
-      if (ui.next)  ui.next.disabled  = (PAGE >= tp);
-      if (ui.per && +ui.per.value !== PER_PAGE) ui.per.value = String(PER_PAGE);
-    });
-  }
-
-  function wirePager(ui){
-    if (!ui) return;
-        ui.per?.addEventListener('change', () => {
-        PER_PAGE = parseInt(ui.per.value, 10) || 150;
-        PAGE = 1;
-        // важный момент — переcчитать фильтр и только потом рисовать
-        if (typeof window.filterJobs === 'function') window.filterJobs();
-        else render();
-    });
-
-    ui.prev?.addEventListener('click',  () => { 
-    if (PAGE > 1) { PAGE--; render(); if (ui === uiBottom) jobsContainer.scrollIntoView({behavior:'smooth', block:'start'}); } 
-    });
-    ui.next?.addEventListener('click',  () => { 
-    if (PAGE < totalPages()) { PAGE++; render(); if (ui === uiBottom) jobsContainer.scrollIntoView({behavior:'smooth', block:'start'}); } 
-    });
-
-  }
+  const jobsContainer = document.getElementById('jobs-container');
+  const perPageSel = document.getElementById('gjh-per-page');
+  const btnPrev = document.getElementById('gjh-prev');
+  const btnNext = document.getElementById('gjh-next');
+  const pageLabel = document.getElementById('gjh-page-label');
 
   function paginateInit(){
-    // пересобираем ссылки, когда DOM уже готов
-    jobsContainer = document.getElementById('jobs-container');
     if (!jobsContainer) return;
 
-    uiTop    = pickPager('top');
-    uiBottom = pickPager('bottom');
-
+    // Отцепим старые слушатели до переопределения filterJobs
     detachOldListeners();
 
-    // Разделители стран и порядок
+    // Сохраняем разделители стран и порядок
     const headers = Array.from(jobsContainer.querySelectorAll('.country-divider'));
     ORDERED_COUNTRIES = headers.map(h => h.dataset.country || '');
-    headers.forEach(h => COUNTRY_HEADERS.set(h.dataset.country || '', h.cloneNode(true)));
+    headers.forEach(h => COUNTRY_HEADERS.set(h.dataset.country || '', h));
 
-    // Карточки
+    // Сохраняем карточки
     const cards = Array.from(jobsContainer.querySelectorAll('.job-card'));
-    ALL = cards.map(el => ({ el: el.cloneNode(true), country: el.dataset.country || '' }));
+    ALL = cards.map(el => ({ el, country: el.dataset.country || '' }));
 
-    // Если карточек вообще нет — оставляем разметку "ничего не найдено" как есть
-    if (cards.length === 0) return;
-
-    // Очищаем DOM — рисуем постранично
+    // Убираем всё из DOM — будем отрисовывать постранично
     jobsContainer.innerHTML = '';
 
-    // Прокси к твоим match-функциям
+    // Определим "прокси" над твоими match-функциями (если их вдруг переименуют, всё равно не упадём)
     const _matchDate   = (card, v) => (typeof window.matchDate   === 'function') ? window.matchDate(card.el, v)   : true;
     const _matchEmp    = (card, v) => (typeof window.matchEmp    === 'function') ? window.matchEmp(card.el, v)    : true;
     const _matchRemote = (card, v) => (typeof window.matchRemote === 'function') ? window.matchRemote(card.el, v) : true;
 
-    // Новая filterJobs — фильтрация массива в памяти
-    window.filterJobs = function(){ applyFilters(false); };
+    // Новая реализация filterJobs — фильтруем массив в памяти и рисуем только текущую страницу
+    window.filterJobs = function() { applyFilters(false); };
 
     function applyFilters(forceToFirstPage){
       const searchTerm = (document.getElementById('job-filter')?.value || '').toLowerCase().trim();
@@ -601,16 +532,15 @@ function updateResultsCount(count, total) {
       const remoteVal  = document.getElementById('filter-remote')?.value || 'any';
 
       FILTERED = ALL.filter(card => {
-        const title   = (card.el.querySelector('.job-title')?.textContent || '').toLowerCase();
-        const company = (card.el.querySelector('.company-name')?.textContent || '').toLowerCase();
+        const title   = card.el.querySelector('.job-title')?.textContent.toLowerCase() || '';
+        const company = card.el.querySelector('.company-name')?.textContent.toLowerCase() || '';
         const matchesSearch = !searchTerm || title.includes(searchTerm) || company.includes(searchTerm);
 
         let matchesFlag = true;
         if (filterType === 'refugees') matchesFlag = (card.el.dataset.refugee === 'true');
         else if (filterType === 'no-lang') matchesFlag = (card.el.dataset.noLanguage === 'true');
 
-        return matchesSearch && matchesFlag &&
-               _matchDate(card, dateVal) && _matchEmp(card, empVal) && _matchRemote(card, remoteVal);
+        return matchesSearch && matchesFlag && _matchDate(card, dateVal) && _matchEmp(card, empVal) && _matchRemote(card, remoteVal);
       });
 
       if (forceToFirstPage) PAGE = 1;
@@ -619,6 +549,8 @@ function updateResultsCount(count, total) {
       render();
     }
 
+    function totalPages(){ return Math.max(1, Math.ceil(FILTERED.length / PER_PAGE)); }
+
     function render(){
       jobsContainer.innerHTML = '';
 
@@ -626,7 +558,7 @@ function updateResultsCount(count, total) {
       const end   = start + PER_PAGE;
       const slice = FILTERED.slice(start, end);
 
-      // Группируем по странам
+      // Группируем по странам, сохраняя порядок разделителей
       const onPageCountries = new Set(slice.map(x => x.country));
       ORDERED_COUNTRIES.forEach(country => {
         if (!onPageCountries.has(country)) return;
@@ -635,16 +567,19 @@ function updateResultsCount(count, total) {
         slice.forEach(item => { if (item.country === country) jobsContainer.appendChild(item.el); });
       });
 
-      // Обновляем обе панели
-      syncUI();
+      // Обновляем панель
+      const tp = totalPages();
+      if (pageLabel) pageLabel.textContent = `Страница ${PAGE} из ${tp}`;
+      if (btnPrev) btnPrev.disabled = (PAGE <= 1);
+      if (btnNext) btnNext.disabled = (PAGE >= tp);
 
-      // Обновляем счётчики
+      // Обновляем твой счётчик (у тебя он на строках 424–448)
       if (typeof window.updateResultsCount === 'function') {
         window.updateResultsCount(FILTERED.length, ALL.length);
       }
     }
 
-    // Навесили фильтры на новую filterJobs
+    // Навесим СВОИ слушатели на новую filterJobs
     const q = document.getElementById('job-filter');
     if (q) q.addEventListener('input', window.filterJobs);
     document.querySelectorAll('input[name="filter-type"]').forEach(r => r.addEventListener('change', window.filterJobs));
@@ -653,20 +588,21 @@ function updateResultsCount(count, total) {
       if (el) el.addEventListener('change', window.filterJobs);
     });
 
-    // Подключаем обе панели
-    wirePager(uiTop);
-    wirePager(uiBottom);
+    // Панель пагинации
+    perPageSel?.addEventListener('change', () => {
+      PER_PAGE = parseInt(perPageSel.value, 10) || 150;
+      PAGE = 1;
+      render();
+    });
+    btnPrev?.addEventListener('click', () => { if (PAGE > 1) { PAGE--; render(); } });
+    btnNext?.addEventListener('click', () => { if (PAGE < Math.max(1, Math.ceil(FILTERED.length / PER_PAGE))) { PAGE++; render(); } });
 
-    // Первый рендер
+    // Первая фильтрация и рендер
     applyFilters(true);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', paginateInit, { once: true });
-    } else {
-    paginateInit();
-    }
-
+  // Стартуем после того, как весь DOM и твои функции уже объявлены
+  document.addEventListener('DOMContentLoaded', paginateInit, { once: true });
 })();
 
 /* ======= Остальной ваш код: копирование, тосты, подписки, статус ======= */
@@ -900,9 +836,6 @@ function updateSubscription(email, action) {
     .catch(() => showToast('❌ Ошибка обновления подписки', 'danger'));
 }
 
-/* Автозапуск фильтра при загрузке */
-//document.addEventListener('DOMContentLoaded', filterJobs);
-//if (document.readyState === 'complete' || document.readyState === 'interactive') { filterJobs(); }
 
 /* Язык (как было) */
 document.addEventListener("DOMContentLoaded", () => {
