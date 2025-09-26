@@ -272,6 +272,28 @@
                 {% endif %}
             </div>
 
+            <!-- PAGINATION BAR (bottom) -->
+            <div id="gjh-pager-bottom" class="gjh-pager d-flex flex-wrap align-items-center justify-content-between gap-2 my-4">
+              <div class="d-flex align-items-center gap-2">
+                <label for="gjh-per-page-bottom" class="text-muted small">На странице:</label>
+                <select id="gjh-per-page-bottom" class="form-select form-select-sm select-neo" style="width:auto;">
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="150" selected>150</option>
+                  <option value="250">250</option>
+                  <option value="500">500</option>
+                </select>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button id="gjh-prev-bottom" class="btn btn-outline-secondary btn-sm" disabled>← Назад</button>
+                <span id="gjh-page-label-bottom" class="small text-muted">Страница 1 из 1</span>
+                <button id="gjh-next-bottom" class="btn btn-outline-secondary btn-sm" disabled>Вперёд →</button>
+              </div>
+            </div>
+
+        </div>
+    </section>
+
 <!-- Блок поддержки -->
 <section class="support-promo-section py-5">
     <div class="container">
