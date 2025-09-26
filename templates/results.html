@@ -543,7 +543,14 @@ function updateResultsCount(count, total) {
 
   function wirePager(ui){
     if (!ui) return;
-    ui.per?.addEventListener('change', () => { PER_PAGE = parseInt(ui.per.value, 10) || 150; PAGE = 1; render(); });
+        ui.per?.addEventListener('change', () => {
+        PER_PAGE = parseInt(ui.per.value, 10) || 150;
+        PAGE = 1;
+        // важный момент — переcчитать фильтр и только потом рисовать
+        if (typeof window.filterJobs === 'function') window.filterJobs();
+        else render();
+    });
+
     ui.prev?.addEventListener('click',  () => { 
     if (PAGE > 1) { PAGE--; render(); if (ui === uiBottom) jobsContainer.scrollIntoView({behavior:'smooth', block:'start'}); } 
     });
