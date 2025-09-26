@@ -566,11 +566,11 @@ function updateResultsCount(count, total) {
     // Разделители стран и порядок
     const headers = Array.from(jobsContainer.querySelectorAll('.country-divider'));
     ORDERED_COUNTRIES = headers.map(h => h.dataset.country || '');
-    headers.forEach(h => COUNTRY_HEADERS.set(h.dataset.country || '', h));
+    headers.forEach(h => COUNTRY_HEADERS.set(h.dataset.country || '', h.cloneNode(true)));
 
     // Карточки
     const cards = Array.from(jobsContainer.querySelectorAll('.job-card'));
-    ALL = cards.map(el => ({ el, country: el.dataset.country || '' }));
+    ALL = cards.map(el => ({ el: el.cloneNode(true), country: el.dataset.country || '' }));
 
     // Если карточек вообще нет — оставляем разметку "ничего не найдено" как есть
     if (cards.length === 0) return;
