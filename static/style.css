@@ -1149,3 +1149,9 @@ footer .remotive-footer:hover {
     display: inline-block;
   }
 }
+
+/* Mobile: оставить только языковую кнопку в навбаре */
+@media (max-width: 991.98px){
+  .language-switcher{ display: none !important; }              /* скрыть все копии */
+  .navbar .language-switcher{ display: flex !important; }      /* показывать только в шапке */
+}
