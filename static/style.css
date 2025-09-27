@@ -1085,3 +1085,33 @@ footer .remotive-footer:hover {
   }
 }
 
+/* ===== GJH: фиксированная пагинация под шапкой (мобилки) ===== */
+:root{
+  /* JS проставит фактическую высоту навбара и высоту пагинации */
+  --gjh-nav-height: 72px;  /* запасной дефолт */
+  --gjh-pager-h: 44px;     /* запасной дефолт (примерная высота панели пагинации) */
+}
+
+@media (max-width: 991.98px){
+
+  /* Базовое состояние: без липкости (чтобы sticky нигде не мешал) */
+  #gjh-pager{
+    position: static !important;
+  }
+
+  /* Когда добавим класс .is-fixed из JS — панель становится фиксированной под шапкой */
+  #gjh-pager.is-fixed{
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top) + var(--gjh-nav-height));
+    left: 0;
+    right: 0;
+    z-index: 1020; /* ниже bootstrap-навбара (~1030), но выше контента */
+    background: #fff;
+    border-bottom: 1px solid #e7eaf0;
+    backdrop-filter: blur(6px);
+  }
+
+  /* Спэйсер, чтобы контент не подпрыгивал, когда #gjh-pager становится fixed */
+  .gjh-pager-spacer{ height: 0; }
+  .gjh-pager-spacer.active{ height: var(--gjh-pager-h); }
+}

@@ -2709,29 +2709,74 @@ async function startLiveSearch(e) {
   await poll();
   PROGRESS_TIMER = setInterval(poll, 700);
 }
-/* ===== GJH: точное смещение пагинации под шапку (мобилки) ===== */
+/* ===== GJH: приклеиваем пагинацию к шапке на мобилках ===== */
 (function(){
   var mq = window.matchMedia('(max-width: 991.98px)');
+  var pager, navbar, spacer, pagerTop = 0;
 
-  function setNavHeightVar(){
-    var nav = document.querySelector('.navbar');
-    var h = nav ? Math.round(nav.getBoundingClientRect().height) : 72; // fallback
-    // Пишем переменную в :root → доступна в CSS как var(--gjh-nav-height)
-    document.documentElement.style.setProperty('--gjh-nav-height', h + 'px');
+  function setVars(){
+    navbar = document.querySelector('.navbar');
+    pager  = document.getElementById('gjh-pager');
+    if(!pager || !navbar) return;
+
+    // Создаём спэйсер сразу ПОСЛЕ пагинации (если его нет)
+    if(!spacer || !spacer.parentNode){
+      spacer = document.createElement('div');
+      spacer.className = 'gjh-pager-spacer';
+      pager.insertAdjacentElement('afterend', spacer);
+    }
+
+    // Обновляем переменные высот
+    var navH   = Math.round(navbar.getBoundingClientRect().height) || 72;
+    var pagerH = Math.round(pager.getBoundingClientRect().height) || 44;
+    document.documentElement.style.setProperty('--gjh-nav-height', navH + 'px');
+    document.documentElement.style.setProperty('--gjh-pager-h', pagerH + 'px');
+
+    // Запоминаем исходную позицию панели (относительно документа)
+    var rect = pager.getBoundingClientRect();
+    pagerTop = Math.round(rect.top + window.scrollY); // y-координата верхней кромки в документе
   }
 
-  function update(){
-    if (mq.matches) { setNavHeightVar(); }
+  function onScroll(){
+    if(!pager || !navbar) return;
+    if(!mq.matches){        // только мобилки
+      // Сбрасываем фиксацию на десктопах
+      pager.classList.remove('is-fixed');
+      if(spacer) spacer.classList.remove('active');
+      return;
+    }
+
+    var navH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gjh-nav-height')) || 72;
+    // Порог фиксации: когда верх пагинации доехал до нижней кромки шапки
+    var shouldFix = window.scrollY >= (pagerTop - navH);
+
+    if(shouldFix){
+      if(!pager.classList.contains('is-fixed')){
+        pager.classList.add('is-fixed');
+        if(spacer) spacer.classList.add('active');
+      }
+    }else{
+      if(pager.classList.contains('is-fixed')){
+        pager.classList.remove('is-fixed');
+        if(spacer) spacer.classList.remove('active');
+      }
+    }
   }
 
-  // Ставим обновление на ключевые события
-  window.addEventListener('DOMContentLoaded', update);
-  window.addEventListener('load', update);
-  window.addEventListener('resize', update);
+  function onResize(){
+    // при ресайзе/смене ориентации пересчитаем высоты и порог
+    setVars();
+    onScroll();
+  }
 
-  // Отследить смену брейкпоинта
-  if (mq.addEventListener) mq.addEventListener('change', update);
-  else if (mq.addListener) mq.addListener(update);
+  window.addEventListener('DOMContentLoaded', function(){
+    setVars();
+    onScroll();
+  });
+  window.addEventListener('load', onResize);
+  window.addEventListener('resize', onResize);
+  if(mq.addEventListener) mq.addEventListener('change', onResize);
+  else if(mq.addListener) mq.addListener(onResize);
 })();
 
 
