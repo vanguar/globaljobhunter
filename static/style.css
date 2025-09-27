@@ -1052,66 +1052,32 @@ footer .remotive-footer:hover {
 /* --- стабилизация inline-иконок --- */
 .navbar .bi, .results-header .bi { display:inline-block; width:1em; height:1em; line-height:1; }
 
-/* ======= GJH: мобильная липкость только для пагинации ======= */
-:root{
-  /* высота хедера/навбара (у тебя логотип 60px + отступы, удобно взять ~72px) */
-  --navH: 72px;
-}
-
-/* На мобильных: фильтры обычные (скроллятся), пагинация липкая */
-@media (max-width: 991.98px){
-
-  /* 1) Гасим липкость фильтров, т.к. в HTML на них стоит .sticky-top */
-  .filter-bar.sticky-top{
-    position: static !important;
-    top: auto !important;
-  }
-
-  /* 2) Делаем липкой панель пагинации (#gjh-pager) под навбаром */
-  #gjh-pager{
-    position: sticky;
-    top: calc(env(safe-area-inset-top) + var(--gjh-nav-height, var(--navH, 72px))); /* не залезать под навбар/вырез iOS */
-    z-index: 1015;                                                                  /* ниже навбара (bootstrap ~1020), но выше контента */
-    background: #fff;
-    border-bottom: 1px solid #e7eaf0;
-    backdrop-filter: blur(6px);
-  }
-}
-/* GJH: финальный оверрайд для мобилок — всегда строго под шапку */
-@media (max-width: 991.98px){
-  #gjh-pager{
-    top: calc(env(safe-area-inset-top) + var(--gjh-nav-height, var(--navH, 72px))) !important;
-    z-index: 1020;
-  }
-}
-
 /* ===== GJH: фиксированная пагинация под шапкой (мобилки) ===== */
 :root{
-  /* JS проставит фактическую высоту навбара и высоту пагинации */
-  --gjh-nav-height: 72px;  /* запасной дефолт */
-  --gjh-pager-h: 44px;     /* запасной дефолт (примерная высота панели пагинации) */
+  --gjh-nav-height: 72px;  /* заполнит JS, 72px — запас */
+  --gjh-pager-h: 44px;     /* запасная высота панели */
 }
 
 @media (max-width: 991.98px){
 
-  /* Базовое состояние: без липкости (чтобы sticky нигде не мешал) */
+  /* Базово — не липкая (чтобы sticky нигде не вмешивался) */
   #gjh-pager{
     position: static !important;
   }
 
-  /* Когда добавим класс .is-fixed из JS — панель становится фиксированной под шапкой */
+  /* «Приклеено» к шапке — включается классом .is-fixed из JS */
   #gjh-pager.is-fixed{
     position: fixed !important;
     top: calc(env(safe-area-inset-top) + var(--gjh-nav-height));
     left: 0;
     right: 0;
-    z-index: 1020; /* ниже bootstrap-навбара (~1030), но выше контента */
+    z-index: 1020; /* ниже navbar (~1030), выше контента */
     background: #fff;
     border-bottom: 1px solid #e7eaf0;
     backdrop-filter: blur(6px);
   }
 
-  /* Спэйсер, чтобы контент не подпрыгивал, когда #gjh-pager становится fixed */
+  /* Спэйсер, чтобы контент не подпрыгивал при фиксации */
   .gjh-pager-spacer{ height: 0; }
   .gjh-pager-spacer.active{ height: var(--gjh-pager-h); }
 }
