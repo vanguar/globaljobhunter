@@ -1052,32 +1052,12 @@ footer .remotive-footer:hover {
 /* --- стабилизация inline-иконок --- */
 .navbar .bi, .results-header .bi { display:inline-block; width:1em; height:1em; line-height:1; }
 
-/* ===== GJH: фиксированная пагинация под шапкой (мобилки) ===== */
-:root{
-  --gjh-nav-height: 72px;  /* заполнит JS, 72px — запас */
-  --gjh-pager-h: 44px;     /* запасная высота панели */
-}
-
-@media (max-width: 991.98px){
-
-  /* Базово — не липкая (чтобы sticky нигде не вмешивался) */
-  #gjh-pager{
-    position: static !important;
-  }
-
-  /* «Приклеено» к шапке — включается классом .is-fixed из JS */
-  #gjh-pager.is-fixed{
-    position: fixed !important;
-    top: calc(env(safe-area-inset-top) + var(--gjh-nav-height));
-    left: 0;
-    right: 0;
-    z-index: 1020; /* ниже navbar (~1030), выше контента */
-    background: #fff;
-    border-bottom: 1px solid #e7eaf0;
-    backdrop-filter: blur(6px);
-  }
-
-  /* Спэйсер, чтобы контент не подпрыгивал при фиксации */
-  .gjh-pager-spacer{ height: 0; }
-  .gjh-pager-spacer.active{ height: var(--gjh-pager-h); }
+/* Fix: make pager sticky under the navbar; filters scroll normally */
+.filter-bar { position: static !important; } /* на всякий случай переопределяем */
+.sticky-below-nav{
+  position: sticky;
+  top: var(--header-h, 72px); /* высота шапки прилетит из JS */
+  z-index: 1020;             /* выше контента, ниже модалок/навигации */
+  background: #fff;
+  box-shadow: var(--shadow-sm);
 }
