@@ -507,14 +507,24 @@ function updateResultsCount(count, total) {
     // Сохраняем разделители стран и порядок
     const headers = Array.from(jobsContainer.querySelectorAll('.country-divider'));
     ORDERED_COUNTRIES = headers.map(h => h.dataset.country || '');
-    headers.forEach(h => COUNTRY_HEADERS.set(h.dataset.country || '', h));
+    headers.forEach(h => {
+    // Сброс возможного прежнего display:none
+    h.style.removeProperty('display');
+    COUNTRY_HEADERS.set(h.dataset.country || '', h);
+    });
 
     // Сохраняем карточки
     const cards = Array.from(jobsContainer.querySelectorAll('.job-card'));
+    cards.forEach(el => {
+    // Сброс прежних инлайновых скрытий от старого фильтра
+    el.style.removeProperty('display');
+    el.hidden = false;
+    });
     ALL = cards.map(el => ({ el, country: el.dataset.country || '' }));
 
     // Убираем всё из DOM — будем отрисовывать постранично
     jobsContainer.innerHTML = '';
+
 
     // Определим "прокси" над твоими match-функциями (если их вдруг переименуют, всё равно не упадём)
     const _matchDate   = (card, v) => (typeof window.matchDate   === 'function') ? window.matchDate(card.el, v)   : true;
@@ -562,10 +572,23 @@ function updateResultsCount(count, total) {
       const onPageCountries = new Set(slice.map(x => x.country));
       ORDERED_COUNTRIES.forEach(country => {
         if (!onPageCountries.has(country)) return;
+
         const header = COUNTRY_HEADERS.get(country);
-        if (header) jobsContainer.appendChild(header);
-        slice.forEach(item => { if (item.country === country) jobsContainer.appendChild(item.el); });
-      });
+        if (header) {
+            header.style.removeProperty('display'); // на всякий
+            jobsContainer.appendChild(header);
+        }
+
+        slice.forEach(item => {
+            if (item.country === country) {
+            // на всякий случай очищаем возможные инлайновые скрытия
+            item.el.style.removeProperty('display');
+            item.el.hidden = false;
+            jobsContainer.appendChild(item.el);
+            }
+        });
+        });
+
 
       // Обновляем панель
       const tp = totalPages();
