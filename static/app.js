@@ -2709,5 +2709,29 @@ async function startLiveSearch(e) {
   await poll();
   PROGRESS_TIMER = setInterval(poll, 700);
 }
+/* ===== GJH: точное смещение пагинации под шапку (мобилки) ===== */
+(function(){
+  var mq = window.matchMedia('(max-width: 991.98px)');
+
+  function setNavHeightVar(){
+    var nav = document.querySelector('.navbar');
+    var h = nav ? Math.round(nav.getBoundingClientRect().height) : 72; // fallback
+    // Пишем переменную в :root → доступна в CSS как var(--gjh-nav-height)
+    document.documentElement.style.setProperty('--gjh-nav-height', h + 'px');
+  }
+
+  function update(){
+    if (mq.matches) { setNavHeightVar(); }
+  }
+
+  // Ставим обновление на ключевые события
+  window.addEventListener('DOMContentLoaded', update);
+  window.addEventListener('load', update);
+  window.addEventListener('resize', update);
+
+  // Отследить смену брейкпоинта
+  if (mq.addEventListener) mq.addEventListener('change', update);
+  else if (mq.addListener) mq.addListener(update);
+})();
 
 

@@ -1070,10 +1070,18 @@ footer .remotive-footer:hover {
   /* 2) Делаем липкой панель пагинации (#gjh-pager) под навбаром */
   #gjh-pager{
     position: sticky;
-    top: calc(env(safe-area-inset-top) + var(--navH)); /* не залезать под навбар/вырез iOS */
-    z-index: 1015;                                     /* ниже навбара (bootstrap ~1020), но выше контента */
+    top: calc(env(safe-area-inset-top) + var(--gjh-nav-height, var(--navH, 72px))); /* не залезать под навбар/вырез iOS */
+    z-index: 1015;                                                                  /* ниже навбара (bootstrap ~1020), но выше контента */
     background: #fff;
     border-bottom: 1px solid #e7eaf0;
     backdrop-filter: blur(6px);
   }
 }
+/* GJH: финальный оверрайд для мобилок — всегда строго под шапку */
+@media (max-width: 991.98px){
+  #gjh-pager{
+    top: calc(env(safe-area-inset-top) + var(--gjh-nav-height, var(--navH, 72px))) !important;
+    z-index: 1020;
+  }
+}
+
