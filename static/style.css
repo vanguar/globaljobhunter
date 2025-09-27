@@ -1106,3 +1106,10 @@ footer .remotive-footer:hover {
   #gjh-pager{ top: calc(var(--nav-h) + 6px); }
 }
 
+/* ПАГИНАЦИЯ ДОЛЖНА БЫТЬ ПОД ШАПКОЙ */
+.navbar.sticky-top{
+  z-index: 1055 !important;   /* шапка всегда выше */
+}
+#gjh-pager{
+  z-index: 1000 !important;   /* пагинация ниже шапки */
+}
