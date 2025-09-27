@@ -1051,3 +1051,29 @@ footer .remotive-footer:hover {
 
 /* --- стабилизация inline-иконок --- */
 .navbar .bi, .results-header .bi { display:inline-block; width:1em; height:1em; line-height:1; }
+
+/* ======= GJH: мобильная липкость только для пагинации ======= */
+:root{
+  /* высота хедера/навбара (у тебя логотип 60px + отступы, удобно взять ~72px) */
+  --navH: 72px;
+}
+
+/* На мобильных: фильтры обычные (скроллятся), пагинация липкая */
+@media (max-width: 991.98px){
+
+  /* 1) Гасим липкость фильтров, т.к. в HTML на них стоит .sticky-top */
+  .filter-bar.sticky-top{
+    position: static !important;
+    top: auto !important;
+  }
+
+  /* 2) Делаем липкой панель пагинации (#gjh-pager) под навбаром */
+  #gjh-pager{
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + var(--navH)); /* не залезать под навбар/вырез iOS */
+    z-index: 1015;                                     /* ниже навбара (bootstrap ~1020), но выше контента */
+    background: #fff;
+    border-bottom: 1px solid #e7eaf0;
+    backdrop-filter: blur(6px);
+  }
+}
