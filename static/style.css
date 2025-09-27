@@ -1159,3 +1159,27 @@ footer .remotive-footer:hover {
   .hero-section .language-switcher,
   .results-header .language-switcher{ display: none !important; }
 }
+
+/* Оставляем языковую кнопку только в шапке */
+body #language-switcher-container,
+body .language-switcher{
+  display: none !important;           /* скрыть ВСЕ копии по умолчанию */
+}
+nav.navbar #language-switcher-container,
+nav.navbar .language-switcher{
+  display: flex !important;           /* показывать ТОЛЬКО в шапке */
+  align-items: center;
+}
+
+/* Чтоб на мобиле не «проваливалась» и была одной строкой */
+@media (max-width: 991.98px){
+  nav.navbar #language-switcher-container .btn.dropdown-toggle{
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: .5rem;
+    white-space: nowrap !important;
+    min-height: 44px;
+    line-height: 1 !important;
+    padding: .45rem .9rem !important;
+  }
+}
