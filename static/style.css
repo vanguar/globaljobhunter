@@ -1040,24 +1040,39 @@ footer .remotive-footer:hover {
   margin-right: .25rem;
 }
 
-/* --- CLS guard для навбара и логотипа --- */
-.navbar { min-height: 72px; }
-.navbar .navbar-brand { display:flex; align-items:center; }
-.navbar .navbar-brand img { width:120px; height:60px; object-fit:contain; }
+/* --- ONLY CSS: filters scroll, pager sticks under navbar --- */
 
-/* --- CLS guard для шапки результатов --- */
-.results-header .container { min-height: 132px; } /* под заголовок + подзаголовок + 1 ряд кнопок */
-.results-header .container > a.btn { min-width: 220px; } /* фикс ширины предотвращает «переломы» */
+/* 1) Фильтры НЕ липкие, даже если в HTML остался .sticky-top */
+.filter-bar,
+.filter-bar.sticky-top {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+}
 
-/* --- стабилизация inline-иконок --- */
-.navbar .bi, .results-header .bi { display:inline-block; width:1em; height:1em; line-height:1; }
+/* 2) Подгон высоты шапки (без JS) */
+:root {
+  --nav-h: 72px;   /* мобилки; если нужно — подправь */
+}
+@media (min-width: 992px) {
+  :root { --nav-h: 88px; }  /* десктоп; при необходимости подгони */
+}
 
-/* Fix: make pager sticky under the navbar; filters scroll normally */
-.filter-bar { position: static !important; } /* на всякий случай переопределяем */
-.sticky-below-nav{
+/* 3) Верхняя пагинация прилеплена под шапкой (аналогично старым фильтрам) */
+#gjh-pager {
+  position: -webkit-sticky; /* Safari */
   position: sticky;
-  top: var(--header-h, 72px); /* высота шапки прилетит из JS */
-  z-index: 1020;             /* выше контента, ниже модалок/навигации */
+  top: var(--nav-h);
+  z-index: 1020;
   background: #fff;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+/* косметика на прокрутке, чтобы не "сливалась" */
+#gjh-pager::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: rgba(0,0,0,.06);
 }

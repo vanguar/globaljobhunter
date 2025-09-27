@@ -2710,13 +2710,4 @@ async function startLiveSearch(e) {
   PROGRESS_TIMER = setInterval(poll, 700);
 }
 
-// --- sticky pager offset under navbar ---
-function setStickyOffset(){
-  const nav = document.querySelector('.navbar');
-  const h = nav ? nav.offsetHeight : 72;
-  document.documentElement.style.setProperty('--header-h', `${h}px`);
-}
-window.addEventListener('resize', setStickyOffset);
-document.addEventListener('DOMContentLoaded', setStickyOffset);
-
 
