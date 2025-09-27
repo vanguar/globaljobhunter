@@ -1106,32 +1106,46 @@ footer .remotive-footer:hover {
   #gjh-pager{ top: calc(var(--nav-h) + 6px); }
 }
 
-/* --- Mobile: выравнивание языковой панели, без сдвигов --- */
+/* --- FIX: язык в шапке не «проваливается» на мобилке --- */
 @media (max-width: 991.98px){
-  /* сам контейнер языка не сжимается и не переносится */
-  .language-switcher,
-  #language-switcher-container{
+  /* выравниваем контейнер хедера по центру по вертикали */
+  .navbar .container { align-items: center !important; }
+
+  /* сам узел переключателя языка в шапке */
+  .navbar .dropdown.language-switcher,
+  .navbar #language-switcher-container{
+    display: flex !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;   /* не сжимается и не переносится */
+    margin-top: 0 !important;
+  }
+
+  /* кнопка-«пилюля» языка: одна строка, фикс. высота */
+  .navbar .dropdown.language-switcher .btn.dropdown-toggle,
+  .navbar #language-switcher-container .btn.dropdown-toggle,
+  .navbar .dropdown.language-switcher [data-bs-toggle="dropdown"],
+  .navbar #language-switcher-container [data-bs-toggle="dropdown"]{
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: .5rem;
+    white-space: nowrap !important;
+    min-height: 44px;            /* одинаковая высота на RU/UA/EN */
+    line-height: 1 !important;   /* убираем «базовую линию» шрифта */
+    padding: .45rem .9rem !important;
+  }
+
+  /* иконка флага не тянет высоту */
+  .navbar .dropdown.language-switcher .fi,
+  .navbar #language-switcher-container .fi{
     flex: 0 0 auto;
   }
 
-  /* кнопка языка: одна строка, центр по вертикали, единая высота */
-  .language-switcher .dropdown-toggle,
-  #language-switcher-container .dropdown-toggle{
-    display: inline-flex;        /* убираем baseline-скачки */
-    align-items: center;         /* выравниваем флаг и текст по центру */
-    gap: .5rem;
-    white-space: nowrap;         /* запрещаем перенос «Українська» */
-    line-height: 1;              /* нейтрализуем метрики шрифта */
-    min-height: 44px;            /* единая высота «пилюли» */
-    padding: .45rem .9rem;
-  }
-
-  /* если вдруг не хватает ширины — аккуратная обрезка текста */
-  .language-switcher .dropdown-toggle span,
-  #language-switcher-container .dropdown-toggle span{
+  /* если слово «Українська» очень длинное — аккуратно обрежем */
+  .navbar .dropdown.language-switcher .btn.dropdown-toggle span,
+  .navbar #language-switcher-container .btn.dropdown-toggle span{
+    max-width: 11rem;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 11rem;            /* при желании подними/понизь */
     display: inline-block;
   }
 }
