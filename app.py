@@ -59,7 +59,22 @@ from flask import Flask, render_template
 from analytics import analytics_bp, log_search_click, pretty_json, h as html_escape
 
 
+from flask import Flask
+from flask_compress import Compress
+
 app = Flask(__name__)
+
+# Сжатие ответа (HTML/CSS/JS/JSON)
+Compress(app)
+app.config.update(
+    COMPRESS_ALGORITHM=['br', 'gzip'],  # сначала br, fallback gzip
+    COMPRESS_LEVEL=6,
+    COMPRESS_MIN_SIZE=512
+)
+
+# Долгий кеш для /static (безопасно, т.к. URL версиируется query-параметрами)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 60 * 60 * 24 * 30  # 30 дней
+
 app.register_blueprint(analytics_bp)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
