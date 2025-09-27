@@ -1155,3 +1155,7 @@ footer .remotive-footer:hover {
   .language-switcher{ display: none !important; }              /* скрыть все копии */
   .navbar .language-switcher{ display: flex !important; }      /* показывать только в шапке */
 }
+@media (max-width: 991.98px){
+  .hero-section .language-switcher,
+  .results-header .language-switcher{ display: none !important; }
+}
