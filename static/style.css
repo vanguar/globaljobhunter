@@ -1100,7 +1100,7 @@ footer .remotive-footer:hover {
  /* --- Mobile tweak: опуcтить пагинацию чуть ниже шапки --- */
 @media (max-width: 575.98px){
   /* вариант 1: поднять «высоту шапки» только для мобилки */
-  :root{ --nav-h: 104px; }  /* было 72px; подбери 80–92px под свой navbar */
+  :root{ --nav-h: 144px; }  /* было 72px; подбери 80–92px под свой navbar */
 
   /* + небольшой зазор под тенью шапки */
   #gjh-pager{ top: calc(var(--nav-h) + 6px); }
