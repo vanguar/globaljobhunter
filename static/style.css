@@ -1050,29 +1050,32 @@ footer .remotive-footer:hover {
   z-index: auto !important;
 }
 
-/* 2) Подгон высоты шапки (без JS) */
-:root {
-  --nav-h: 72px;   /* мобилки; если нужно — подправь */
+/* 2) Реальная высота шапки (без JS) */
+:root{
+  --nav-h: 72px;    /* мобилка */
 }
-@media (min-width: 992px) {
-  :root { --nav-h: 88px; }  /* десктоп; при необходимости подгони */
+@media (min-width: 992px){
+  /* под твой логотип 80px + вертикальные паддинги навбара + тень */
+  :root{ --nav-h: 108px; }
+}
+@media (min-width: 1400px){
+  :root{ --nav-h: 112px; } /* небольшой запас на крупных десктопах */
 }
 
-/* 3) Верхняя пагинация прилеплена под шапкой (аналогично старым фильтрам) */
-#gjh-pager {
+/* 3) Верхняя пагинация — прилипает под шапку */
+#gjh-pager{
   position: -webkit-sticky; /* Safari */
   position: sticky;
-  top: var(--nav-h);
+  top: calc(var(--nav-h) + 6px); /* маленький зазор, чтобы не задевать логотип */
   z-index: 1020;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  margin-top: 0 !important;
 }
 
-/* косметика на прокрутке, чтобы не "сливалась" */
-#gjh-pager::after {
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: -1px;
-  height: 1px;
-  background: rgba(0,0,0,.06);
+/* тонкая линия, чтобы панель визуально отделялась на скролле */
+#gjh-pager::after{
+  content:"";
+  position:absolute; left:0; right:0; bottom:-1px;
+  height:1px; background: rgba(0,0,0,.06);
 }
