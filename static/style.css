@@ -919,10 +919,11 @@ footer .remotive-footer:hover {
 .gjh-pager{ margin: .5rem 0 1rem; }
 
 /* =========================
-   RESULTS HEADER — FIX + GLOW
+   RESULTS PAGE — FINAL PATCH
+   (заменяет предыдущие мои патчи)
    ========================= */
 
-/* Ровная сетка: заголовок, подпись и ОБЕ кнопки в одной строке, без «сползаний» */
+/* --- HERO / HEADER --- */
 .results-header{
   position:relative;
   padding: 3rem 0 2.25rem;
@@ -932,48 +933,40 @@ footer .remotive-footer:hover {
   border-bottom: 1px solid #eef2f7;
   text-align:center;
 }
-
-/* — заголовок с аккуратным градиентом и «подчерком» */
 .results-header h1{
   background-image: linear-gradient(90deg, var(--primary-blue), #3b82f6 40%, #60a5fa 60%, var(--primary-yellow));
   -webkit-background-clip: text; background-clip: text; color: transparent;
   letter-spacing:.2px; line-height:1.15; margin-bottom:.5rem !important;
   position:relative; display:inline-block; padding-bottom:6px;
+  text-shadow: 0 1px 0 rgba(0,0,0,.05);
 }
 .results-header h1::after{
   content:""; position:absolute; left:10%; right:10%; bottom:0; height:4px;
   background: linear-gradient(90deg, rgba(0,87,183,.35), rgba(255,215,0,.35));
   border-radius:3px; opacity:.85;
 }
+.results-header .lead{ color:#667085 !important; margin-bottom:.85rem; }
 
-/* подпись спокойнее */
-.results-header .lead{ color:#667085 !important; margin-bottom: .85rem; }
-
-/* — выравнивание кнопок: одна линия, общий зазор, одинаковая высота */
+/* Кнопки: одна линия, одинаковая высота */
 .results-header .container > a.btn{
   display:inline-flex; align-items:center; justify-content:center;
   height:44px; padding:.56rem 1rem; border-radius:12px;
-  vertical-align:middle;
-  margin-top:0 !important;                 /* гасим mt-3 у первой */
+  vertical-align:middle; margin-top:0 !important;
   box-shadow:0 6px 16px rgba(0,0,0,.04);
 }
-.results-header .container > a.btn + a.btn{ margin-left:.6rem; } /* одинаковый отступ справа */
-
+.results-header .container > a.btn + a.btn{ margin-left:.6rem; }
 .results-header .btn.btn-outline-primary{ border:1px solid rgba(0,87,183,.35); }
 .results-header .btn.btn-outline-primary:hover{ background:var(--primary-blue); color:#fff; }
 
-/* лёгкий «блик» ниже баннера — отделяет от статов */
+/* Блик-разделитель снизу */
 .results-header::after{
   content:""; position:absolute; left:0; right:0; bottom:-1px; height:14px;
   background: linear-gradient(180deg, rgba(0,0,0,0.04), transparent);
   pointer-events:none;
 }
 
-/* =========================
-   STATS — деликатные акценты
-   ========================= */
+/* --- STATS --- */
 .stats-container{ padding: 1.8rem 0 1.2rem; }
-
 .stat-card{
   border:1px solid #eef2f7; border-radius:14px;
   box-shadow:0 10px 22px rgba(0,0,0,.05);
@@ -997,22 +990,52 @@ footer .remotive-footer:hover {
   font-size:1.55rem; margin:.35rem auto .8rem;
 }
 .stat-card .stat-number{ font-weight:800; letter-spacing:.2px; }
+.stat-card .stat-label{ color:#6b7280; }
 
-/* =========================
-   FILTER BAR — чисто и технологично
-   ========================= */
+/* --- FILTER BAR --- */
 .filter-bar{
   border:1px solid #eef2f7;
   background: rgba(255,255,255,.92);
   backdrop-filter: blur(8px);
 }
+.filter-bar .form-select,
+.filter-bar .form-control{ border-radius:12px; }
 
-/* =========================
-   Адаптив — кнопки в колонку
-   ========================= */
+/* --- JOB CARDS лёгкий апгрейд (деликатно) --- */
+.job-card{
+  border:1px solid #eef2f7;
+  box-shadow: 0 6px 16px rgba(0,0,0,.04);
+}
+.job-card:hover{
+  transform: translateX(4px);
+  border-left:4px solid var(--primary-blue);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+}
+
+/* --- Responsive --- */
 @media (max-width: 991.98px){
   .results-header{ padding: 2.4rem 0 1.6rem; }
   .results-header .container > a.btn{ width:100%; }
   .results-header .container > a.btn + a.btn{ margin-left:0; margin-top:.55rem !important; }
   .stat-card .stat-number{ font-size:1.55rem; }
+}
+
+/* === Results title: plain, no gradient/underline === */
+.results-header h1{
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  color: var(--primary-dark) !important; /* или #1f2937 */
+  text-shadow: none !important;
+}
+
+.results-header h1::after{
+  display: none !important; /* убрать «подчеркивание» */
+}
+
+/* (по желанию) немного подровнять эмодзи-трофей */
+.results-header h1 .emoji,
+.results-header h1 span[role="img"]{
+  filter: none;
+  margin-right: .25rem;
 }
