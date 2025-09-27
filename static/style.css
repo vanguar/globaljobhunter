@@ -1100,8 +1100,28 @@ footer .remotive-footer:hover {
  /* --- Mobile tweak: опуcтить пагинацию чуть ниже шапки --- */
 @media (max-width: 575.98px){
   /* вариант 1: поднять «высоту шапки» только для мобилки */
-  :root{ --nav-h: 84px; }  /* было 72px; подбери 80–92px под свой navbar */
+  :root{ --nav-h: 104px; }  /* было 72px; подбери 80–92px под свой navbar */
 
   /* + небольшой зазор под тенью шапки */
   #gjh-pager{ top: calc(var(--nav-h) + 6px); }
+}
+
+/* --- Footer: сдвинуть копирайт вправо как остальной контент --- */
+/* у .container в Bootstrap внутренний отступ = .75rem, даём такой же */
+footer .container > .row:last-child .col-md-6 p {
+  padding-left: .75rem;
+}
+@media (min-width: 576px) {
+  /* на десктопе уже всё ровно — убираем подпих */
+  footer .container > .row:last-child .col-md-6 p { padding-left: 0; }
+}
+
+/* --- Mobile hero title: сделать меньше на телефонах --- */
+@media (max-width: 575.98px){
+  /* подхватим заголовок героя, не трогая остальное */
+  #hero h1, .hero h1, main h1.display-4, main h1:first-of-type {
+    font-size: 2rem;      /* подгони при желании: 1.8–2.2rem */
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
 }
