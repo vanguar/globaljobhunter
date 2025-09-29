@@ -452,10 +452,18 @@ footer .remotive-footer:hover {
     padding-bottom: 0;   /* Убираем лишние отступы */
 }
 
-.navbar .navbar-brand img {
-    height: 80px !important;  /* Задаем нужную высоту и делаем правило самым важным */
-    width: auto;              /* Ширина подстроится автоматически */
+/* Логотип: не переопределяем размеры из HTML, только ограничиваем "шапкой" */
+.navbar .navbar-brand img{
+    height: auto;         /* уважает height=60 из HTML */
+    width: auto;          /* уважает width=81 из HTML */
+    max-height: 60px;     /* страховка, чтобы в шапке не "раздувался" */
+    object-fit: contain;  /* если вдруг будет больше — впишется без сдвигов */
 }
+@media (max-width: 380px){
+  .navbar .navbar-brand img{ max-height: 56px; }
+}
+
+
 .highlight-animated {
     position: relative;
     color: var(--bs-primary); /* Используем основной синий цвет Bootstrap */
