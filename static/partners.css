@@ -1,5 +1,3 @@
-/* Импорт кастомных шрифтов для логотипов */
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@600&family=Poppins:wght@500;700&display=swap');
 
 /* Общий стиль для всех текстовых логотипов */
 .partners-section .logo-text {
@@ -44,3 +42,8 @@
     color: #2d2d2d;
     letter-spacing: -0.5px;
 }
+
+/* Anti-CLS for partners grid */
+.partners-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; min-height:220px; }
+.partner-card { aspect-ratio: 3 / 2; }
+.partner-card img { width:100%; height:100%; object-fit:contain; }
