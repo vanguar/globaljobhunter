@@ -1122,55 +1122,61 @@ footer .remotive-footer:hover {
   z-index: 1000 !important;   /* пагинация ниже шапки */
 }
 
-/* ==== ПАГИНАЦИЯ: стеклянный полупрозрачный блок, текст чёткий ==== */
-#gjh-pager{
-  background: rgba(255,255,255,0.85) !important;   /* прозрачный фон, а НЕ opacity */
+/***** PAGER — GLASS / SOFT UI + NUDGE *****/
+
+/* Полупрозрачный стеклянный фон у всей панели (текст чёткий, не размываем opacity’ем) */
+body #gjh-pager{
+  background: rgba(255,255,255,0.85) !important;
   backdrop-filter: saturate(140%) blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 14px;
   box-shadow: 0 6px 20px rgba(16,24,40,.06);
-  z-index: 1025 !important;  /* поверх карточек */
+  z-index: 1025 !important; /* поверх карточек */
+  border: 1px solid #eef2f7;
 }
 
-/* Разделитель и контейнер callout под кнопками пагинации */
-#pager-subscribe{
-  margin-top: .5rem;
-  padding-top: .6rem;
-  border-top: 1px solid rgba(15,23,42,.08);
-  display: flex;
-  justify-content: center;
+/* Контейнер под кнопками пагинации (тонкий разделитель и центрирование) */
+body #pager-subscribe{
+  margin-top: .5rem !important;
+  padding-top: .6rem !important;
+  border-top: 1px solid rgba(15,23,42,.08) !important;
+  display: flex !important;
+  justify-content: center !important;
 }
 
-/* ==== КНОПКА-НУДЖ: современная «пилюля» без правок HTML ==== */
-#pager-subscribe-btn{
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: .75rem;
-  padding: .65rem .95rem .65rem 3.1rem;   /* слева место под круглую иконку (::before) */
-  border-radius: 999px;
-  border: 1px solid rgba(2,132,199,.28);
+/* Современная «пилюля»-кнопка (убираем чёрную рамку и дефолтные стили) */
+body #pager-subscribe-btn{
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(2,132,199,.28) !important; /* тонкий акцент */
   background:
     linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78)) padding-box,
-    linear-gradient(180deg, rgba(2,132,199,.18), rgba(2,132,199,.05)) border-box;
-  color: #0f172a;              /* slate-900 */
+    linear-gradient(180deg, rgba(2,132,199,.18), rgba(2,132,199,.05)) border-box !important;
+  color: #0f172a !important;
   font-weight: 700;
   line-height: 1.2;
+  border-radius: 999px !important;
+  padding: .65rem .95rem .65rem 3.1rem !important; /* место под круглую иконку слева */
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .75rem !important;
   cursor: pointer;
   user-select: none;
-  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 8px 18px rgba(2,132,199,.10);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 8px 18px rgba(2,132,199,.10) !important;
   text-align: left;
   transition: box-shadow .2s ease, border-color .2s ease, transform .06s ease;
+  background-clip: padding-box, border-box;
 }
 
-/* Круглая «таблетка» со стрелкой — создаём псевдоэлементом, HTML не меняем */
-#pager-subscribe-btn::before{
+/* Круглая «таблетка» со стрелкой ↓ — псевдоэлемент, HTML не меняем */
+body #pager-subscribe-btn::before{
   content: "↓";
   position: absolute;
   left: .6rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1178,53 +1184,50 @@ footer .remotive-footer:hover {
   font-weight: 800;
   line-height: 1;
   border-radius: 999px;
-  color: #0ea5e9;                    /* sky-500 */
+  color: #0ea5e9; /* sky-500 */
   background: rgba(2,132,199,.10);
-  box-shadow: 0 2px 8px rgba(2,132,199,.12) inset;
+  box-shadow: inset 0 2px 8px rgba(2,132,199,.12);
   animation: gjhPulse 1.6s ease-in-out infinite;
 }
 
-/* Подзаголовок внутри кнопки (если используешь <small>) делаем мягче */
-#pager-subscribe-btn small{
+/* Поддержка второстепенного текста (если внутри есть <small>) */
+body #pager-subscribe-btn small{
   display: block;
   margin-top: 2px;
   font-weight: 500;
   opacity: .75;
 }
 
-/* Hover/Focus: аккуратное усиление акцентов */
-#pager-subscribe-btn:hover,
-#pager-subscribe-btn:focus-visible{
-  border-color: rgba(2,132,199,.38);
-  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 22px rgba(2,132,199,.14);
+/* Hover/Focus: аккуратный акцент */
+body #pager-subscribe-btn:hover,
+body #pager-subscribe-btn:focus-visible{
+  border-color: rgba(2,132,199,.38) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 22px rgba(2,132,199,.14) !important;
 }
+body #pager-subscribe-btn:active{ transform: translateY(1px); }
 
-#pager-subscribe-btn:active{
-  transform: translateY(1px);
-}
-
-/* Плавная и равномерная пульсация стрелки */
+/* Плавная равномерная пульсация стрелки */
 @keyframes gjhPulse{
   0%   { transform: translateY(-50%) translateY(0);   opacity:.55; }
   50%  { transform: translateY(-50%) translateY(3px); opacity:1;    }
   100% { transform: translateY(-50%) translateY(0);   opacity:.55; }
 }
 
-/* Уважение к reduce motion */
+/* Доступность: если пользователь против анимаций */
 @media (prefers-reduced-motion: reduce){
-  #pager-subscribe-btn::before{ animation: none !important; }
+  body #pager-subscribe-btn::before{ animation: none !important; }
 }
 
-/* ==== МОБИЛКА: во всю ширину, нативно выглядит под карточки ==== */
+/* Мобильная версия: шире таргет, без “ломания” вёрстки */
 @media (max-width: 575.98px){
-  #gjh-pager{ border-radius: 0; }
-  #pager-subscribe{ padding-top: .7rem; }
-  #pager-subscribe-btn{
-    width: 100%;
-    justify-content: center;
-    padding: .75rem 1rem .75rem 3.3rem;
+  body #gjh-pager{ border-radius: 0 !important; }
+  body #pager-subscribe{ padding-top: .7rem !important; }
+  body #pager-subscribe-btn{
+    width: 100% !important;
+    justify-content: center !important;
+    padding: .75rem 1rem .75rem 3.3rem !important;
   }
-  #pager-subscribe-btn::before{
+  body #pager-subscribe-btn::before{
     left: .7rem; width: 38px; height: 38px; font-size: 21px;
   }
 }
