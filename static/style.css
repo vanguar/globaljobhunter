@@ -1124,114 +1124,7 @@ footer .remotive-footer:hover {
 
 /***** PAGER — GLASS / SOFT UI + NUDGE *****/
 
-/* Полупрозрачный стеклянный фон у всей панели (текст чёткий, не размываем opacity’ем) */
-body #gjh-pager{
-  background: rgba(255,255,255,0.85) !important;
-  backdrop-filter: saturate(140%) blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: 14px;
-  box-shadow: 0 6px 20px rgba(16,24,40,.06);
-  z-index: 1025 !important; /* поверх карточек */
-  border: 1px solid #eef2f7;
-}
-
-/* Контейнер под кнопками пагинации (тонкий разделитель и центрирование) */
-body #pager-subscribe{
-  margin-top: .5rem !important;
-  padding-top: .6rem !important;
-  border-top: 1px solid rgba(15,23,42,.08) !important;
-  display: flex !important;
-  justify-content: center !important;
-}
-
-/* Современная «пилюля»-кнопка (убираем чёрную рамку и дефолтные стили) */
-body #pager-subscribe-btn{
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid rgba(2,132,199,.28) !important; /* тонкий акцент */
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78)) padding-box,
-    linear-gradient(180deg, rgba(2,132,199,.18), rgba(2,132,199,.05)) border-box !important;
-  color: #0f172a !important;
-  font-weight: 700;
-  line-height: 1.2;
-  border-radius: 999px !important;
-  padding: .65rem .95rem .65rem 3.1rem !important; /* место под круглую иконку слева */
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: .75rem !important;
-  cursor: pointer;
-  user-select: none;
-  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 8px 18px rgba(2,132,199,.10) !important;
-  text-align: left;
-  transition: box-shadow .2s ease, border-color .2s ease, transform .06s ease;
-  background-clip: padding-box, border-box;
-}
-
-/* Круглая «таблетка» со стрелкой ↓ — псевдоэлемент, HTML не меняем */
-body #pager-subscribe-btn::before{
-  content: "↓";
-  position: absolute;
-  left: .6rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1;
-  border-radius: 999px;
-  color: #0ea5e9; /* sky-500 */
-  background: rgba(2,132,199,.10);
-  box-shadow: inset 0 2px 8px rgba(2,132,199,.12);
-  animation: gjhPulse 1.6s ease-in-out infinite;
-}
-
-/* Поддержка второстепенного текста (если внутри есть <small>) */
-body #pager-subscribe-btn small{
-  display: block;
-  margin-top: 2px;
-  font-weight: 500;
-  opacity: .75;
-}
-
-/* Hover/Focus: аккуратный акцент */
-body #pager-subscribe-btn:hover,
-body #pager-subscribe-btn:focus-visible{
-  border-color: rgba(2,132,199,.38) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 22px rgba(2,132,199,.14) !important;
-}
-body #pager-subscribe-btn:active{ transform: translateY(1px); }
-
-/* Плавная равномерная пульсация стрелки */
-@keyframes gjhPulse{
-  0%   { transform: translateY(-50%) translateY(0);   opacity:.55; }
-  50%  { transform: translateY(-50%) translateY(3px); opacity:1;    }
-  100% { transform: translateY(-50%) translateY(0);   opacity:.55; }
-}
-
-/* Доступность: если пользователь против анимаций */
-@media (prefers-reduced-motion: reduce){
-  body #pager-subscribe-btn::before{ animation: none !important; }
-}
-
-/* Мобильная версия: шире таргет, без “ломания” вёрстки */
-@media (max-width: 575.98px){
-  body #gjh-pager{ border-radius: 0 !important; }
-  body #pager-subscribe{ padding-top: .7rem !important; }
-  body #pager-subscribe-btn{
-    width: 100% !important;
-    justify-content: center !important;
-    padding: .75rem 1rem .75rem 3.3rem !important;
-  }
-  body #pager-subscribe-btn::before{
-    left: .7rem; width: 38px; height: 38px; font-size: 21px;
-  }
-}
-/* Базовая подготовка: место под иконку слева и надёжное позиционирование */
+/* Базово: место под иконку слева */
 #pager-subscribe-btn{
   position: relative !important;
   display: inline-flex !important;
@@ -1241,18 +1134,22 @@ body #pager-subscribe-btn:active{ transform: translateY(1px); }
   overflow: visible !important;
 }
 
-/* Если первый символ в тексте — стрелка '↓', скрываем его, чтобы не мешал */
-#pager-subscribe-btn::first-letter{ font-size: 0 !important; }
+/* 0) УБИРАЕМ "вторую" стрелку, если она в тексте/первом спане/иконке */
+#pager-subscribe-btn::first-letter{ font-size:0 !important; line-height:0 !important; }         /* символ '↓' */
+#pager-subscribe-btn .nudge-arrow{ display:none !important; }                                    /* если есть этот span */
+#pager-subscribe-btn > svg:first-child,
+#pager-subscribe-btn > i:first-child,
+#pager-subscribe-btn > span:first-child:only-child,
+#pager-subscribe-btn > span:first-child svg { display:none !important; }                         /* частые варианты */
 
-/* КРУГ со светлой пульсацией — центрирование БЕЗ translate */
+/* 1) КРУГ — центрируем без transform */
 #pager-subscribe-btn::before{
   content: "" !important;
   position: absolute !important;
-  left: .8rem;     /* позиция круга по X */
-  top: 50%;        /* центрируем по Y… */
-  width: 38px;
-  height: 38px;
-  margin-top: -19px; /* …минус половина высоты = идеальный центр */
+  left: .8rem;                    /* X-позиция круга */
+  top: 50%;                       /* центр по Y */
+  width: 38px; height: 38px;
+  margin-top: -19px;              /* минус половина высоты = идеальный центр */
   border-radius: 999px;
   background: radial-gradient(65% 65% at 30% 30%,
               rgba(14,165,233,.18) 0%,
@@ -1264,39 +1161,37 @@ body #pager-subscribe-btn:active{ transform: translateY(1px); }
   animation: gjhPulse 1.6s ease-in-out infinite; /* только прозрачность */
 }
 
-/* СТРЕЛКА — чистый CSS, центрирование тоже БЕЗ translate */
+/* 2) СТРЕЛКА — чистый CSS, ровно по центру круга */
 #pager-subscribe-btn::after{
   content: "" !important;
   position: absolute !important;
-  /* 14px — размер «галочки»; вычисляем центр круга */
-  left: calc(.8rem + (38px - 14px)/2);
+  left: calc(.8rem + (38px - 14px)/2);  /* 14px — размер галочки */
   top: 50%;
-  width: 14px;
-  height: 14px;
-  margin-top: -7px;            /* половина высоты «галочки» */
-  border-right: 3px solid #0ea5e9;
+  width: 14px; height: 14px;
+  margin-top: -7px;                     /* половина высоты */
+  border-right: 3px solid #0ea5e9;      /* цвет стрелки */
   border-bottom: 3px solid #0ea5e9;
-  box-shadow: -3.5px -10px 0 0 #0ea5e9;  /* «ствол» вверх ~10px */
-  transform: rotate(45deg);    /* ТОЛЬКО поворот, без translate */
+  box-shadow: -3.5px -10px 0 0 #0ea5e9; /* «ствол» вверх ~10px */
+  transform: rotate(45deg);             /* только поворот */
   pointer-events: none;
   z-index: 2;
 }
 
-/* Пульсируем только прозрачность, чтобы центр не «прыгал» */
+/* 3) Пульсация без translate — центр не «прыгает» */
 @keyframes gjhPulse{
-  0%   { opacity: .55; }
-  50%  { opacity: 1; }
-  100% { opacity: .55; }
+  0%   { opacity:.55; }
+  50%  { opacity:1; }
+  100% { opacity:.55; }
 }
 
-/* Мобилка: круг 40px и корректный сдвиг стрелки */
+/* Мобилка: круг 40px и корректный центр для стрелки */
 @media (max-width: 575.98px){
   #pager-subscribe-btn{ padding-left: 3.5rem !important; }
   #pager-subscribe-btn::before{ left: .9rem; width: 40px; height: 40px; margin-top: -20px; }
   #pager-subscribe-btn::after{ left: calc(.9rem + (40px - 14px)/2); margin-top: -7px; }
 }
 
-/* Если пользователь отключил анимации */
+/* Уважение prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce){
   #pager-subscribe-btn::before{ animation: none !important; }
 }
