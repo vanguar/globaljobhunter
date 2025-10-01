@@ -136,6 +136,15 @@
                 <span id="gjh-page-label" class="small text-muted" data-i18n="Страница 1 из 1">Страница 1 из 1</span>
                 <button id="gjh-next" class="btn btn-outline-secondary btn-sm" data-i18n="Вперёд →" disabled>Вперёд →</button>
             </div>
+            <!-- ↓↓↓ NUDGE: Напоминание о подписке ↓↓↓ -->
+            <div id="pager-subscribe" class="w-100 mt-2 pt-2 border-top">
+            <button id="pager-subscribe-btn" type="button" class="pager-nudge-btn" aria-label="Перейти к подписке на вакансии">
+                <span class="nudge-arrow" aria-hidden="true">↓</span>
+                <span class="nudge-text">Получать подходящие вакансии на email</span>
+            </button>
+            </div>
+            <!-- ↑↑↑ /NUDGE ↑↑↑ -->
+
             </div>
 
 
@@ -290,7 +299,7 @@
 </section>    
 
 <!-- Подписка -->
-<section class="subscription-section py-5 border-top">
+<section id="job-alerts" class="subscription-section py-5 border-top">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -858,6 +867,24 @@ function updateSubscription(email, action) {
     })
     .catch(() => showToast('❌ Ошибка обновления подписки', 'danger'));
 }
+
+
+// Плавный скролл к форме подписки
+(function(){
+  function scrollToAlerts(){
+    var target = document.getElementById('job-alerts') || document.querySelector('.subscription-section');
+    if (!target) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }
+  var btn = document.getElementById('pager-subscribe-btn');
+  if (btn){
+    btn.addEventListener('click', scrollToAlerts);
+    btn.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scrollToAlerts(); }
+    });
+  }
+})();
 
 
 /* Язык (как было) */

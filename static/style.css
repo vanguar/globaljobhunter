@@ -1121,3 +1121,89 @@ footer .remotive-footer:hover {
 #gjh-pager{
   z-index: 1000 !important;   /* пагинация ниже шапки */
 }
+
+/* === Полупрозрачная панель пагинации (текст остаётся чётким) === */
+#gjh-pager{
+  background: rgba(255,255,255,0.85) !important;   /* полупрозрачный белый */
+  backdrop-filter: saturate(140%) blur(8px);       /* «стекло» позади */
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
+
+/* Внутренний блок-напоминание */
+#pager-subscribe{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .5rem;
+  border-top: 1px solid rgba(0,0,0,.08);
+  padding-top: .5rem;
+}
+
+/* Кнопка-намёк кликается всей площадью, текст чёткий */
+.pager-nudge-btn{
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  border: 0;
+  background: transparent;
+  padding: .35rem .6rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.pager-nudge-btn .nudge-text{
+  color: #1f2937;
+  text-shadow: 0 0 0 transparent; /* не даём блюру влиять на текст */
+  font-size: 0.95rem;
+}
+
+/* Плавно и равномерно мигающая стрелка */
+@keyframes nudgePulse {
+  0%   { opacity: .45; transform: translateY(0); }
+  50%  { opacity: 1;   transform: translateY(3px); }
+  100% { opacity: .45; transform: translateY(0); }
+}
+.pager-nudge-btn .nudge-arrow{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 999px;
+  background: rgba(25,118,210,.18);
+  box-shadow: 0 2px 8px rgba(0,0,0,.10) inset;
+  animation: nudgePulse 1.6s ease-in-out infinite;
+}
+
+/* Hover/Focus: чуть ярче */
+.pager-nudge-btn:hover .nudge-arrow,
+.pager-nudge-btn:focus-visible .nudge-arrow{
+  background: rgba(25,118,210,.28);
+}
+
+/* Если пользователь против анимаций — уважаем настройку */
+@media (prefers-reduced-motion: reduce){
+  .pager-nudge-btn .nudge-arrow{ animation: none !important; }
+}
+
+/* Мобильные: во всю ширину, кликабельно и не ломает верстку */
+@media (max-width: 575.98px){
+  #gjh-pager{ border-radius: 0; }
+  #pager-subscribe{ padding-top: .6rem; }
+  .pager-nudge-btn{
+    width: 100%;
+    justify-content: center;
+    padding: .55rem .75rem;
+  }
+  .pager-nudge-btn .nudge-text{ font-size: 1rem; }
+}
+
+/* Приоритет поверх контента, но ниже фикс-шапки */
+.navbar.sticky-top{ z-index: 1055 !important; }
+#gjh-pager{ z-index: 1025 !important; }
