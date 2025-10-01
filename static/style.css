@@ -1231,68 +1231,59 @@ body #pager-subscribe-btn:active{ transform: translateY(1px); }
     left: .7rem; width: 38px; height: 38px; font-size: 21px;
   }
 }
-/* Кнопка-намёк: место под круглую иконку слева */
-#pager-subscribe-btn{
-  position: relative !important;
-  padding-left: 3.3rem !important; /* 38px круг + отступы */
-  overflow: visible !important;
-}
-
 /* КРУГ со светлой пульсацией */
 #pager-subscribe-btn::before{
   content: "" !important;
   position: absolute !important;
-  left: .7rem;                 /* старт круга */
+  left: .7rem;
   top: 50%;
-  transform: translateY(-50%); /* центр по вертикали */
   width: 38px; height: 38px;
   border-radius: 999px;
   background-color: rgba(2,132,199,.10);
   box-shadow: inset 0 2px 8px rgba(2,132,199,.12);
   pointer-events: none;
-  animation: gjhPulse 1.6s ease-in-out infinite;
   z-index: 1;
+  
+  /* Центрирование БЕЗ transform (чтобы анимация его не ломала) */
+  margin-top: -19px; /* -половина высоты */
+  
+  animation: gjhPulse 1.6s ease-in-out infinite;
 }
 
-/* САМА СТРЕЛКА: «галочка» из бордеров, идеально по центру круга */
+/* СТРЕЛКА: центр относительно круга */
 #pager-subscribe-btn::after{
   content: "" !important;
   position: absolute !important;
-
-  /* позиционируем центр внутри круга 38x38 */
-  left: calc(.7rem + (38px - 14px)/2);   /* 14px = размер «галочки» */
+  left: calc(.7rem + (38px - 14px)/2);
   top: 50%;
-  transform: translateY(-50%) rotate(45deg); /* повернули в стрелку вниз */
-
   width: 14px; height: 14px;
-  border-right: 3px solid #0ea5e9;   /* цвет стрелки */
+  border-right: 3px solid #0ea5e9;
   border-bottom: 3px solid #0ea5e9;
-
-  /* стержень стрелки – тонкая вертикальная линия вверх */
-  box-shadow:
-    -3.5px -10px 0 0 #0ea5e9;       /* смещённая линия: длина ~10px */
-
+  box-shadow: -3.5px -10px 0 0 #0ea5e9;
   pointer-events: none;
   z-index: 2;
+  
+  /* Центрирование БЕЗ transform в базе */
+  margin-top: -7px; /* -половина высоты */
+  transform: rotate(45deg); /* ТОЛЬКО поворот */
 }
 
-/* Пульсация круга (стрелка не «дышит», чтобы не прыгала) */
+/* Анимация БЕЗ translateY (используем только opacity) */
 @keyframes gjhPulse{
-  0%   { opacity:.55; transform: translateY(-50%); }
-  50%  { opacity:1;   transform: translateY(-50%) translateY(3px); }
-  100% { opacity:.55; transform: translateY(-50%); }
+  0%   { opacity:.55; }
+  50%  { opacity:1; }
+  100% { opacity:.55; }
 }
 
-/* Мобилка: чуть больше круг и корректный центр для стрелки */
+/* Мобилка */
 @media (max-width: 575.98px){
   #pager-subscribe-btn{ padding-left: 3.5rem !important; }
-  #pager-subscribe-btn::before{ left: .8rem; width: 40px; height: 40px; }
+  #pager-subscribe-btn::before{ 
+    left: .8rem; 
+    width: 40px; height: 40px;
+    margin-top: -20px; /* обновили под новый размер */
+  }
   #pager-subscribe-btn::after{
     left: calc(.8rem + (40px - 14px)/2);
   }
-}
-
-/* Если пользователь отключил анимации */
-@media (prefers-reduced-motion: reduce){
-  #pager-subscribe-btn::before{ animation: none !important; }
 }
