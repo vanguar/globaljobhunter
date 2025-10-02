@@ -330,6 +330,10 @@ class CareerjetAggregator(BaseJobAggregator):
             'user_agent': user_agent,
             'url': page_url or 'https://www.globaljobhunter.vip/results'
         }
+        dbg = dict(params)
+        dbg['user_ip'] = str(dbg.get('user_ip'))[:7] + "xxx"  # подсечь IP в логах
+        print("CJ PARAMS =>", dbg, flush=True)
+
 
 
         headers = {'User-Agent': user_agent}
