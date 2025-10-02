@@ -6,6 +6,7 @@ GlobalJobHunter Web Interface v3.3 - С КЕШИРОВАНИЕМ
 
 import os, sys
 os.environ.setdefault('PYTHONUNBUFFERED', '1')
+print("CAREERJET_AFFID =", (os.getenv("CAREERJET_AFFID","") or "").encode("utf-8"), file=sys.stderr)
 try:
     sys.stdout.reconfigure(line_buffering=True)
     sys.stderr.reconfigure(line_buffering=True)

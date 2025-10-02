@@ -142,6 +142,7 @@ def outbound():
     except Exception as e:
         current_app.logger.exception("PartnerClick log failed: %s", e)
 
+    print("OUT REDIRECT =>", target_url, flush=True)
     return redirect(target_url, code=302)
 
 
