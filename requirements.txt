@@ -27,5 +27,5 @@ Flask-Migrate>=4.0   # (опционально, но очень рекоменд
 python-dotenv>=1.0   # (если используешь .env локально)
 aiogram==3.10.0
 Flask-Compress==1.15
-gunicorn
+
 

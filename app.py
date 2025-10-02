@@ -3354,19 +3354,18 @@ def upload_backup():
         except Exception as e:
             return f"❌ Ошибка восстановления: {str(e)}", 500            
 
-# --- gunicorn-friendly запуск планировщика (один раз на процесс) ---
-_started_scheduler = False
-
-def _start_scheduler_once():
-    global _started_scheduler
-    if _started_scheduler:
-        return
-    _started_scheduler = True
+if __name__ == '__main__':
+    # Запускаем планировщик в отдельном потоке
     print("🚀 Запуск планировщика email рассылки...")
-    Thread(target=email_scheduler, args=(app, aggregator, additional_aggregators), daemon=True).start()
-
-@app.before_first_request
-def _boot_scheduler():
-    _start_scheduler_once()
+    # Передаем в поток планировщика все, что ему нужно для работы
+    scheduler_thread = Thread(target=email_scheduler, args=(app, aggregator, additional_aggregators), daemon=True)
+    scheduler_thread.start()
+    
+    # Запускаем Flask
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
+    print("🌍 Запуск Flask сервера...")
+    app.run(host='0.0.0.0', port=port, debug=debug)
 
 
