@@ -609,7 +609,12 @@ function updateResultsCount(count, total) {
       if (typeof window.updateResultsCount === 'function') {
         window.updateResultsCount(FILTERED.length, ALL.length);
       }
-      
+      // Плавный подъём наверх после смены страницы
+      if ('scrollBehavior' in document.documentElement.style) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo(0, 0);
+      }
       
     }
 

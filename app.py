@@ -24,7 +24,7 @@ import uuid
 from dataclasses import asdict
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, render_template_string,  Response
 from email_service import mail, send_welcome_email, send_preferences_update_email, send_job_notifications, run_scheduled_notifications
-from adzuna_aggregator import AdzunaAggregator
+
 # Добавить эти импорты ПОСЛЕ существующих
 from flask_mail import Mail
 from database import db, Subscriber, EmailLog  
