@@ -609,6 +609,26 @@ function updateResultsCount(count, total) {
       if (typeof window.updateResultsCount === 'function') {
         window.updateResultsCount(FILTERED.length, ALL.length);
       }
+          function render(){
+      // ... здесь твой текущий код рендера ...
+
+      if (btnPrev) btnPrev.disabled = (PAGE <= 1);
+      if (btnNext) btnNext.disabled = (PAGE >= tp);
+
+      // Обновляем счётчики
+      if (typeof window.updateResultsCount === 'function') {
+        window.updateResultsCount(FILTERED.length, ALL.length);
+      }
+
+      // >>> ДОБАВЬ ЭТО: прокрутка к верху после смены страницы
+      if ('scrollBehavior' in document.documentElement.style) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo(0, 0);
+      }
+      // <<< КОНЕЦ ДОБАВКИ
+    }
+
     }
 
     // Навесим СВОИ слушатели на новую filterJobs
