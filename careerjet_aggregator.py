@@ -151,7 +151,7 @@ class CareerjetAggregator(BaseJobAggregator):
         return {}
 
     def search_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None,
-                user_ip: str = '0.0.0.0', user_agent: str = 'Mozilla/5.0') -> List[JobVacancy]:
+                user_ip: str = '0.0.0.0', user_agent: str = 'Mozilla/5.0', page_url: str = '') -> List[JobVacancy]:
         """
         Поиск на Careerjet ПО КАЖДОМУ ТЕРМИНУ отдельно.
         - Жёстко уважаем выбранные профессии из preferences['selected_jobs'].
@@ -248,8 +248,10 @@ class CareerjetAggregator(BaseJobAggregator):
                                 locale_code=locale_code,
                                 page=page,
                                 user_ip=user_ip,
-                                user_agent=user_agent
+                                user_agent=user_agent,
+                                page_url=page_url
                             )
+
 
                             # None → 429/cooldown — прекращаем по этому term
                             if batch is None:
@@ -303,7 +305,7 @@ class CareerjetAggregator(BaseJobAggregator):
 
     
     def _request_page(self, term: str, location: str, country_name: str, locale_code: str, page: int,
-                  *, user_ip: str, user_agent: str) -> Optional[List[JobVacancy]]:
+                  *, user_ip: str, user_agent: str, page_url: str) -> Optional[List[JobVacancy]]:
         """
         Один запрос к Careerjet.
         Возвращает:
@@ -317,16 +319,18 @@ class CareerjetAggregator(BaseJobAggregator):
             return []
 
         params = {
-            'keywords': term,         # ВАЖНО: ОДИН терм
-            'location': location,     # напр. "Rostock, Germany"
             'affid': self.affid,
+            'keywords': term,
+            'location': location,
             'page': page,
             'pagesize': 20,
             'sort': 'date',
             'locale_code': locale_code,
             'user_ip': user_ip,
-            'user_agent': user_agent
+            'user_agent': user_agent,
+            'url': page_url or 'https://www.globaljobhunter.vip/results'
         }
+
 
         headers = {'User-Agent': user_agent}
 

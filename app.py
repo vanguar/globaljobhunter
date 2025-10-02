@@ -458,7 +458,7 @@ def search_jobs():
         return jsonify({'error': 'Сервис временно недоступен'}), 500
     
     # Rate limiting
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', 'unknown'))
+    client_ip = (request.headers.get('X-Forwarded-For') or request.remote_addr or '0.0.0.0').split(',')[0].strip()
     allowed, remaining = check_rate_limit(client_ip)
     if not allowed:
         app.logger.warning(f"🚫 Rate limit exceeded for IP: {client_ip}")
@@ -617,6 +617,9 @@ def search_start():
         app.logger.warning(f"analytics log_search_click failed: {e}")
     # =======================================================================
 
+    user_agent = request.headers.get('User-Agent', 'Mozilla/5.0')
+    page_url   = request.url
+
     sid = str(uuid.uuid4())
     active_searches[sid] = {
         'sid': sid,
@@ -630,7 +633,10 @@ def search_start():
         'results_id': None,
         'status': 'running',
         'preferences': preferences,
-    }
+        'client_ip': client_ip,
+        'user_agent': user_agent,
+        'page_url': page_url,
+}
 
     t = Thread(target=_search_worker, args=(sid,), daemon=True)
     t.start()
@@ -645,6 +651,10 @@ def _search_worker(sid: str):
     if not st:
         return
     prefs = st['preferences']
+    ip       = st.get('client_ip', '0.0.0.0')
+    ua       = st.get('user_agent', 'Mozilla/5.0')
+    page_url = st.get('page_url', 'https://www.globaljobhunter.vip/results')
+
 
     for name, src in _sources_iter():
         # Скипаем remote-only источники, если профессии не допускают удалёнку
@@ -685,12 +695,27 @@ def _search_worker(sid: str):
             # Вызываем с поддержкой прогресса/отмены, если сигнатура позволяет
             jobs = None
             try:
-                jobs = src.search_specific_jobs(prefs, progress_callback=progress_callback, cancel_check=cancel_check)
+                jobs = src.search_specific_jobs(
+                    prefs,
+                    progress_callback=progress_callback,
+                    cancel_check=cancel_check,
+                    user_ip=ip,
+                    user_agent=ua,
+                    page_url=page_url
+                )
             except Exception:
                 try:
-                    jobs = src.search_jobs(prefs, progress_callback=progress_callback, cancel_check=cancel_check)
+                    jobs = src.search_jobs(
+                        prefs,
+                        progress_callback=progress_callback,
+                        cancel_check=cancel_check,
+                        user_ip=ip,
+                        user_agent=ua,
+                        page_url=page_url
+                    )
                 except TypeError:
                     jobs = src.search_jobs(prefs)
+
 
             if jobs:
                 for j in jobs:

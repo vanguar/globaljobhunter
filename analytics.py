@@ -86,10 +86,14 @@ def outbound():
         # кто партнёр по факту
         partner_name = (partner or _guess_partner_from_host(host) or "").lower()
         is_careerjet = (
-            partner_name == "careerjet"
+            partner_name in ("careerjet", "optioncarriere", "opcionempleo")
             or "careerjet." in host
             or "jobviewtrack.com" in host
+            or "optioncarriere." in host
+            or "option-carriere." in host
+            or "opcionempleo." in host
         )
+
 
         if is_careerjet:
             # разбираем query штатно, чтобы сохранить все параметры и порядок
@@ -197,7 +201,9 @@ def _guess_partner_from_host(host: str) -> Optional[str]:
     h = (host or "").lower()
     if "adzuna" in h: 
         return "Adzuna"
-    if "careerjet" in h or "jobviewtrack" in h:   # ← добавили трекер Careerjet
+    if ("careerjet" in h or "jobviewtrack" in h
+        or "optioncarriere" in h or "option-carriere" in h
+        or "opcionempleo" in h):
         return "Careerjet"
     if "jobicy" in h: 
         return "Jobicy"
