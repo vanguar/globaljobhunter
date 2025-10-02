@@ -139,6 +139,7 @@ def outbound():
         )
         db.session.add(pc)
         db.session.commit()
+        print("PARTNER_CLICK =>", (partner or _guess_partner_from_host(parsed.netloc) or "Unknown"), target_url, flush=True)
     except Exception as e:
         current_app.logger.exception("PartnerClick log failed: %s", e)
 
