@@ -610,7 +610,18 @@ function updateResultsCount(count, total) {
         window.updateResultsCount(FILTERED.length, ALL.length);
       }
       // Плавный подъём наверх после смены страницы
-      document.getElementById('gjh-pager')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      (()=>{ 
+        const pager = document.getElementById('gjh-pager');
+        const list  = document.getElementById('jobs-container');
+        if (!pager || !list) return;
+        const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 0;
+        const gap  = 10; // как в CSS: top: var(--nav-h) + 10px
+        const totalOffset = navH + gap + pager.offsetHeight; // шапка + зазор + высота панели пагинации
+        const y = list.getBoundingClientRect().top + window.scrollY - totalOffset;
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top: Math.max(0, y), behavior: reduce ? 'auto' : 'smooth' });
+        })();
+
       
     }
 
