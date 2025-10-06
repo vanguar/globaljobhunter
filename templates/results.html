@@ -120,7 +120,11 @@
             </div>
 
             <!-- PAGINATION BAR -->
-            <div id="gjh-pager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div id="gjh-pager"
+                class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"
+                data-current="{{ current_page|default(1) }}"
+                data-total-pages="{{ total_pages|default(1) }}"
+                data-per-page="{{ per_page|default(150) }}">
             <div class="d-flex align-items-center gap-2">
                 <label for="gjh-per-page" class="text-muted small" data-i18n="На странице:">На странице:</label>
                 <select id="gjh-per-page" class="form-select form-select-sm" style="width:auto;">
@@ -133,7 +137,9 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <button id="gjh-prev" class="btn btn-outline-secondary btn-sm" data-i18n="← Назад" disabled>← Назад</button>
-                <span id="gjh-page-label" class="small text-muted" data-i18n="Страница 1 из 1">Страница 1 из 1</span>
+                <span id="gjh-page-label" class="small text-muted">
+                 Страница {{ current_page|default(1) }} из {{ total_pages|default(1) }}
+                </span>
                 <button id="gjh-next" class="btn btn-outline-secondary btn-sm" data-i18n="Вперёд →" disabled>Вперёд →</button>
             </div>
             <!-- ↓↓↓ NUDGE: Напоминание о подписке ↓↓↓ -->
@@ -146,7 +152,41 @@
             <!-- ↑↑↑ /NUDGE ↑↑↑ -->
 
             </div>
+            
+            <script>
+            (function () {
+            const pager = document.getElementById('gjh-pager');
+            if (!pager) return;
 
+            const cur  = parseInt(pager.dataset.current || '1', 10);
+            const tp   = parseInt(pager.dataset.totalPages || '1', 10);
+            const per  = parseInt(pager.dataset.perPage || '150', 10);
+
+            const prev = document.getElementById('gjh-prev');
+            const next = document.getElementById('gjh-next');
+            const sel  = document.getElementById('gjh-per-page');
+            const label= document.getElementById('gjh-page-label');
+
+            if (label) label.textContent = `Страница ${cur} из ${tp}`;
+            const mkUrl = (p, pp = per) => `${location.pathname}?page=${p}&per_page=${pp}#gjh-pager`;
+
+            if (prev) {
+                (cur <= 1) ? prev.setAttribute('disabled','true') : prev.removeAttribute('disabled');
+                prev.onclick = () => { location.href = mkUrl(cur - 1); };
+            }
+            if (next) {
+                (cur >= tp) ? next.setAttribute('disabled','true') : next.removeAttribute('disabled');
+                next.onclick = () => { location.href = mkUrl(cur + 1); };
+            }
+            if (sel) {
+                sel.value = String(per);
+                sel.onchange = () => {
+                const v = parseInt(sel.value, 10) || per;
+                location.href = mkUrl(1, v);
+                };
+            }
+            })();
+            </script>
 
             <div id="jobs-container">
                 {% if jobs_by_country %}
@@ -476,6 +516,7 @@ function updateResultsCount(count, total) {
 
 // ======= ПАГИНАЦИЯ / ВИРТУАЛИЗАЦИЯ (работает со встроенными фильтрами) =======
 (() => {
+if (document.getElementById('gjh-pager')?.dataset.totalPages) return;
   // Сохраним старую функцию фильтрации и снимем старые слушатели,
   // чтобы они не дергали "тяжёлую" DOM-фильтрацию.
   const oldFilterJobs = window.filterJobs;

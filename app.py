@@ -843,22 +843,45 @@ def results():
        )
    
    jobs_sorted = sorted(jobs_data, key=sort_key)
+   # --- серверная пагинация ---
+   try:
+       page = int(request.args.get('page', 1))
+   except (TypeError, ValueError):
+       page = 1
+   try:
+       per_page = int(request.args.get('per_page', 150))  # по умолчанию как у тебя в UI
+   except (TypeError, ValueError):
+       per_page = 150
+
+   total_jobs = len(jobs_sorted)
+   total_pages = max(1, (total_jobs + per_page - 1) // per_page)
+   page = max(1, min(page, total_pages))
+
+   start = (page - 1) * per_page
+   end = start + per_page
+   jobs_for_page = jobs_sorted[start:end]
+    # --- /серверная пагинация ---
    
    # Группируем вакансии по странам для отображения разделителей
    jobs_by_country = {}
-   for job in jobs_sorted:
+   for job in jobs_for_page:
        country = job.get('country', 'Неизвестно')
        if country not in jobs_by_country:
            jobs_by_country[country] = []
        jobs_by_country[country].append(job)
    
    return render_template('results.html',
-                        jobs=jobs_sorted,
+                        jobs=jobs_for_page,
                         jobs_by_country=jobs_by_country,  # Добавляем группировку
                         preferences=preferences,
                         stats=stats,
                         search_time=round(search_time, 1),
-                        countries=aggregator.countries if aggregator else {})
+                        countries=aggregator.countries if aggregator else {},
+                        current_page=page,
+                        total_pages=total_pages,
+                        per_page=per_page,
+                        total_jobs=total_jobs
+                        )
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
