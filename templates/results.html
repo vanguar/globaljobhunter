@@ -170,21 +170,81 @@
             if (label) label.textContent = `Страница ${cur} из ${tp}`;
             const mkUrl = (p, pp = per) => `${location.pathname}?page=${p}&per_page=${pp}#gjh-pager`;
 
+            // Подгружаем только карточки и обновляем счётчик (без полной перезагрузки)
+            async function loadPage(p, pp = per) {
+            const url = `${location.pathname}?page=${p}&per_page=${pp}`;
+            try {
+                const res  = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
+                if (!res.ok) throw new Error(String(res.status));
+                const html = await res.text();
+                const doc  = new DOMParser().parseFromString(html, 'text/html');
+
+                const newJobs  = doc.querySelector('#jobs-container');
+                const newPager = doc.querySelector('#gjh-pager');
+                const newLabel = doc.querySelector('#gjh-page-label');
+
+                // 1) Меняем только карточки
+                const curJobs = document.getElementById('jobs-container');
+                if (newJobs && curJobs) curJobs.innerHTML = newJobs.innerHTML;
+
+                // 2) Обновляем dataset панели (текущая страница/всего/на странице)
+                if (newPager && pager) {
+                if (newPager.dataset.current)     pager.dataset.current     = newPager.dataset.current;
+                if (newPager.dataset.totalPages)  pager.dataset.totalPages  = newPager.dataset.totalPages;
+                if (newPager.dataset.perPage)     pager.dataset.perPage     = newPager.dataset.perPage;
+                }
+
+                // 3) Обновляем лейбл
+                const cur2 = parseInt(pager.dataset.current || '1', 10);
+                const tp2  = parseInt(pager.dataset.totalPages || '1', 10);
+                const per2 = parseInt(pager.dataset.perPage || '150', 10);
+                if (newLabel && label) {
+                label.textContent = newLabel.textContent;
+                } else if (label) {
+                label.textContent = `Страница ${cur2} из ${tp2}`;
+                }
+                if (sel) sel.value = String(per2);
+
+                // 4) Обновляем доступность кнопок
+                if (prev) (cur2 <= 1) ? prev.setAttribute('disabled','true') : prev.removeAttribute('disabled');
+                if (next) (cur2 >= tp2) ? next.setAttribute('disabled','true') : next.removeAttribute('disabled');
+
+                // 5) Обновляем URL (без полной перезагрузки) и скроллим к панели
+                history.replaceState(null, '', `${url}#gjh-pager`);
+                pager.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (_) {
+                // Фолбэк: если что-то пошло не так — обычный переход
+                location.href = `${url}#gjh-pager`;
+            }
+            }
+
+
             if (prev) {
-                (cur <= 1) ? prev.setAttribute('disabled','true') : prev.removeAttribute('disabled');
-                prev.onclick = () => { location.href = mkUrl(cur - 1); };
+            (cur <= 1) ? prev.setAttribute('disabled','true') : prev.removeAttribute('disabled');
+            prev.onclick = (e) => {
+                e.preventDefault();
+                const curNow = parseInt(pager.dataset.current || '1', 10);
+                if (curNow > 1) loadPage(curNow - 1);
+            };
             }
             if (next) {
-                (cur >= tp) ? next.setAttribute('disabled','true') : next.removeAttribute('disabled');
-                next.onclick = () => { location.href = mkUrl(cur + 1); };
+            (cur >= tp) ? next.setAttribute('disabled','true') : next.removeAttribute('disabled');
+            next.onclick = (e) => {
+                e.preventDefault();
+                const curNow = parseInt(pager.dataset.current || '1', 10);
+                const tpNow  = parseInt(pager.dataset.totalPages || String(tp), 10);
+                if (curNow < tpNow) loadPage(curNow + 1);
+            };
             }
             if (sel) {
-                sel.value = String(per);
-                sel.onchange = () => {
+            sel.value = String(per);
+            sel.onchange = (e) => {
+                e.preventDefault();
                 const v = parseInt(sel.value, 10) || per;
-                location.href = mkUrl(1, v);
-                };
+                loadPage(1, v); // при смене размера — на первую страницу
+            };
             }
+
             })();
             </script>
 
