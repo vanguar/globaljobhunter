@@ -211,7 +211,17 @@
 
                 // 5) Обновляем URL (без полной перезагрузки) и скроллим к панели
                 history.replaceState(null, '', `${url}#gjh-pager`);
-                pager.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Точный скролл к началу списка (вместо pager.scrollIntoView)
+                const list = document.getElementById('jobs-container');
+                if (list) {
+                const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 0;
+                const gap  = 10;
+                const totalOffset = navH + gap + (pager?.offsetHeight || 0);
+                const y = list.getBoundingClientRect().top + window.scrollY - totalOffset;
+                const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                window.scrollTo({ top: Math.max(0, y), behavior: reduce ? 'auto' : 'smooth' });
+                }
+
             } catch (_) {
                 // Фолбэк: если что-то пошло не так — обычный переход
                 location.href = `${url}#gjh-pager`;
