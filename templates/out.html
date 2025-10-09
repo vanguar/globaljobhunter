@@ -16,7 +16,7 @@
     a { text-decoration: none; }
   </style>
 
-  <!-- Передаём целевой URL безопасно через JSON (чтобы редактор не ругался на {{ }}) -->
+  <!-- Передаём целевой URL безопасно через JSON (чтобы редактор не ругался на двойные фигурные скобки) -->
   <script id="out-data" type="application/json">{{ target|tojson }}</script>
 </head>
 <body>
