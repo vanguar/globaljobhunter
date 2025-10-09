@@ -53,6 +53,21 @@ class PartnerClick(db.Model):
 # --- BLUEPRINT ---------------------------------------------------------------
 analytics_bp = Blueprint("analytics", __name__)
 
+@analytics_bp.after_app_request
+def _force_html_on_out(resp):
+    # /out всегда будет корректно типизирован, если вдруг вернёт 200 OK
+    try:
+        from flask import request
+        if request.path == '/out' and resp.status_code == 200:
+            ct = resp.headers.get('Content-Type') or ''
+            if 'text/html' not in ct:
+                resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+            resp.headers.setdefault('Cache-Control', 'no-store')
+    except Exception:
+        pass
+    return resp
+
+
 
 @analytics_bp.route("/out")
 def outbound():
