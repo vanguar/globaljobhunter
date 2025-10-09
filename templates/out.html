@@ -34,7 +34,6 @@
     .hint { font-size: 13px; color: #666; }
     .ok { color: #137333; }
     .err { color: #b42318; }
-    code { background: #f6f8fa; padding: 2px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -48,7 +47,7 @@
     <p
       data-i18n="Сейчас можно открыть страницу работодателя. Некоторые расширения (Phantom, AdBlock и т.п.) блокируют автопереход — поэтому оставили только кнопку."
       data-i18n-uk="Зараз можна відкрити сторінку роботодавця. Деякі розширення (Phantom, AdBlock тощо) блокують автоперехід — тому залишили лише кнопку."
-      data-i18n-en="You can open the employer’s page now. Some extensions (Phantom, AdBlock, etc.) block auto-redirects — so we provide a button instead."
+      data-i18n-en="You can open the employer’s page now. Some extensions (Phantom, AdBlock, etc.) may block auto-redirects — so we provide a button instead."
     >Сейчас можно открыть страницу работодателя. Некоторые расширения (Phantom, AdBlock и т.п.) блокируют автопереход — поэтому оставили только кнопку.</p>
 
     <div class="row">
@@ -63,47 +62,33 @@
          data-i18n-en="Open the job"
       >Открыть вакансию</a>
 
-      <!-- Скопировать ваш редирект (наш /out?u=...) -->
+      <!-- Скопировать ИМЕННО ваш редирект (наш /out?u=...), без safe=1 -->
       <button id="copy-redirect-btn" class="btn btn-ghost" type="button"
         data-i18n="Скопировать ссылку"
         data-i18n-uk="Скопіювати посилання"
         data-i18n-en="Copy link"
       >Скопировать ссылку</button>
-
-      <!-- Дополнительно: скопировать прямую ссылку на партнёра -->
-      <button id="copy-target-btn" class="btn btn-ghost" type="button"
-        data-i18n="Скопировать прямую ссылку"
-        data-i18n-uk="Скопіювати пряму силку"
-        data-i18n-en="Copy direct link"
-      >Скопировать прямую ссылку</button>
     </div>
 
     <p id="copy-status" class="hint" hidden></p>
 
     <p class="hint"
-      data-i18n="Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере. Также можно вставить скопированную ссылку вручную в адресную строку."
-      data-i18n-uk="Якщо перехід не спрацьовує, спробуйте вимкнути блокувальники, відкрити в режимі «Інкогніто» або в іншому браузері. Також можна вставити скоповане посилання вручну в адресний рядок."
-      data-i18n-en="If the redirect doesn’t work, try disabling blockers, using Incognito mode or another browser. You can also paste the copied link into the address bar."
-    >Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере. Также можно вставить скопированную ссылку вручную в адресную строку.</p>
+      data-i18n="Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере."
+      data-i18n-uk="Якщо перехід не спрацьовує, спробуйте вимкнути блокувальники, відкрити в режимі «Інкогніто» або в іншому браузері."
+      data-i18n-en="If the redirect doesn’t work, try disabling blockers, using Incognito mode or another browser."
+    >Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере.</p>
   </div>
 
   <script>
   (function () {
-    var openBtn   = document.getElementById('open-btn');
-    var copyRBtn  = document.getElementById('copy-redirect-btn');
-    var copyTBtn  = document.getElementById('copy-target-btn');
-    var status    = document.getElementById('copy-status');
+    var copyBtn = document.getElementById('copy-redirect-btn');
+    var status  = document.getElementById('copy-status');
 
     // Абсолютный URL редиректа: текущий адрес без параметра safe
     function getRedirectUrl() {
       var u = new URL(window.location.href);
-      u.searchParams.delete('safe');      // убираем safe=1
+      u.searchParams.delete('safe'); // убираем safe=1
       return u.origin + u.pathname + (u.search ? u.search : '');
-    }
-
-    // Прямая ссылка на партнёра — из href кнопки
-    function getTargetUrl() {
-      return (openBtn && openBtn.href) ? openBtn.href : '';
     }
 
     function show(msg, ok) {
@@ -136,8 +121,7 @@
       }
     }
 
-    if (copyRBtn) copyRBtn.addEventListener('click', function(){ copy(getRedirectUrl()); });
-    if (copyTBtn) copyTBtn.addEventListener('click', function(){ copy(getTargetUrl()); });
+    if (copyBtn) copyBtn.addEventListener('click', function(){ copy(getRedirectUrl()); });
   })();
   </script>
 
