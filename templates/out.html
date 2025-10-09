@@ -36,9 +36,6 @@
     .err { color: #b42318; }
     code { background: #f6f8fa; padding: 2px 6px; border-radius: 6px; }
   </style>
-
-  <!-- Передаём целевой URL через JSON-скрипт (без конфликтов с редакторами) -->
-  <script id="out-data" type="application/json">{{ target|tojson }}</script>
 </head>
 <body>
   <div class="card">
@@ -55,9 +52,9 @@
     >Сейчас можно открыть страницу работодателя. Если у вас установлены расширения (Phantom, AdBlock и т.п.), они могут блокировать автопереход — поэтому мы оставили только кнопку.</p>
 
     <div class="row">
-      <!-- Кнопка открытия -->
+      <!-- ВАЖНО: именно этот href будет открываться и копироваться -->
       <a id="open-btn" class="btn btn-primary"
-         href="{{ target }}"
+         href="{{ target|e }}"
          target="_top"
          rel="noopener noreferrer"
          referrerpolicy="no-referrer"
@@ -66,7 +63,6 @@
          data-i18n-en="Open the job"
       >Открыть вакансию</a>
 
-      <!-- Копировать ссылку в буфер -->
       <button id="copy-btn" class="btn btn-ghost" type="button"
         data-i18n="Скопировать ссылку"
         data-i18n-uk="Скопіювати посилання"
@@ -79,39 +75,62 @@
     <p class="hint"
       data-i18n="Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере. Также можно вставить скопированную ссылку вручную в адресную строку."
       data-i18n-uk="Якщо перехід не спрацьовує, спробуйте вимкнути блокувальники, відкрити в режимі «Інкогніто» або в іншому браузері. Також можна вставити скоповане посилання вручну в адресний рядок."
-      data-i18n-en="If the redirect doesn’t work, try disabling blockers, using Incognito mode or another browser. You can also paste the copied link directly into the address bar."
+      data-i18n-en="If the redirect doesn’t work, try disabling blockers, using Incognito mode or another browser. You can also paste the copied link into the address bar."
     >Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере. Также можно вставить скопированную ссылку вручную в адресную строку.</p>
   </div>
 
   <script>
   (function () {
-    var dataEl = document.getElementById('out-data');
-    var u = '';
-    try { u = JSON.parse(dataEl.textContent || '""'); } catch (_) { u = ''; }
-    if (typeof u !== 'string') u = String(u || '');
-
-    // Обновим href кнопки на всякий случай (если i18n/лэйаут его меняют)
     var openBtn = document.getElementById('open-btn');
-    if (openBtn) openBtn.setAttribute('href', u);
-
-    // Копирование ссылки в буфер
     var copyBtn = document.getElementById('copy-btn');
-    var status = document.getElementById('copy-status');
-    if (copyBtn && navigator.clipboard) {
+    var status  = document.getElementById('copy-status');
+
+    function getTarget() {
+      // Берём URL прямо из href кнопки, рендеренной сервером
+      if (openBtn && openBtn.href) return openBtn.href;
+      // Фолбэк: попытка вытащить из <meta http-equiv="refresh">, если когда-то добавишь
+      var meta = document.querySelector('meta[http-equiv="refresh"]');
+      if (meta && meta.content) {
+        var m = /url=(.+)$/i.exec(meta.content);
+        if (m) return m[1];
+      }
+      return '';
+    }
+
+    function show(msg, ok) {
+      status.hidden = false;
+      status.className = 'hint ' + (ok ? 'ok' : 'err');
+      status.textContent = msg;
+    }
+
+    if (copyBtn) {
       copyBtn.addEventListener('click', function () {
-        navigator.clipboard.writeText(u).then(function () {
-          status.hidden = false;
-          status.className = 'hint ok';
-          status.textContent =
-            (openBtn?.getAttribute('data-i18n') ? '' : '') +
-            'Ссылка скопирована в буфер обмена.';
-        }).catch(function () {
-          status.hidden = false;
-          status.className = 'hint err';
-          status.textContent =
-            'Не удалось скопировать ссылку. Скопируйте вручную: ' + u;
-        });
+        var u = getTarget();
+        if (!u) return show('Не удалось определить ссылку.', false);
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(u)
+            .then(function(){ show('Ссылка скопирована: ' + u, true); })
+            .catch(function(){ fallbackCopy(u); });
+        } else {
+          fallbackCopy(u);
+        }
       });
+    }
+
+    function fallbackCopy(u) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = u; ta.setAttribute('readonly','');
+        ta.style.position = 'absolute'; ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        show('Ссылка скопирована: ' + u, true);
+      } catch (_) {
+        show('Скопируйте вручную: ' + u, false);
+      }
     }
   })();
   </script>
