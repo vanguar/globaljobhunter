@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <title
+    data-i18n="Переходим на сайт вакансии"
+    data-i18n-uk="Переходимо на сайт вакансії"
+    data-i18n-en="Redirecting to the job page"
+  >Переходим на сайт вакансии</title>
+
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 24px; }
+    p { margin: 0 0 12px; }
+    a { text-decoration: none; }
+  </style>
+
+  <!-- Передаём целевой URL безопасно через JSON (чтобы редактор не ругался на {{ }}) -->
+  <script id="out-data" type="application/json">{{ target|tojson }}</script>
+</head>
+<body>
+
+  <p
+    data-i18n="Сейчас откроется страница работодателя."
+    data-i18n-uk="Зараз відкриється сторінка роботодавця."
+    data-i18n-en="The employer’s page will open now."
+  >Сейчас откроется страница работодателя.</p>
+
+  <p>
+    <a href="{{ target }}"
+       target="_top"
+       rel="noopener noreferrer"
+       referrerpolicy="no-referrer"
+       data-i18n="Открыть вакансию"
+       data-i18n-uk="Відкрити вакансію"
+       data-i18n-en="Open the job"
+    >Открыть вакансию</a>
+  </p>
+
+  <!-- Устойчивый редирект: replace + fallback на href; без Jinja внутри JS -->
+  <script>
+  (function () {
+    var el = document.getElementById('out-data');
+    var u = '';
+    try { u = JSON.parse(el.textContent || '""'); } catch (_) { u = ''; }
+    if (typeof u !== 'string') u = String(u || '');
+
+    try {
+      // пробуем заменить текущую запись в истории
+      (window.top || window).location.replace(u);
+    } catch (_) {
+      // фолбэк на обычный переход
+      (window.top || window).location.href = u;
+    }
+  })();
+  </script>
+
+  <noscript
+    data-i18n="Если не открылось автоматически, нажмите ссылку выше."
+    data-i18n-uk="Якщо не відкривається автоматично, натисніть посилання вище."
+    data-i18n-en="If it doesn’t open automatically, click the link above."
+  >Если не открылось автоматически, нажмите ссылку выше.
+    <!-- Фолбэк-редирект для отключённого JS -->
+    <meta http-equiv="refresh" content="0;url={{ target|e }}">
+  </noscript>
+
+</body>
+</html>

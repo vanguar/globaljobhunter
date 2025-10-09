@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 import os
 import requests
-from flask import Blueprint, current_app, request, redirect, abort
+from flask import Blueprint, current_app, request, redirect, abort, Response, render_template
 from typing import Optional
 
 from database import db  # используем уже сконфигурированный SQLAlchemy из проекта
@@ -133,6 +133,13 @@ def outbound():
         current_app.logger.warning("Careerjet param ensure failed: %s", _e)
 
     target_url = urlunparse(parsed)
+
+    # Режим «безопасного перехода»: для проблемных случаев отдаём HTML-прокладку
+    if request.args.get('safe') == '1':
+        html = render_template('out.html', target=target_url)
+        return Response(html, mimetype='text/html; charset=utf-8',
+                        headers={'Cache-Control': 'no-store'})
+
 
     # логирование (не блокируем редирект)
     try:
