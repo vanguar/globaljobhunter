@@ -365,7 +365,7 @@
                                          </a>
 
                                         <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                onclick="copyToClipboard(`{{ url_for('analytics.outbound',
+                                                onclick="copyToClipboard(`{{ url_for('analytics.outbound', _external=True,
                                                                                     u=job.apply_url,
                                                                                     partner=job.source,
                                                                                     job_id=job.id,
@@ -764,12 +764,15 @@ if (document.getElementById('gjh-pager')?.dataset.totalPages) return;
 
 /* ======= Остальной ваш код: копирование, тосты, подписки, статус ======= */
 function copyToClipboard(text) {
-   navigator.clipboard.writeText(text).then(() => {
+   // если пришёл относительный путь вида "/out?u=…", превратим его в абсолютный
+   const abs = (text && /^https?:\/\//i.test(text)) ? text : new URL(text, location.origin).href;
+   navigator.clipboard.writeText(abs).then(() => {
        showToast('✅ Ссылка скопирована!', 'success');
    }).catch(() => {
        showToast('❌ Не удалось скопировать', 'danger');
    });
 }
+
 function showToast(message, type = 'info') {
    const toastContainer = document.getElementById('toast-container') || createToastContainer();
    const toast = document.createElement('div');
