@@ -20,7 +20,7 @@
     .card {
       background: #fff; border-radius: var(--radius);
       box-shadow: 0 10px 30px rgba(0,0,0,.06);
-      padding: 24px; max-width: 560px; width: 100%;
+      padding: 24px; max-width: 640px; width: 100%;
     }
     h1 { font-size: 20px; margin: 0 0 8px; }
     p { margin: 0 0 var(--gap); color: #333; line-height: 1.45; }
@@ -46,13 +46,13 @@
     >Переходим на сайт вакансии</h1>
 
     <p
-      data-i18n="Сейчас можно открыть страницу работодателя. Если у вас установлены расширения (Phantom, AdBlock и т.п.), они могут блокировать автопереход — поэтому мы оставили только кнопку."
-      data-i18n-uk="Зараз можна відкрити сторінку роботодавця. Якщо у вас встановлені розширення (Phantom, AdBlock тощо), вони можуть блокувати автоперехід — тому ми залишили лише кнопку."
-      data-i18n-en="You can open the employer’s page now. Browser extensions (Phantom, AdBlock, etc.) may block auto-redirects, so we provide a button instead."
-    >Сейчас можно открыть страницу работодателя. Если у вас установлены расширения (Phantom, AdBlock и т.п.), они могут блокировать автопереход — поэтому мы оставили только кнопку.</p>
+      data-i18n="Сейчас можно открыть страницу работодателя. Некоторые расширения (Phantom, AdBlock и т.п.) блокируют автопереход — поэтому оставили только кнопку."
+      data-i18n-uk="Зараз можна відкрити сторінку роботодавця. Деякі розширення (Phantom, AdBlock тощо) блокують автоперехід — тому залишили лише кнопку."
+      data-i18n-en="You can open the employer’s page now. Some extensions (Phantom, AdBlock, etc.) block auto-redirects — so we provide a button instead."
+    >Сейчас можно открыть страницу работодателя. Некоторые расширения (Phantom, AdBlock и т.п.) блокируют автопереход — поэтому оставили только кнопку.</p>
 
     <div class="row">
-      <!-- ВАЖНО: именно этот href будет открываться и копироваться -->
+      <!-- Открыть целевой сайт -->
       <a id="open-btn" class="btn btn-primary"
          href="{{ target|e }}"
          target="_top"
@@ -63,11 +63,19 @@
          data-i18n-en="Open the job"
       >Открыть вакансию</a>
 
-      <button id="copy-btn" class="btn btn-ghost" type="button"
+      <!-- Скопировать ваш редирект (наш /out?u=...) -->
+      <button id="copy-redirect-btn" class="btn btn-ghost" type="button"
         data-i18n="Скопировать ссылку"
         data-i18n-uk="Скопіювати посилання"
         data-i18n-en="Copy link"
       >Скопировать ссылку</button>
+
+      <!-- Дополнительно: скопировать прямую ссылку на партнёра -->
+      <button id="copy-target-btn" class="btn btn-ghost" type="button"
+        data-i18n="Скопировать прямую ссылку"
+        data-i18n-uk="Скопіювати пряму силку"
+        data-i18n-en="Copy direct link"
+      >Скопировать прямую ссылку</button>
     </div>
 
     <p id="copy-status" class="hint" hidden></p>
@@ -81,20 +89,21 @@
 
   <script>
   (function () {
-    var openBtn = document.getElementById('open-btn');
-    var copyBtn = document.getElementById('copy-btn');
-    var status  = document.getElementById('copy-status');
+    var openBtn   = document.getElementById('open-btn');
+    var copyRBtn  = document.getElementById('copy-redirect-btn');
+    var copyTBtn  = document.getElementById('copy-target-btn');
+    var status    = document.getElementById('copy-status');
 
-    function getTarget() {
-      // Берём URL прямо из href кнопки, рендеренной сервером
-      if (openBtn && openBtn.href) return openBtn.href;
-      // Фолбэк: попытка вытащить из <meta http-equiv="refresh">, если когда-то добавишь
-      var meta = document.querySelector('meta[http-equiv="refresh"]');
-      if (meta && meta.content) {
-        var m = /url=(.+)$/i.exec(meta.content);
-        if (m) return m[1];
-      }
-      return '';
+    // Абсолютный URL редиректа: текущий адрес без параметра safe
+    function getRedirectUrl() {
+      var u = new URL(window.location.href);
+      u.searchParams.delete('safe');      // убираем safe=1
+      return u.origin + u.pathname + (u.search ? u.search : '');
+    }
+
+    // Прямая ссылка на партнёра — из href кнопки
+    function getTargetUrl() {
+      return (openBtn && openBtn.href) ? openBtn.href : '';
     }
 
     function show(msg, ok) {
@@ -103,35 +112,32 @@
       status.textContent = msg;
     }
 
-    if (copyBtn) {
-      copyBtn.addEventListener('click', function () {
-        var u = getTarget();
-        if (!u) return show('Не удалось определить ссылку.', false);
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(u)
-            .then(function(){ show('Ссылка скопирована: ' + u, true); })
-            .catch(function(){ fallbackCopy(u); });
-        } else {
-          fallbackCopy(u);
-        }
-      });
-    }
-
-    function fallbackCopy(u) {
-      try {
-        var ta = document.createElement('textarea');
-        ta.value = u; ta.setAttribute('readonly','');
-        ta.style.position = 'absolute'; ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        show('Ссылка скопирована: ' + u, true);
-      } catch (_) {
-        show('Скопируйте вручную: ' + u, false);
+    function copy(text) {
+      if (!text) return show('Не удалось определить ссылку.', false);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(function(){ show('Ссылка скопирована: ' + text, true); })
+          .catch(function(){ fallbackCopy(text); });
+      } else {
+        fallbackCopy(text);
       }
     }
+
+    function fallbackCopy(text) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly','');
+        ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+        show('Ссылка скопирована: ' + text, true);
+      } catch (_) {
+        show('Скопируйте вручную: ' + text, false);
+      }
+    }
+
+    if (copyRBtn) copyRBtn.addEventListener('click', function(){ copy(getRedirectUrl()); });
+    if (copyTBtn) copyTBtn.addEventListener('click', function(){ copy(getTargetUrl()); });
   })();
   </script>
 
