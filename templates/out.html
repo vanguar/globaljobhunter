@@ -11,59 +11,115 @@
   >Переходим на сайт вакансии</title>
 
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 24px; }
-    p { margin: 0 0 12px; }
-    a { text-decoration: none; }
+    :root { --gap: 16px; --radius: 12px; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      margin: 0; padding: 24px;
+      display: grid; place-items: center; min-height: 100dvh; background: #fafafa;
+    }
+    .card {
+      background: #fff; border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+      padding: 24px; max-width: 560px; width: 100%;
+    }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 0 0 var(--gap); color: #333; line-height: 1.45; }
+    .row { display: flex; gap: var(--gap); flex-wrap: wrap; }
+    .btn {
+      display: inline-block; padding: 12px 18px; border-radius: 10px;
+      text-decoration: none; border: 0; cursor: pointer; font-weight: 600;
+    }
+    .btn-primary { background: #0d6efd; color: #fff; }
+    .btn-ghost { background: #f1f3f5; color: #111; }
+    .hint { font-size: 13px; color: #666; }
+    .ok { color: #137333; }
+    .err { color: #b42318; }
+    code { background: #f6f8fa; padding: 2px 6px; border-radius: 6px; }
   </style>
 
-  <!-- Передаём целевой URL безопасно через JSON (чтобы редактор не ругался на двойные фигурные скобки) -->
+  <!-- Передаём целевой URL через JSON-скрипт (без конфликтов с редакторами) -->
   <script id="out-data" type="application/json">{{ target|tojson }}</script>
 </head>
 <body>
+  <div class="card">
+    <h1
+      data-i18n="Переходим на сайт вакансии"
+      data-i18n-uk="Переходимо на сайт вакансії"
+      data-i18n-en="Redirecting to the job page"
+    >Переходим на сайт вакансии</h1>
 
-  <p
-    data-i18n="Сейчас откроется страница работодателя."
-    data-i18n-uk="Зараз відкриється сторінка роботодавця."
-    data-i18n-en="The employer’s page will open now."
-  >Сейчас откроется страница работодателя.</p>
+    <p
+      data-i18n="Сейчас можно открыть страницу работодателя. Если у вас установлены расширения (Phantom, AdBlock и т.п.), они могут блокировать автопереход — поэтому мы оставили только кнопку."
+      data-i18n-uk="Зараз можна відкрити сторінку роботодавця. Якщо у вас встановлені розширення (Phantom, AdBlock тощо), вони можуть блокувати автоперехід — тому ми залишили лише кнопку."
+      data-i18n-en="You can open the employer’s page now. Browser extensions (Phantom, AdBlock, etc.) may block auto-redirects, so we provide a button instead."
+    >Сейчас можно открыть страницу работодателя. Если у вас установлены расширения (Phantom, AdBlock и т.п.), они могут блокировать автопереход — поэтому мы оставили только кнопку.</p>
 
-  <p>
-    <a href="{{ target }}"
-       target="_top"
-       rel="noopener noreferrer"
-       referrerpolicy="no-referrer"
-       data-i18n="Открыть вакансию"
-       data-i18n-uk="Відкрити вакансію"
-       data-i18n-en="Open the job"
-    >Открыть вакансию</a>
-  </p>
+    <div class="row">
+      <!-- Кнопка открытия -->
+      <a id="open-btn" class="btn btn-primary"
+         href="{{ target }}"
+         target="_top"
+         rel="noopener noreferrer"
+         referrerpolicy="no-referrer"
+         data-i18n="Открыть вакансию"
+         data-i18n-uk="Відкрити вакансію"
+         data-i18n-en="Open the job"
+      >Открыть вакансию</a>
 
-  <!-- Устойчивый редирект: replace + fallback на href; без Jinja внутри JS -->
+      <!-- Копировать ссылку в буфер -->
+      <button id="copy-btn" class="btn btn-ghost" type="button"
+        data-i18n="Скопировать ссылку"
+        data-i18n-uk="Скопіювати посилання"
+        data-i18n-en="Copy link"
+      >Скопировать ссылку</button>
+    </div>
+
+    <p id="copy-status" class="hint" hidden></p>
+
+    <p class="hint"
+      data-i18n="Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере. Также можно вставить скопированную ссылку вручную в адресную строку."
+      data-i18n-uk="Якщо перехід не спрацьовує, спробуйте вимкнути блокувальники, відкрити в режимі «Інкогніто» або в іншому браузері. Також можна вставити скоповане посилання вручну в адресний рядок."
+      data-i18n-en="If the redirect doesn’t work, try disabling blockers, using Incognito mode or another browser. You can also paste the copied link directly into the address bar."
+    >Если переход не срабатывает, попробуйте отключить блокировщики, открыть в режиме «Инкогнито» или в другом браузере. Также можно вставить скопированную ссылку вручную в адресную строку.</p>
+  </div>
+
   <script>
   (function () {
-    var el = document.getElementById('out-data');
+    var dataEl = document.getElementById('out-data');
     var u = '';
-    try { u = JSON.parse(el.textContent || '""'); } catch (_) { u = ''; }
+    try { u = JSON.parse(dataEl.textContent || '""'); } catch (_) { u = ''; }
     if (typeof u !== 'string') u = String(u || '');
 
-    try {
-      // пробуем заменить текущую запись в истории
-      (window.top || window).location.replace(u);
-    } catch (_) {
-      // фолбэк на обычный переход
-      (window.top || window).location.href = u;
+    // Обновим href кнопки на всякий случай (если i18n/лэйаут его меняют)
+    var openBtn = document.getElementById('open-btn');
+    if (openBtn) openBtn.setAttribute('href', u);
+
+    // Копирование ссылки в буфер
+    var copyBtn = document.getElementById('copy-btn');
+    var status = document.getElementById('copy-status');
+    if (copyBtn && navigator.clipboard) {
+      copyBtn.addEventListener('click', function () {
+        navigator.clipboard.writeText(u).then(function () {
+          status.hidden = false;
+          status.className = 'hint ok';
+          status.textContent =
+            (openBtn?.getAttribute('data-i18n') ? '' : '') +
+            'Ссылка скопирована в буфер обмена.';
+        }).catch(function () {
+          status.hidden = false;
+          status.className = 'hint err';
+          status.textContent =
+            'Не удалось скопировать ссылку. Скопируйте вручную: ' + u;
+        });
+      });
     }
   })();
   </script>
 
   <noscript
-    data-i18n="Если не открылось автоматически, нажмите ссылку выше."
-    data-i18n-uk="Якщо не відкривається автоматично, натисніть посилання вище."
-    data-i18n-en="If it doesn’t open automatically, click the link above."
-  >Если не открылось автоматически, нажмите ссылку выше.
-    <!-- Фолбэк-редирект для отключённого JS -->
-    <meta http-equiv="refresh" content="0;url={{ target|e }}">
-  </noscript>
-
+    data-i18n="JavaScript отключен. Перейдите по кнопке выше или скопируйте ссылку вручную."
+    data-i18n-uk="JavaScript вимкнено. Перейдіть за кнопкою вище або скопіюйте посилання вручну."
+    data-i18n-en="JavaScript is disabled. Use the button above or copy the link manually."
+  >JavaScript отключен. Перейдите по кнопке выше или скопируйте ссылку вручную.</noscript>
 </body>
 </html>
