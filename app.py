@@ -311,7 +311,10 @@ except ImportError as e:
 
 load_dotenv()
 
-app.secret_key = secrets.token_hex(16)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-me')
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True  # у тебя https на Railway
+
 
 # Настройки базы данных
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///globaljobhunter.db')
@@ -2076,6 +2079,19 @@ def admin_test_email():
                     <a href="/admin/dashboard" class="btn btn-secondary">❌ Отмена</a>
                 </form>
             </div>
+            <script>
+                const form = document.querySelector('form[method="post"]');
+                if (form) {
+                    form.addEventListener('submit', function () {
+                    const btn = this.querySelector('button[type="submit"]');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Отправляем...';
+                    }
+                    });
+                }
+                </script>
+
         </body>
         </html>
         """
