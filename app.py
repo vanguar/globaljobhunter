@@ -3378,17 +3378,9 @@ def upload_backup():
             return f"❌ Ошибка восстановления: {str(e)}", 500            
 
 if __name__ == '__main__':
-    # Запускаем планировщик в отдельном потоке
-    print("🚀 Запуск планировщика email рассылки...")
-    # Передаем в поток планировщика все, что ему нужно для работы
-    scheduler_thread = Thread(target=email_scheduler, args=(app, aggregator, additional_aggregators), daemon=True)
-    scheduler_thread.start()
-    
-    # Запускаем Flask
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_ENV') == 'development'
-    
-    print("🌍 Запуск Flask сервера...")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    # Локальный запуск (dev). В проде (Gunicorn) сюда не зайдём.
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=True)
+
 
 
