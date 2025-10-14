@@ -334,6 +334,11 @@ def _current_db_url():
     url = os.getenv("DATABASE_URL") or _build_db_uri()
     return url.replace("postgres://", "postgresql://")
 
+# сразу после определения _current_db_url()
+if os.getenv("RAILWAY_ENVIRONMENT") and not os.getenv("DATABASE_URL"):
+    raise RuntimeError("DATABASE_URL not set in Railway environment")
+
+
 app.config.update(
     SQLALCHEMY_DATABASE_URI=_current_db_url(),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
