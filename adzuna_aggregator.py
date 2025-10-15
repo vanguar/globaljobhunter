@@ -92,6 +92,7 @@ class CacheManager:
         if REDIS_AVAILABLE:
             try:
                 url = os.getenv('REDIS_TLS_URL') or os.getenv('REDIS_URL')
+                print(f"ℹ️ CacheManager: using {'REDIS_TLS_URL/REDIS_URL' if url else 'REDIS_HOST/PORT/DB'}")
                 if url:
                     u = urlparse(url)
                     self.redis_client = redis.Redis(

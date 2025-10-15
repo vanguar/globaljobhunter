@@ -442,6 +442,7 @@ def _redis_client():
         return None
     try:
         url = os.getenv('REDIS_TLS_URL') or os.getenv('REDIS_URL')
+        print(f"ℹ️ Email: using {'REDIS_TLS_URL/REDIS_URL' if url else 'REDIS_HOST/PORT/DB'}")
         if url:
             u = urlparse(url)
             r = redis.Redis(
@@ -457,6 +458,12 @@ def _redis_client():
                 db=int(os.getenv('REDIS_DB',0)),
                 decode_responses=True
             )
+
+        try:
+            kw = r.connection_pool.connection_kwargs
+            print(f"🔌 Email: target {kw.get('host')}:{kw.get('port')}")
+        except Exception:
+            pass    
         r.ping()
         return r
     except Exception:
