@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
 import pickle
+from urllib.parse import urlparse
 import random
 
 # --- circuit breaker + микро-пауза ---
@@ -90,18 +91,32 @@ class CacheManager:
         self.redis_client = None
         if REDIS_AVAILABLE:
             try:
-                self.redis_client = redis.Redis(
-                    host=os.getenv('REDIS_HOST', 'localhost'),
-                    port=int(os.getenv('REDIS_PORT', 6379)),
-                    db=int(os.getenv('REDIS_DB', 0)),
-                    decode_responses=False  # Для работы с pickle
-                )
+                url = os.getenv('REDIS_TLS_URL') or os.getenv('REDIS_URL')
+                if url:
+                    u = urlparse(url)
+                    self.redis_client = redis.Redis(
+                        host=u.hostname,
+                        port=u.port or 6379,
+                        password=u.password,
+                        db=int((u.path or '/0').lstrip('/')),
+                        ssl=(u.scheme == 'rediss'),
+                        ssl_cert_reqs=None,
+                        decode_responses=False  # Для работы с pickle (байты)
+                    )
+                else:
+                    self.redis_client = redis.Redis(
+                        host=os.getenv('REDIS_HOST', 'localhost'),
+                        port=int(os.getenv('REDIS_PORT', 6379)),
+                        db=int(os.getenv('REDIS_DB', 0)),
+                        decode_responses=False
+                    )
                 # Проверяем соединение
                 self.redis_client.ping()
-                print("✅ Redis подключен успешно")
+                print("✅ Redis подключен (CacheManager)")
             except Exception as e:
                 print(f"⚠️ Redis недоступен: {e}, используется файловый кеш")
                 self.redis_client = None
+
         
         # Создаем директорию для файлового кеша
         os.makedirs(self.file_cache_dir, exist_ok=True)
@@ -109,7 +124,9 @@ class CacheManager:
     
     def _generate_cache_key(self, search_params: Dict) -> str:
         """Генерация уникального ключа кеша на основе параметров поиска"""
-        # Сортируем параметры для консистентности
+        explicit = search_params.get("key")
+        if isinstance(explicit, str) and explicit:
+            return explicit
         sorted_params = json.dumps(search_params, sort_keys=True)
         return hashlib.md5(sorted_params.encode()).hexdigest()
     
@@ -125,7 +142,8 @@ class CacheManager:
                     cached_result = pickle.loads(cached_data)
                     if datetime.now() < cached_result.expires_at:
                         print(f"🎯 Cache HIT (Redis): {cache_key[:8]}... ({len(cached_result.data)} jobs)")
-                        return [JobVacancy(**job_data) for job_data in cached_result.data]
+                        return (cached_result.data if search_params.get("raw") else
+                               [JobVacancy(**job_data) for job_data in cached_result.data])
                     else:
                         # Кеш истек, удаляем
                         self.redis_client.delete(f"job_search:{cache_key}")
@@ -146,7 +164,8 @@ class CacheManager:
                 
                 if datetime.now() < cached_result.expires_at:
                     print(f"🎯 Cache HIT (File): {cache_key[:8]}... ({len(cached_result.data)} jobs)")
-                    return [JobVacancy(**job_data) for job_data in cached_result.data]
+                    return (cached_result.data if search_params.get("raw") else
+                           [JobVacancy(**job_data) for job_data in cached_result.data])
                 else:
                     # Кеш истек, удаляем файл
                     os.remove(cache_file)
@@ -169,7 +188,8 @@ class CacheManager:
         expires_at = datetime.now() + self.cache_duration
         
         cached_result = CachedResult(
-            data=[asdict(job) for job in jobs],
+            data=(jobs if search_params.get("raw") else
+                  [asdict(job) for job in jobs]),
             timestamp=datetime.now(),
             search_params=search_params,
             expires_at=expires_at

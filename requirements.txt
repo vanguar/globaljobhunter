@@ -16,6 +16,7 @@ packaging==25.0
 python-dotenv==1.0.0
 redis==5.0.1
 requests==2.31.0
+redis==5.0.0
 schedule==1.2.2
 SQLAlchemy==2.0.42
 typing_extensions==4.14.1
@@ -28,4 +29,5 @@ python-dotenv>=1.0   # (если используешь .env локально)
 aiogram==3.10.0
 Flask-Compress==1.15
 gunicorn>=21
+
 

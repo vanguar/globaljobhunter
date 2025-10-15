@@ -6,6 +6,13 @@ import os
 from threading import Thread
 import time
 import json
+import hashlib
+from urllib.parse import urlparse
+try:
+    import redis
+except ImportError:
+    redis = None
+
 
 if os.getenv("FORCE_SMTP_IPV4") == "1":
     import socket
@@ -430,6 +437,65 @@ def _send_notification_for_subscriber(app, subscriber, main_aggregator, addition
         traceback.print_exc()
         return False
 
+def _redis_client():
+    if not redis:
+        return None
+    try:
+        url = os.getenv('REDIS_TLS_URL') or os.getenv('REDIS_URL')
+        if url:
+            u = urlparse(url)
+            r = redis.Redis(
+                host=u.hostname, port=u.port or 6379, password=u.password,
+                db=int((u.path or '/0').lstrip('/')),
+                ssl=(u.scheme == 'rediss'), ssl_cert_reqs=None,
+                decode_responses=True
+            )
+        else:
+            r = redis.Redis(
+                host=os.getenv('REDIS_HOST','localhost'),
+                port=int(os.getenv('REDIS_PORT',6379)),
+                db=int(os.getenv('REDIS_DB',0)),
+                decode_responses=True
+            )
+        r.ping()
+        return r
+    except Exception:
+        return None
+
+
+class RedisLock:
+    def __init__(self, client, key, ttl=3600):
+        import os
+        self.c = client; self.key = key; self.ttl = ttl; self.token = os.urandom(8).hex()
+    def acquire(self):
+        if not self.c: return True
+        return self.c.set(self.key, self.token, nx=True, ex=self.ttl)
+    def release(self):
+        if not self.c: return
+        try:
+            pipe = self.c.pipeline()
+            pipe.watch(self.key)
+            if pipe.get(self.key) == self.token:
+                pipe.multi(); pipe.delete(self.key); pipe.execute()
+            else:
+                pipe.unwatch()
+        except Exception:
+            pass
+
+
+def smtp_allow_send(c):
+    limit = int(os.getenv('EMAIL_RPM','60'))  # писем в минуту
+    key = f"rate:smtp:{int(time.time()//60)}"
+    try:
+        if not c:
+            return True
+        v = c.incr(key)
+        if v == 1:
+            c.expire(key, 60)
+        return v <= limit
+    except Exception:
+        return True
+
 
 mail = Mail()
 
@@ -460,24 +526,48 @@ def send_job_notifications(app, main_aggregator, additional_aggregators={}):
         print("📧 НАЧИНАЕМ РУЧНУЮ ОТПРАВКУ УВЕДОМЛЕНИЙ...")
         print("=" * 60)
 
-        subscribers = Subscriber.query.filter_by(is_active=True).all()
-        print(f"👥 Найдено {len(subscribers)} активных подписчиков")
-
-        if not subscribers:
+        r = _redis_client()
+        _lock = RedisLock(r, key=f"lock:email_manual:{datetime.utcnow().date().isoformat()}", ttl=7200)
+        if not _lock.acquire():
+            print("⛔ Уже идёт рассылка в другом процессе — выходим")
             return 0
+        try:
+            subscribers = Subscriber.query.filter_by(is_active=True).all()
+            print(f"👥 Найдено {len(subscribers)} активных подписчиков")
 
-        sent_count = 0
-        for i, subscriber in enumerate(subscribers, 1):
-            print(f"\n🔄 ({i}/{len(subscribers)}) Обрабатываем {subscriber.email}...")
-            if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
-                sent_count += 1
-            time.sleep(3)  # пауза между отправками
+            if not subscribers:
+                return 0
 
-        db.session.commit()
-        print("=" * 60)
-        print(f"🎉 РУЧНАЯ ОТПРАВКА ЗАВЕРШЕНА: {sent_count}/{len(subscribers)} писем отправлено")
-        print("=" * 60)
-        return sent_count
+            sent_count = 0
+            for i, subscriber in enumerate(subscribers, 1):
+                print(f"\n🔄 ({i}/{len(subscribers)}) Обрабатываем {subscriber.email}...")
+
+                # идемпотентность: не шлём повторный дайджест этому подписчику в ту же дату
+                digest_src = f"{subscriber.email}:{datetime.utcnow().date().isoformat()}:manual"
+                digest = hashlib.sha1(digest_src.encode("utf-8")).hexdigest()
+                if r and not r.set(f"sent_digest:{subscriber.id}:{digest}", "1", nx=True, ex=72*3600):
+                    print(f"↩️ Пропуск (уже отправлено сегодня): {subscriber.email}")
+                    continue
+
+                # rate-limit SMTP
+                while not smtp_allow_send(r):
+                    time.sleep(1)
+
+                if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
+                    sent_count += 1
+                time.sleep(1)
+
+            db.session.commit()
+            print("=" * 60)
+            print(f"🎉 РУЧНАЯ ОТПРАВКА ЗАВЕРШЕНА: {sent_count}/{len(subscribers)} писем отправлено")
+            print("=" * 60)
+            return sent_count
+        finally:
+            try:
+                _lock.release()
+            except Exception:
+                pass
+
 
 
 def run_scheduled_notifications(app, main_aggregator, additional_aggregators):
@@ -489,30 +579,54 @@ def run_scheduled_notifications(app, main_aggregator, additional_aggregators):
         print(f"📅 ПЛАНИРОВЩИК: Проверка подписчиков в {datetime.now().strftime('%H:%M:%S')}")
         print("="*60)
 
-        subscribers_to_notify = []
-        all_active_subscribers = Subscriber.query.filter_by(is_active=True).all()
-
-        for sub in all_active_subscribers:
-            if should_send_notification(sub):
-                subscribers_to_notify.append(sub)
-
-        if not subscribers_to_notify:
-            print("ℹ️ ПЛАНИРОВЩИК: Нет подписчиков для отправки уведомлений.")
+        r = _redis_client()
+        _lock = RedisLock(r, key=f"lock:email_scheduler:{datetime.utcnow().date().isoformat()}", ttl=7200)
+        if not _lock.acquire():
+            print("⛔ Уже идёт рассылка в другом процессе — выходим")
             return
+        try:
+            subscribers_to_notify = []
+            all_active_subscribers = Subscriber.query.filter_by(is_active=True).all()
 
-        print(f"📬 ПЛАНИРОВЩИК: Найдено {len(subscribers_to_notify)} подписчиков для уведомления.")
+            for sub in all_active_subscribers:
+                if should_send_notification(sub):
+                    subscribers_to_notify.append(sub)
 
-        sent_count = 0
-        for i, subscriber in enumerate(subscribers_to_notify, 1):
-            print(f"\n🔄 ({i}/{len(subscribers_to_notify)}) Отправка для {subscriber.email}...")
-            if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
-                sent_count += 1
-            time.sleep(5)
+            if not subscribers_to_notify:
+                print("ℹ️ ПЛАНИРОВЩИК: Нет подписчиков для отправки уведомлений.")
+                return
 
-        db.session.commit()
-        print("=" * 60)
-        print(f"🎉 ПЛАНИРОВЩИК ЗАВЕРШЕН: {sent_count}/{len(subscribers_to_notify)} писем отправлено")
-        print("=" * 60)
+            print(f"📬 ПЛАНИРОВЩИК: Найдено {len(subscribers_to_notify)} подписчиков для уведомления.")
+
+            sent_count = 0
+            for i, subscriber in enumerate(subscribers_to_notify, 1):
+                print(f"\n🔄 ({i}/{len(subscribers_to_notify)}) Отправка для {subscriber.email}...")
+
+                # идемпотентность per-subscriber на сутки/частоту
+                digest_src = f"{subscriber.id}:{subscriber.lang}:{subscriber.frequency}:{datetime.utcnow().date().isoformat()}"
+                digest = hashlib.sha1(digest_src.encode("utf-8")).hexdigest()
+                if r and not r.set(f"sent_digest:{subscriber.id}:{digest}", "1", nx=True, ex=72*3600):
+                    print(f"↩️ Пропуск (уже отправлено сегодня): {subscriber.email}")
+                    continue
+
+                # rate-limit SMTP
+                while not smtp_allow_send(r):
+                    time.sleep(1)
+
+                if _send_notification_for_subscriber(app, subscriber, main_aggregator, additional_aggregators):
+                    sent_count += 1
+                time.sleep(1)
+
+            db.session.commit()
+            print("=" * 60)
+            print(f"🎉 ПЛАНИРОВЩИК ЗАВЕРШЕН: {sent_count}/{len(subscribers_to_notify)} писем отправлено")
+            print("=" * 60)
+        finally:
+            try:
+                _lock.release()
+            except Exception:
+                pass
+
 
 
 # -----------------------------------------------------------------------------

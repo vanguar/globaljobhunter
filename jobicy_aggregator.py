@@ -11,22 +11,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from adzuna_aggregator import JobVacancy, CacheManager
 
-@dataclass
-class JobVacancy:
-    id: str
-    title: str
-    company: str
-    location: str
-    salary: Optional[str]
-    description: str
-    apply_url: str
-    source: str
-    posted_date: str
-    country: str
-    job_type: Optional[str] = None
-    language_requirement: str = "unknown"
-    refugee_friendly: bool = False
 
 class JobicyAggregator:
     """
@@ -39,8 +25,11 @@ class JobicyAggregator:
     def __init__(self):
         self.source_name = "Jobicy"
         self.base_url = "https://jobicy.com/api/v2/remote-jobs"
-        self.cache_file = "shared_jobicy_cache.json"
-
+        self.cache_manager = CacheManager(
+            cache_duration_hours=int(os.getenv('JOBICY_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
+        )
+        self.cache_key = "jobicy:all_jobs:v1"
+                
         # TTL кеша
         try:
             self.cache_duration_hours = int(os.getenv('JOBICY_CACHE_HOURS', os.getenv('CACHE_TTL_HOURS', '24')))
@@ -153,21 +142,17 @@ class JobicyAggregator:
     # === КЕШ/АПИ ===
     def _fetch_jobs_cached(self) -> List[Dict]:
         """
-        Чтение дампа Jobicy с кешем.
-        Правила:
-        • если кеш есть и НЕ пустой → возвращаем его;
-        • если кеш пустой ([]) или устарел/отсутствует → идём в API;
-        • пустой ответ из API НЕ сохраняем.
+        Дамп Jobicy с общим CacheManager.
+        Кладём и достаём СЫРОЙ JSON (list[dict]) — флаг raw=True.
+        Ключ: jobicy:all_jobs:v1
         """
-        cached = self._load_cache()
+        # 1) Пробуем из кеша (Redis/файл через CacheManager)
+        cached = self.cache_manager.get_cached_result({"key": self.cache_key, "raw": True})
         if isinstance(cached, list):
-            if cached:  # непустой кеш — используем
-                print(f"💾 {self.source_name}: Cache HIT, записей {len(cached)}")
-                return cached
-            else:
-                print(f"💾 {self.source_name}: Cache HIT (empty), пробуем обновить из API...")
+            print(f"💾 {self.source_name}: Cache HIT, записей {len(cached)}")
+            return cached
 
-        # Cache MISS / empty → запрос в API
+        # 2) Cache MISS → запрос к API и запись в кеш (не кешируем пустое)
         print(f"🌐 {self.source_name}: Cache MISS — запрашиваем дамп")
         try:
             r = requests.get(self.base_url, timeout=15)
@@ -177,10 +162,9 @@ class JobicyAggregator:
             data = r.json() or {}
             jobs = data.get('jobs') or []
 
-            # Важно: НЕ кешируем пустые ответы
             if jobs:
-                self._save_cache(jobs)
-                print(f"📥 {self.source_name}: получено {len(jobs)}, сохранено в кеш")
+                self.cache_manager.cache_result({"key": self.cache_key, "raw": True}, jobs)
+                print(f"📥 {self.source_name}: получено {len(jobs)}, сохранено в кеш (Redis/File)")
             else:
                 print(f"📥 {self.source_name}: получено 0 записей (not cached)")
 
@@ -193,30 +177,8 @@ class JobicyAggregator:
             return []
 
 
-    def _load_cache(self) -> Optional[List[Dict]]:
-        """Чтение кеша с проверкой TTL."""
-        try:
-            if not os.path.exists(self.cache_file):
-                return None
-            with open(self.cache_file, 'r', encoding='utf-8') as f:
-                cache = json.load(f)
-            ts = datetime.fromisoformat(cache.get('timestamp'))
-            if datetime.now() - ts < timedelta(hours=self.cache_duration_hours):
-                return cache.get('jobs') or []
-            print(f"⏰ {self.source_name}: кеш устарел ({ts}), потребуется обновление")
-            return None
-        except Exception as e:
-            print(f"⚠️ {self.source_name}: ошибка чтения кеша: {e}")
-            return None
 
-    def _save_cache(self, jobs: List[Dict]) -> None:
-        try:
-            payload = {'timestamp': datetime.now().isoformat(), 'jobs': jobs}
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
-                json.dump(payload, f, ensure_ascii=False)
-        except Exception as e:
-            print(f"⚠️ {self.source_name}: ошибка записи кеша: {e}")
-
+    
     # === УТИЛИТЫ ФИЛЬТРА ===
     def _is_it_related(self, job_name: str) -> bool:
         remote_friendly = [

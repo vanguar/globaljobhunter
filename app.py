@@ -1670,6 +1670,37 @@ def health_check():
                 'total_jobs_found': 0
             }
         additional_sources = list(additional_aggregators.keys()) if additional_aggregators else []
+        # Проверка Redis
+        try:
+            from urllib.parse import urlparse as _uparse
+            try:
+                import redis as _r
+            except ImportError:
+                _r = None
+
+            if _r is None:
+                redis_status = {"online": False, "reason": "redis lib not installed"}
+            else:
+                _url = os.getenv('REDIS_TLS_URL') or os.getenv('REDIS_URL')
+                if _url:
+                    u = _uparse(_url)
+                    rc = _r.Redis(
+                        host=u.hostname, port=u.port or 6379, password=u.password,
+                        db=int((u.path or '/0').lstrip('/')), ssl=(u.scheme == 'rediss'),
+                        ssl_cert_reqs=None, decode_responses=True
+                    )
+                else:
+                    rc = _r.Redis(
+                        host=os.getenv('REDIS_HOST','localhost'),
+                        port=int(os.getenv('REDIS_PORT',6379)),
+                        db=int(os.getenv('REDIS_DB',0)),
+                        decode_responses=True
+                    )
+                rc.ping()
+                redis_status = {"online": True}
+        except Exception as e:
+            redis_status = {"online": False, "reason": str(e)}
+
 
         # 3) Словарь
         T = {
@@ -1679,6 +1710,8 @@ def health_check():
                 'online': 'Работает',
                 'offline': 'Недоступен',
                 'add_sources': 'Дополнительные источники',
+                'redis': 'Redis',
+                'reason': 'Причина',
                 'none': 'Нет',
                 'api_requests': 'API запросов',
                 'cache_hits': 'Попаданий в кеш',
@@ -1693,6 +1726,8 @@ def health_check():
                 'online': 'Online',
                 'offline': 'Offline',
                 'add_sources': 'Additional sources',
+                'redis': 'Redis',
+                'reason': 'Reason',
                 'none': 'None',
                 'api_requests': 'API requests',
                 'cache_hits': 'Cache hits',
@@ -1707,6 +1742,8 @@ def health_check():
                 'online': 'Працює',
                 'offline': 'Недоступний',
                 'add_sources': 'Додаткові джерела',
+                'redis': 'Redis',
+                'reason': 'Причина',
                 'none': 'Немає',
                 'api_requests': 'Запити до API',
                 'cache_hits': 'Влучань у кеш',
@@ -1746,6 +1783,13 @@ def health_check():
                         <span>{t['add_sources']}:</span>
                         <span>{', '.join(additional_sources) if additional_sources else t['none']}</span>
                     </div>
+                    <div class="status-item">
+                        <span>{t['redis']}:</span>
+                        <span>
+                            {('✅ ' + t['online']) if redis_status.get('online') else ('❌ ' + t['offline'] + (f" — {redis_status.get('reason')}" if redis_status.get('reason') else ''))}
+                        </span>
+                    </div>
+
                     <div class="status-item"><span>{t['api_requests']}:</span><span>{cache_stats.get('api_requests', 0)}</span></div>
                     <div class="status-item"><span>{t['cache_hits']}:</span><span>{cache_stats.get('cache_hits', 0)}</span></div>
                     <div class="status-item"><span>{t['cache_misses']}:</span><span>{cache_stats.get('cache_misses', 0)}</span></div>
