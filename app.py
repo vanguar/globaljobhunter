@@ -500,9 +500,13 @@ def search_jobs():
             'cities': cities
         }
 
-        preferences = session.get('last_search_preferences', {}) or {}
+        # подмерживаем прошлое, но приоритет у свежих значений из формы
+        last = session.get('last_search_preferences') or {}
+        preferences = {**last, **preferences}
+
+        # если город не задан, но есть список городов — берем первый
         if not preferences.get('city') and preferences.get('cities'):
-            preferences['city'] = preferences['cities'][0] or None
+            preferences['city'] = preferences['cities'][0]
         
         if not preferences['selected_jobs']:
             return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
@@ -618,9 +622,11 @@ def search_start():
         'cities': cities
     }
 
-    preferences = session.get('last_search_preferences', {}) or {}
+    last = session.get('last_search_preferences') or {}
+    preferences = {**last, **preferences}
+
     if not preferences.get('city') and preferences.get('cities'):
-        preferences['city'] = preferences['cities'][0] or None
+        preferences['city'] = preferences['cities'][0]
 
 
     if isinstance(preferences['selected_jobs'], str):
