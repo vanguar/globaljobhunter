@@ -495,10 +495,14 @@ def search_jobs():
             'selected_jobs': form_data.get('selected_jobs', []),
             'countries': form_data.get('countries', ['de']),
             # оставляем старое поле для обратной совместимости (UI/шаблоны)
-            'city': None,
+            'city': cities[0] if cities else None,
             # новое поле — список городов
             'cities': cities
         }
+
+        preferences = session.get('last_search_preferences', {}) or {}
+        if not preferences.get('city') and preferences.get('cities'):
+            preferences['city'] = preferences['cities'][0] or None
         
         if not preferences['selected_jobs']:
             return jsonify({'error': 'Выберите хотя бы одну профессию'}), 400
@@ -610,9 +614,14 @@ def search_start():
         'is_refugee': form_data.get('is_refugee') == 'true',
         'selected_jobs': form_data.get('selected_jobs', []),
         'countries': form_data.get('countries', ['de']),
-        'city': None,
+        'city': cities[0] if cities else None,
         'cities': cities
     }
+
+    preferences = session.get('last_search_preferences', {}) or {}
+    if not preferences.get('city') and preferences.get('cities'):
+        preferences['city'] = preferences['cities'][0] or None
+
 
     if isinstance(preferences['selected_jobs'], str):
         preferences['selected_jobs'] = [preferences['selected_jobs']]
