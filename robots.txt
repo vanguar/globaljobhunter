@@ -1,24 +1,16 @@
 User-agent: *
-Allow: /
-
-# Не индексируем внутренние/служебные страницы
+# Закрываем результаты внутреннего поиска
 Disallow: /results
-Disallow: /results/
+
+# Служебные разделы
 Disallow: /subscribe
 Disallow: /unsubscribe
 Disallow: /subscription
-Disallow: /subscription/
 Disallow: /analytics
-Disallow: /analytics/
 Disallow: /health
 Disallow: /out
-Disallow: /out/
-Disallow: /google
-Disallow: /google*.html
 
+# Языковые параметры: включай ТОЛЬКО если точно не нужны в индексе
+# Disallow: /*?lang=
 
-# Режем дубли по параметру языка
-Disallow: /*?lang=
-
-# Карта сайта
 Sitemap: https://www.globaljobhunter.vip/sitemap.xml
