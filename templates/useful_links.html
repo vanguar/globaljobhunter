@@ -472,6 +472,13 @@ function retranslate(){
     document.dispatchEvent(new CustomEvent('i18n:update'));
   }catch(e){}
 }
+/* Запускает внешний плагин-переводчик (безопасно, без цикла) */
+function runStaticTranslator(){
+  try{
+    if (window.translatePage) { window.translatePage(); return; }
+    if (window.i18n && typeof window.i18n.translateAll==='function') { window.i18n.translateAll(); return; }
+  }catch(e){}
+}
 
 /* рендер */
 function render(){
@@ -516,7 +523,7 @@ function render(){
     <span class="stat"><span data-i18n="Стран:">Стран:</span> <strong>${countries}</strong></span>
     <span class="stat"><span data-i18n="Регионов:">Регионов:</span> <strong>${regions}</strong></span>
   `;
-
+runStaticTranslator();
 }
 
 function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms);} }
@@ -534,11 +541,10 @@ window.addEventListener('scroll', () => {
 toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
 
 /* Смена языка → перерисовать описания */
-document.addEventListener('i18n:update', () => setTimeout(render, 0));
-document.addEventListener('click', (e)=>{
-  if(e.target.closest('#language-switcher-container [data-lang]')){
-    setTimeout(render, 80);
-  }
+// Мы используем 'i18n:update' как ЕДИНСТВЕННЫЙ триггер
+// Добавляем задержку, чтобы плагин успел обновить <html lang="...">
+document.addEventListener('i18n:update', () => {
+  setTimeout(render, 100); // 100ms задержка
 });
 </script>
 {% endblock %}
