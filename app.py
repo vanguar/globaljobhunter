@@ -38,7 +38,8 @@ from datetime import datetime, timezone
 from threading import Thread
 import schedule
 SUPPORTED_LANGS = {'ru', 'uk', 'en'}
-from flask import request
+from flask import request, redirect
+from flask import render_template, make_response
 
 # Импортируем существующий агрегатор
 from adzuna_aggregator import GlobalJobAggregator, JobVacancy
@@ -73,6 +74,20 @@ app.config.update(
     COMPRESS_MIN_SIZE=512
 )
 
+@app.route("/links")
+def useful_links():
+    # Страница статическая → можно отдать с кэшем (Redis/файловый кэш подхватит)
+    html = render_template("useful_links.html")
+    resp = make_response(html)
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+@app.after_request
+def add_noindex(resp):
+    if request.path.startswith(("/health","/results","/search","/analytics","/out")):
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return resp
+
 # Долгий кеш для /static (безопасно, т.к. URL версиируется query-параметрами)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 60 * 60 * 24 * 30  # 30 дней
 
@@ -85,11 +100,15 @@ CANONICAL_SCHEME = "https"
 
 @app.before_request
 def enforce_canonical_host_and_https():
-    # Редиректим только "безопасные" методы, чтобы не ломать POST/PUT и т.п.
+    # 1) Локально/в дебаге не редиректим
+    if app.debug or request.host.startswith(("127.0.0.1", "localhost")):
+        return
+
+    # 2) Редиректим только «безопасные» методы
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         return
 
-    # Что видим "снаружи" с учётом прокси
+    # 3) Смотрим на заголовки прокси (в проде)
     host  = request.headers.get("X-Forwarded-Host", request.host)
     proto = request.headers.get("X-Forwarded-Proto", request.scheme)
 
@@ -97,16 +116,12 @@ def enforce_canonical_host_and_https():
     need_proto_fix = (proto != CANONICAL_SCHEME)
 
     if need_host_fix or need_proto_fix:
-        # Соберём канонический URL, сохранив путь и query
         url = f"{CANONICAL_SCHEME}://{CANONICAL_HOST}{request.path}"
         if request.query_string:
             url += "?" + request.query_string.decode("utf-8", errors="ignore")
-
-        # Если хочешь, можешь не редиректить health-чек:
+        # при желании можно не редиректить health:
         # if request.path == "/health": return
-
         return redirect(url, code=301)
-
 
 # === SEO: robots.txt и sitemap.xml (AUTO) ==========================
 # Явно укажем важные публичные URL, которые хотим видеть в индексе всегда.
@@ -115,14 +130,15 @@ EXTRA_PUBLIC_URLS = [
     "/",                # главная
     "/support",         # страница поддержки проекта (если есть роут)
     "/tg",              # лендинг для TG WebApp (если пусть индексируется)
+    "/links",
 ]
 
 # Блэклист — эти разделы и страницы НЕЛЬЗЯ индексировать и в sitemap они не попадут
 SEO_DISALLOW_PREFIXES = (
     "/results", "/search", "/api", "/admin", "/subscription", "/unsubscribe",
     "/subscribe", "/analytics", "/health", "/static",
-    "/out",       # ← добавили: не индексируем редирект
-    "/google"     # ← добавили: отрежет google*.html (верификацию)
+    "/out"      # ← добавили: не индексируем редирект
+  
 )
 SEO_DISALLOW_EXACT = {
     "/favicon.ico", "/robots.txt", "/sitemap.xml",

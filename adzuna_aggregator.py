@@ -112,6 +112,13 @@ class CacheManager:
                         decode_responses=False
                     )
                 # Проверяем соединение
+                try:
+                    info_host = self.redis_client.connection_pool.connection_kwargs.get('host')
+                    info_port = self.redis_client.connection_pool.connection_kwargs.get('port')
+                    print(f"🔌 CacheManager: target {info_host}:{info_port}")
+                except Exception:
+                    pass
+
                 self.redis_client.ping()
                 print("✅ Redis подключен (CacheManager)")
             except Exception as e:

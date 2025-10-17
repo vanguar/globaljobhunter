@@ -83,7 +83,7 @@
                 href="https://t.me/GlobalJobHunter_bot"
                 target="_blank" rel="noopener">
                 <i class="bi bi-telegram me-1"></i>
-                <span data-i18n="open_tg_bot_btn">Открыть Telegram-бот</span>
+                <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
             </a>
             </div>
 
@@ -93,38 +93,47 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 
                 <div class="navbar-nav ms-auto">
-                    <a class="nav-link btn-hover" href="{{ url_for('index') }}">
-                        <i class="bi bi-house me-1"></i>Главная
-                    <a href="/health" onclick="checkSystemStatus(); return false;" class="nav-link btn-hover">
-                        <i class="bi bi-heart-pulse me-1"></i>Статус
-                    </a>
 
+                <!-- Главная -->
+                <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'index' }}"
+                    href="{{ url_for('index') }}">
+                    <i class="bi bi-house me-1"></i>
+                    <span data-i18n="Главная">Главная</span>
+                </a>
 
-                    <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
-                        <i class="bi bi-facebook"></i>
-                    </a>
-                    <a class="nav-link btn-hover" href="https://www.instagram.com/globaljobhunter_ua/" target="_blank" rel="noopener" aria-label="Instagram">
-                        <i class="bi bi-instagram"></i>
-                    </a>
+                <!-- Полезные ссылки -->
+                <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'useful_links' }}"
+                    href="{{ url_for('useful_links') }}">
+                    <i class="bi bi-compass me-1"></i>
+                    <span data-i18n="Полезные ссылки">Полезные ссылки</span>
+                </a>
 
-                    <div id="language-switcher-container" class="nav-item dropdown language-switcher d-none d-lg-block">
+                <!-- соцсети -->
+                <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
+                    <i class="bi bi-facebook"></i>
+                </a>
+                <a class="nav-link btn-hover" href="https://www.instagram.com/globaljobhunter_ua/" target="_blank" rel="noopener" aria-label="Instagram">
+                    <i class="bi bi-instagram"></i>
+                </a>
+
+                <!-- переключатель языка и кнопка TG остаются как у тебя ниже -->
+                <div id="language-switcher-container" class="nav-item dropdown language-switcher d-none d-lg-block">
                     <button class="btn dropdown-toggle" data-bs-toggle="dropdown"><span class="fi fi-ru"></span> ru</button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> ru</a></li>
-                        <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> ua</a></li>
-                        <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> En</a></li>
+                    <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> ru</a></li>
+                    <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> ua</a></li>
+                    <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> En</a></li>
                     </ul>
-                    </div>
-                    <a class="btn btn-telegram d-none d-lg-inline-flex ms-lg-3"
-                    href="https://t.me/GlobalJobHunter_bot"
-                    target="_blank" rel="noopener">
-                    <i class="bi bi-telegram me-1"></i>
-                    <span data-i18n="open_tg_bot_btn">Открыть Telegram-бот</span>
-                    </a>
-
-
                 </div>
-                
+
+                <a class="btn btn-telegram d-none d-lg-inline-flex ms-lg-3"
+                    href="https://t.me/GlobalJobHunter_bot" target="_blank" rel="noopener">
+                    <i class="bi bi-telegram me-1"></i>
+                    <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
+                </a>
+                </div>
+
+                                
 
 
             </div>
@@ -156,6 +165,12 @@
                             <a href="{{ url_for('index') }}" class="text-light opacity-75 text-decoration-none btn-hover">
                                 <i class="bi bi-house me-2"></i>Главная
                             </a>
+                        </li>
+                        <!-- 🔽 НОВОЕ: Полезные ссылки -->
+                        <li class="mb-2">
+                        <a href="{{ url_for('useful_links') }}" class="text-light opacity-75 text-decoration-none btn-hover">
+                            <i class="bi bi-compass me-2"></i><span data-i18n="Полезные ссылки">Полезные ссылки</span>
+                        </a>
                         </li>
                         <li class="mb-2">
                             <a href="{{ url_for('support') }}" class="text-light opacity-75 text-decoration-none btn-hover">
