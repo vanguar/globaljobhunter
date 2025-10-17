@@ -389,6 +389,11 @@ function siteCard(countryRu, code, site){
   const lang = currentLang();
   const descText = pickDesc(site, lang);
 
+  const descRU = site.desc_ru || (site.desc && site.desc.ru) || '';
+  // если в описании вдруг есть кавычки — экранируем, чтобы не ломать атрибут
+  const descAttr = descRU ? ` data-i18n="${descRU.replace(/"/g,'&quot;')}"` : '';
+  const descDefault = descRU || descText;
+
   const card = document.createElement('div');
   card.className = 'link-card clickable';
   card.innerHTML = `
@@ -405,7 +410,7 @@ function siteCard(countryRu, code, site){
     <!-- ССЫЛКУ ПОКАЗЫВАЕМ ТЕКСТОМ (внутренняя <a> — норм, но без растянутой ссылки) -->
     <div class="link-url"><a class="url-a" href="${site.url}" target="_blank" rel="noopener">🔗 ${site.url}</a></div>
 
-    <div class="link-desc">${descText}</div>
+    <div class="link-desc"${descAttr}>${descDefault}</div>
 
     <div class="meta">
       <div class="tags">
@@ -546,5 +551,19 @@ toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}
 document.addEventListener('i18n:update', () => {
   setTimeout(render, 100); // 100ms задержка
 });
+// если меняется <html lang="..."> — тоже перерисовываем
+new MutationObserver(() => setTimeout(render, 100))
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
+// если язык переключают кликом по свитчеру — триггерим событие вручную
+const langSwitcher = document.querySelector('#language-switcher-container');
+if (langSwitcher) {
+  langSwitcher.addEventListener('click', (e) => {
+    if (e.target.closest('[data-lang]') || e.target.closest('.dropdown-item')) {
+      document.dispatchEvent(new CustomEvent('i18n:update'));
+    }
+  });
+}
+
 </script>
 {% endblock %}
