@@ -129,8 +129,8 @@ html,body{overflow-x:hidden}
 
 .card-top>div{display:flex;flex-direction:column}
 .link-title{font-weight:700;font-size:1rem;line-height:1.2;margin:0 0 .65rem 0} /* ОБЪЕДИНЕНО */
-.country-line{margin-top:.25rem;line-height:1.4} /* ФИКС ВЫСОТЫ */
-.badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem} /* ОБЪЕДИНЕНО */
+.country-line{margin-top:.25rem;line-height:1.1} /* ФИКС ВЫСОТЫ */
+.badges{ display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.8rem; } /* ОБЪЕДИНЕНО */
 .badges .badge{font-weight:500;border:1px solid rgba(0,0,0,.06);background:#f8f9fa;color:#495057}
 
 .link-url a{word-break:break-word;color:#0d6efd;text-decoration:none}
@@ -155,15 +155,16 @@ label.form-label{margin-bottom:.35rem}
 .input-group .form-control{border-left:0}
 #stats .stat{background:#f8f9fa;padding:.35rem .6rem;border-radius:999px;border:1px solid #edf1f6}
 
-/* FIX: Защита от стилей плагина-переводчика */
-.country-line span{
+/* FIX: автопереводчики оборачивают текст .country-line во span/mark/font и т.п. */
+.country-line *, .country-line span, .country-line mark, .country-line font{
   background: none !important;
   border: 0 !important;
   padding: 0 !important;
+  margin: 0 !important;
   border-radius: 0 !important;
   display: inline !important;
   box-shadow: none !important;
-  line-height: inherit !important; /* ФИКС ВЫСОТЫ (наследование) */
+  line-height: inherit !important;
 }
 
 /* Все дубликаты .link-card, :hover и т.д. удалены */
@@ -410,7 +411,7 @@ function siteCard(countryRu, code, site){
       <span class="fi fi-${code} flag" aria-hidden="true"></span>
       <div>
         <h3 class="link-title">${site.name}</h3>
-        <div class="text-muted small country-line" data-i18n="${countryRu}">${countryRu}</div>
+        <div class="text-muted small country-line" translate="no" data-i18n="${countryRu}">${countryRu}</div>
         <div class="badges">
           ${(site.langs||[]).slice(0,4).map(l=>`<span class="badge rounded-pill">${l}</span>`).join('')}
         </div>
