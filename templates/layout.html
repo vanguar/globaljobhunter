@@ -51,82 +51,80 @@
 
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-            <picture>
-                <source type="image/avif"
-                        srcset="{{ url_for('static', filename='images/logo-108.avif') }} 108w,
-                                {{ url_for('static', filename='images/logo-216.avif') }} 216w"
-                        sizes="108px">
-                <source type="image/webp"
-                        srcset="{{ url_for('static', filename='images/logo-108.webp') }} 108w,
-                                {{ url_for('static', filename='images/logo-216.webp') }} 216w"
-                        sizes="108px">
-                <img src="{{ url_for('static', filename='images/logo-108.png') }}"
-                    srcset="{{ url_for('static', filename='images/logo-108.png') }} 108w,
-                            {{ url_for('static', filename='images/logo-216.png') }} 216w"
-                    sizes="108px"
-                    alt="GlobalJobHunter Logo"
-                    width="81" height="60"
-                    fetchpriority="high" decoding="async">
-            </picture>
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top" style="background-color: #ffffff;"> <div class="container">
+        <a class="navbar-brand" href="{{ url_for('index') }}">
+        <picture>
+            <source type="image/avif"
+                    srcset="{{ url_for('static', filename='images/logo-108.avif') }} 108w,
+                            {{ url_for('static', filename='images/logo-216.avif') }} 216w"
+                    sizes="108px">
+            <source type="image/webp"
+                    srcset="{{ url_for('static', filename='images/logo-108.webp') }} 108w,
+                            {{ url_for('static', filename='images/logo-216.webp') }} 216w"
+                    sizes="108px">
+            <img src="{{ url_for('static', filename='images/logo-108.png') }}"
+                srcset="{{ url_for('static', filename='images/logo-108.png') }} 108w,
+                        {{ url_for('static', filename='images/logo-216.png') }} 216w"
+                sizes="108px"
+                alt="GlobalJobHunter Logo"
+                width="81" height="60"
+                fetchpriority="high" decoding="async">
+        </picture>
+        </a>
+
+        <button class="navbar-toggler d-lg-none ms-auto"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+           <span class="navbar-toggler-icon"></span> </button>
+
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+           <div class="navbar-nav ms-auto">
+
+            <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'index' }}"
+            href="{{ url_for('index') }}">
+            <i class="bi bi-house me-1"></i>
+            <span data-i18n="Главная">Главная</span>
             </a>
 
-            <button class="navbar-toggler d-lg-none ms-auto"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
+            <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'useful_links' }}"
+            href="{{ url_for('useful_links') }}">
+            <i class="bi bi-compass me-1"></i>
+            <span data-i18n="Полезные ссылки">Полезные ссылки</span>
+            </a>
+
+            <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
+            <i class="bi bi-facebook"></i>
+            </a>
+            <a class="nav-link btn-hover" href="https://www.instagram.com/globaljobhunter_ua/" target="_blank" rel="noopener" aria-label="Instagram">
+            <i class="bi bi-instagram"></i>
+            </a>
+
+            <div id="language-switcher-container" class="nav-item dropdown language-switcher">
+            <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
+                <span class="fi fi-ru"></span> ru
             </button>
-
-
-            <div class="collapse navbar-collapse" id="navbarNav">
-            <div class="navbar-nav ms-auto">
-
-                <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'index' }}"
-                href="{{ url_for('index') }}">
-                <i class="bi bi-house me-1"></i>
-                <span data-i18n="Главная">Главная</span>
-                </a>
-
-                <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'useful_links' }}"
-                href="{{ url_for('useful_links') }}">
-                <i class="bi bi-compass me-1"></i>
-                <span data-i18n="Полезные ссылки">Полезные ссылки</span>
-                </a>
-
-                <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
-                <i class="bi bi-facebook"></i>
-                </a>
-                <a class="nav-link btn-hover" href="https://www.instagram.com/globaljobhunter_ua/" target="_blank" rel="noopener" aria-label="Instagram">
-                <i class="bi bi-instagram"></i>
-                </a>
-
-                <div id="language-switcher-container" class="nav-item dropdown language-switcher">
-                <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
-                    <span class="fi fi-ru"></span> ru
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> ru</a></li>
-                    <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> ua</a></li>
-                    <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> en</a></li>
-                </ul>
-                </div>
-
-                <a class="btn btn-telegram d-inline-flex ms-lg-3 mt-3 mt-lg-0"
-                href="https://t.me/GlobalJobHunter_bot" target="_blank" rel="noopener">
-                <i class="bi bi-telegram me-1"></i>
-                <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
-                </a>
-
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> ru</a></li>
+                <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> ua</a></li>
+<li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> en</a></li>
+            </ul>
             </div>
-            </div>
+
+            <a class="btn btn-telegram d-inline-flex ms-lg-3 mt-3 mt-lg-0"
+            href="https://t.me/GlobalJobHunter_bot" target="_blank" rel="noopener">
+            <i class="bi bi-telegram me-1"></i>
+            <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
+            </a>
+
+           </div>
         </div>
-    </nav>
+    </div>
+</nav>
     
 
     <main class="flex-grow-1">
