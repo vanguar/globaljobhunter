@@ -48,20 +48,10 @@
     <link rel="canonical" href="https://www.globaljobhunter.vip{{ request.path }}" />
     
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
-    <style>
-    /* Видимая иконка бургера даже если фон Bootstrap не прогрузился */
-    .navbar-dark .navbar-toggler-icon{
-    background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,0.9)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
-    }
-    @media (max-width: 991.98px){
-    .navbar .navbar-toggler{display:inline-flex!important; align-items:center; justify-content:center; border:0;}
-    .navbar .navbar-collapse{padding: .5rem 0;}
-    }
-    </style>
 
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
             <picture>
@@ -83,7 +73,6 @@
             </picture>
             </a>
 
-            <!-- Бургер: всегда виден на мобиле, с явной иконкой -->
             <button class="navbar-toggler d-lg-none ms-auto"
                     type="button"
                     data-bs-toggle="collapse"
@@ -91,32 +80,25 @@
                     aria-controls="navbarNav"
                     aria-expanded="false"
                     aria-label="Toggle navigation">
-            <!-- Стандартный спан Bootstrap -->
-            <span class="navbar-toggler-icon"></span>
-            <!-- Фолбэк-иконка, если вдруг не подтянется фоновая картинка -->
-            <i class="bi bi-list fs-1 text-white ms-1"></i>
+            <i class="bi bi-list" style="font-size:1.75rem; line-height:1;"></i>
             </button>
 
 
-            <!-- Меню (и для мобилы, и для десктопа одно и то же) -->
             <div class="collapse navbar-collapse" id="navbarNav">
             <div class="navbar-nav ms-auto">
 
-                <!-- Главная -->
                 <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'index' }}"
                 href="{{ url_for('index') }}">
                 <i class="bi bi-house me-1"></i>
                 <span data-i18n="Главная">Главная</span>
                 </a>
 
-                <!-- Полезные ссылки -->
                 <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'useful_links' }}"
                 href="{{ url_for('useful_links') }}">
                 <i class="bi bi-compass me-1"></i>
                 <span data-i18n="Полезные ссылки">Полезные ссылки</span>
                 </a>
 
-                <!-- Соцсети -->
                 <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
                 <i class="bi bi-facebook"></i>
                 </a>
@@ -124,7 +106,6 @@
                 <i class="bi bi-instagram"></i>
                 </a>
 
-                <!-- Переключатель языка (виден и на мобиле, и на десктопе) -->
                 <div id="language-switcher-container" class="nav-item dropdown language-switcher">
                 <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
                     <span class="fi fi-ru"></span> ru
@@ -136,7 +117,6 @@
                 </ul>
                 </div>
 
-                <!-- Кнопка Telegram (одна и та же, видна везде; на мобиле отступ сверху) -->
                 <a class="btn btn-telegram d-inline-flex ms-lg-3 mt-3 mt-lg-0"
                 href="https://t.me/GlobalJobHunter_bot" target="_blank" rel="noopener">
                 <i class="bi bi-telegram me-1"></i>
