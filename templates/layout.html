@@ -72,75 +72,63 @@
             </picture>
             </a>
 
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <!-- Бургер -->
+            <button class="navbar-toggler" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
             </button>
 
-            <!-- ✅ Мобильная кнопка Telegram (теперь с текстом) -->
-            <div class="d-flex d-lg-none align-items-center ms-auto">
-            <a class="btn btn-telegram"
-                href="https://t.me/GlobalJobHunter_bot"
-                target="_blank" rel="noopener">
-                <i class="bi bi-telegram me-1"></i>
-                <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
-            </a>
-            </div>
-
-
-
-            
+            <!-- Меню (и для мобилы, и для десктопа одно и то же) -->
             <div class="collapse navbar-collapse" id="navbarNav">
-                
-                <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto">
 
                 <!-- Главная -->
                 <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'index' }}"
-                    href="{{ url_for('index') }}">
-                    <i class="bi bi-house me-1"></i>
-                    <span data-i18n="Главная">Главная</span>
+                href="{{ url_for('index') }}">
+                <i class="bi bi-house me-1"></i>
+                <span data-i18n="Главная">Главная</span>
                 </a>
 
                 <!-- Полезные ссылки -->
                 <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'useful_links' }}"
-                    href="{{ url_for('useful_links') }}">
-                    <i class="bi bi-compass me-1"></i>
-                    <span data-i18n="Полезные ссылки">Полезные ссылки</span>
+                href="{{ url_for('useful_links') }}">
+                <i class="bi bi-compass me-1"></i>
+                <span data-i18n="Полезные ссылки">Полезные ссылки</span>
                 </a>
 
-                <!-- соцсети -->
+                <!-- Соцсети -->
                 <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
-                    <i class="bi bi-facebook"></i>
+                <i class="bi bi-facebook"></i>
                 </a>
                 <a class="nav-link btn-hover" href="https://www.instagram.com/globaljobhunter_ua/" target="_blank" rel="noopener" aria-label="Instagram">
-                    <i class="bi bi-instagram"></i>
+                <i class="bi bi-instagram"></i>
                 </a>
 
-                <!-- переключатель языка и кнопка TG остаются как у тебя ниже -->
-                <div id="language-switcher-container" class="nav-item dropdown language-switcher d-none d-lg-block">
-                    <button class="btn dropdown-toggle" data-bs-toggle="dropdown"><span class="fi fi-ru"></span> ru</button>
-                    <ul class="dropdown-menu">
+                <!-- Переключатель языка (виден и на мобиле, и на десктопе) -->
+                <div id="language-switcher-container" class="nav-item dropdown language-switcher">
+                <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
+                    <span class="fi fi-ru"></span> ru
+                </button>
+                <ul class="dropdown-menu">
                     <li><a class="dropdown-item" data-lang="ru" href="#"><span class="fi fi-ru"></span> ru</a></li>
                     <li><a class="dropdown-item" data-lang="uk" href="#"><span class="fi fi-ua"></span> ua</a></li>
-                    <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> En</a></li>
-                    </ul>
+                    <li><a class="dropdown-item" data-lang="en" href="#"><span class="fi fi-gb"></span> en</a></li>
+                </ul>
                 </div>
 
-                <a class="btn btn-telegram d-none d-lg-inline-flex ms-lg-3"
-                    href="https://t.me/GlobalJobHunter_bot" target="_blank" rel="noopener">
-                    <i class="bi bi-telegram me-1"></i>
-                    <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
+                <!-- Кнопка Telegram (одна и та же, видна везде; на мобиле отступ сверху) -->
+                <a class="btn btn-telegram d-inline-flex ms-lg-3 mt-3 mt-lg-0"
+                href="https://t.me/GlobalJobHunter_bot" target="_blank" rel="noopener">
+                <i class="bi bi-telegram me-1"></i>
+                <span data-i18n="open_tg_bot_btn">Telegram-бот</span>
                 </a>
-                </div>
-
-                                
-
 
             </div>
+            </div>
         </div>
-    </nav>
-
-   
+<   /nav>
+  
 
     <main class="flex-grow-1">
         {% block content %}{% endblock %}
