@@ -277,82 +277,6 @@
   updateSwitcherUI(currentLang);
 }
 
-// ===== ЯЗЫК: навесить клики на оба свитчера =====
-(function initLangSwitchers() {
-  const langMap = {
-    ru: { flag: 'fi-ru', text: 'Русский' },
-    uk: { flag: 'fi-ua', text: 'Українська' },
-    en: { flag: 'fi-gb', text: 'English' }
-  };
-
-  function updateButtons(lang) {
-    const mBtn = document.getElementById('langMobileBtn');
-    const dBtn = document.getElementById('langDesktopBtn');
-    if (mBtn) mBtn.innerHTML = `<span class="fi ${langMap[lang].flag}"></span> ${langMap[lang].text}`;
-    if (dBtn) dBtn.innerHTML = `<span class="fi ${langMap[lang].flag}"></span> ${langMap[lang].text}`;
-  }
-
-  function applyLang(lang) {
-    // твоя уже существующая функция, которая реально применяет переводы:
-    if (typeof setLang === 'function') {
-      setLang(lang);
-    }
-    // сохранить предпочтение
-    try {
-      document.cookie = `lang=${lang};path=/;max-age=31536000`;
-      localStorage.setItem('lang', lang);
-    } catch(e) {}
-    updateButtons(lang);
-  }
-
-  // клики по пунктам в ОБОИХ меню
-  document.querySelectorAll('.language-switcher .dropdown-item, .language-switcher .lang-option')
-    .forEach(a => {
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        const lang = a.dataset.lang;
-        if (lang) applyLang(lang);
-      });
-    });
-
-  // проставить подписи при загрузке
-  const current =
-    (localStorage.getItem('lang') ||
-     (document.cookie.match(/(?:^|;)\s*lang=([^;]+)/) || [,'ru'])[1]).toLowerCase();
-  if (['ru','uk','en'].includes(current)) {
-    updateButtons(current);
-  } else {
-    updateButtons('ru');
-  }
-})();
-
-
- function ensureSwitcherVisibleOnMobile(){
-  const navContainer = document.querySelector('.navbar .container');
-  const collapseNav = document.querySelector('#navbarNav .navbar-nav');
-  const sw = document.getElementById('language-switcher-container');
-  if (!navContainer || !collapseNav || !sw) return;
-
-  const isMobile = window.matchMedia('(max-width: 991.98px)').matches; // Bootstrap lg breakpoint
-  const anchorId = 'lang-switcher-mobile-anchor';
-  let anchor = document.getElementById(anchorId);
-  if (!anchor){
-    anchor = document.createElement('div');
-    anchor.id = anchorId;
-    anchor.className = 'ms-auto d-lg-none'; // показываем только < lg
-    const burger = navContainer.querySelector('.navbar-toggler');
-    navContainer.insertBefore(anchor, burger || navContainer.lastElementChild);
-  }
-
-  if (isMobile) {
-    anchor.appendChild(sw);       // на мобилке — рядом с логотипом/бургером
-  } else {
-    collapseNav.appendChild(sw);  // на десктопе — в раскрытом меню
-  }
-}
-window.addEventListener('resize', ensureSwitcherVisibleOnMobile);
-
-
 
   function updateSwitcherUI(lang){
   document.querySelectorAll('.language-switcher').forEach(cont => {
@@ -393,28 +317,8 @@ window.addEventListener('resize', ensureSwitcherVisibleOnMobile);
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
-  ensureMobileLanguageSwitcher();   // <- добавили
+  
   setupLanguageSwitcher();          // уже есть, но см. обновление ниже
   // ... остальной твой запуск (applyTranslations и т.д.)
 });
 
-function ensureMobileLanguageSwitcher(){
-  // если мобильная копия уже есть — ничего не делаем
-  if (document.querySelector('.language-switcher.d-lg-none')) return;
-
-  const desktop = document.getElementById('language-switcher-container');
-  if (!desktop) return;
-
-  // только для мобильной ширины
-  if (!window.matchMedia('(max-width: 991.98px)').matches) return;
-
-  // клонируем десктопный свитчер
-  const clone = desktop.cloneNode(true);
-  clone.removeAttribute('id');                // id должен быть уникальным
-  clone.classList.remove('d-none','d-lg-block');
-  clone.classList.add('d-lg-none','ms-auto','me-2');
-
-  // вставляем сразу после burger-кнопки
-  const toggler = document.querySelector('.navbar .navbar-toggler');
-  if (toggler) toggler.insertAdjacentElement('afterend', clone);
-}
