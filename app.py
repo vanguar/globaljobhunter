@@ -107,8 +107,9 @@ def enforce_canonical_host_and_https():
     # 2) Редиректим только «безопасные» методы
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         return
-    # НЕ трогаем внутренние AJAX (пагинация/частичные рендеры)
-    if request.headers.get("X-Requested-With") in ("fetch", "XMLHttpRequest"):
+    # НЕ редиректим только пагинацию /results?page=...
+    # Маркером служит спец-заголовок с фронта.
+    if request.headers.get("X-Pagination-Request") == "true":
         return
 
     # 3) Смотрим на заголовки прокси (в проде)

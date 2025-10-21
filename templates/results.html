@@ -175,7 +175,10 @@
             const url = `${location.pathname}?page=${p}&per_page=${pp}`;
             try {
                 const res  = await fetch(url, {
-                    headers: { 'X-Requested-With': 'fetch' },
+                    headers: {
+                        'X-Requested-With': 'fetch',
+                        'X-Pagination-Request': 'true'   // ← маркер пагинации
+                    },
                     credentials: 'same-origin'
                 });
                 if (!res.ok) throw new Error(String(res.status));
