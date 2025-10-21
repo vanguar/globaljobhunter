@@ -1074,7 +1074,7 @@ footer .remotive-footer:hover {
 #gjh-pager{
   position: -webkit-sticky; /* Safari */
   position: sticky;
-  top: calc(var(--nav-h) + 10px); /* маленький зазор, чтобы не задевать логотип */
+  top: var(--nav-h);
   z-index: 1020;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
@@ -1111,7 +1111,7 @@ footer .remotive-footer:hover {
   :root{ --nav-h: 150px; }  /* было 72px; подбери 80–92px под свой navbar */
 
   /* + небольшой зазор под тенью шапки */
-  #gjh-pager{ top: calc(var(--nav-h) + 6px); }
+  #gjh-pager{ top: var(--nav-h); }
 }
 
 /* ПАГИНАЦИЯ ДОЛЖНА БЫТЬ ПОД ШАПКОЙ */
@@ -1126,7 +1126,7 @@ footer .remotive-footer:hover {
 
 /* Полупрозрачный стеклянный фон у всей панели (текст чёткий, не размываем opacity’ем) */
 body #gjh-pager{
-  background: rgba(255,255,255,0.85) !important;
+  background: rgba(255,255,255,0.75) !important;
   backdrop-filter: saturate(140%) blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 14px;
