@@ -2675,15 +2675,21 @@ async function startLiveSearch(e) {
   ensureStopButton();
 
   const res = await fetch('/search/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!res.ok || !data.ok) {
-    alert(data.error || 'Ошибка запуска поиска');
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    // ⬇️ ВСТАВИТЬ ЭТОТ БЛОК
+    if (data && data.redirect_url) {
+    window.location.assign(data.redirect_url);
     return;
-  }
+    }
+    if (!data || !data.search_id) {
+    window.location.assign('/results');
+    return;
+    }
   SEARCH_ID = data.search_id;
 
   const poll = async () => {
