@@ -13,6 +13,9 @@ try:
 except Exception:
     pass
 import json
+import redis
+REDIS_URL = os.getenv("REDIS_URL")
+redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True) if REDIS_URL else None
 import time
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
@@ -577,6 +580,13 @@ def search_jobs():
             aggregator.search_cache[results_id] = job_details_map
             
             session['results_id'] = results_id
+            # Сохраняем снапшот результатов в Redis (1 час)
+            if redis_client:
+                try:
+                    redis_client.setex(f"results:{results_id}", 3600,
+                                    json.dumps(job_details_map, ensure_ascii=False, default=str))
+                except Exception as e:
+                    app.logger.warning(f"Redis set results:{results_id} failed: {e}")
             session['last_search_preferences'] = preferences
             session['search_time'] = search_time
         else:
@@ -783,6 +793,15 @@ def _search_worker(sid: str):
     if st['job_map']:
         st['results_id'] = str(uuid.uuid4())
         aggregator.search_cache[st['results_id']] = st['job_map']
+        # ↓↓↓ ДОБАВИТЬ ЭТО ПЕРЕД st['status'] = 'done'
+        if 'redis_client' in globals() and redis_client:
+            try:
+                redis_client.setex(
+                    f"results:{st['results_id']}", 3600,
+                    json.dumps(st['job_map'], ensure_ascii=False, default=str)
+                )
+            except Exception as e:
+                app.logger.warning(f"Redis set results:{st['results_id']} failed: {e}")
     st['status'] = 'done'
 
 @app.route('/search/progress')
@@ -828,6 +847,13 @@ def search_stop():
     if not st.get('results_id') and st['job_map']:
         st['results_id'] = str(uuid.uuid4())
         aggregator.search_cache[st['results_id']] = st['job_map']
+        # ← ДОБАВИТЬ: снапшот в Redis
+        if 'redis_client' in globals() and redis_client:
+            try:
+                redis_client.setex(f"results:{st['results_id']}", 3600,
+                                json.dumps(st['job_map'], ensure_ascii=False, default=str))
+            except Exception as e:
+                app.logger.warning(f"Redis set results:{st['results_id']} failed: {e}")
 
     st['status'] = 'done'
 
@@ -846,86 +872,106 @@ def search_stop():
 # ВСЕ ОСТАЛЬНЫЕ МЕТОДЫ ПОЛНОСТЬЮ БЕЗ ИЗМЕНЕНИЙ
 @app.route('/results')
 def results():
-   """Страница результатов"""
-   results_id = session.get('results_id')
-   preferences = session.get('last_search_preferences', {})
-   search_time = session.get('search_time', 0)
-   
-   jobs_data = []
-   
-   if results_id and aggregator and results_id in aggregator.search_cache:
-       job_details_map = aggregator.search_cache[results_id]
-       jobs_data = list(job_details_map.values())
-   elif results_id is None:
-       jobs_data = []
-   else:
-       return redirect(url_for('index'))
+    """Страница результатов"""
+    results_id  = session.get('results_id')
+    preferences = session.get('last_search_preferences', {})
+    search_time = session.get('search_time', 0)
 
-   # Статистика
-   stats = {
-       'total': len(jobs_data),
-       'with_salary': len([j for j in jobs_data if j.get('salary')]),
-       'refugee_friendly': len([j for j in jobs_data if j.get('refugee_friendly')]),
-       'no_language': len([j for j in jobs_data if j.get('language_requirement') == 'no_language_required'])
-   }
-   
-   # НОВАЯ СОРТИРОВКА: Сначала группируем по странам, потом сортируем внутри каждой страны
-   def sort_key(job):
-       country = job.get('country', '')
-       refugee_friendly = job.get('refugee_friendly', False)
-       no_language = job.get('language_requirement') == 'no_language_required'
-       has_salary = job.get('salary') is not None
-       posted_date = job.get('posted_date', '')
-       
-       # Сначала по стране, потом по приоритетам внутри страны
-       return (
-           country,              # Группируем по стране
-           not refugee_friendly, # Сначала для беженцев
-           not no_language,      # Потом без языка
-           not has_salary,       # Потом с зарплатой
-           posted_date          # По дате
-       )
-   
-   jobs_sorted = sorted(jobs_data, key=sort_key)
-   # --- серверная пагинация ---
-   try:
-       page = int(request.args.get('page', 1))
-   except (TypeError, ValueError):
-       page = 1
-   try:
-       per_page = int(request.args.get('per_page', 150))  # по умолчанию как у тебя в UI
-   except (TypeError, ValueError):
-       per_page = 150
+    if not results_id:
+        return redirect(url_for('index'))
 
-   total_jobs = len(jobs_sorted)
-   total_pages = max(1, (total_jobs + per_page - 1) // per_page)
-   page = max(1, min(page, total_pages))
+    jobs_data = []
+    job_details_map = None
+    key = f"results:{results_id}"
 
-   start = (page - 1) * per_page
-   end = start + per_page
-   jobs_for_page = jobs_sorted[start:end]
-    # --- /серверная пагинация ---
-   
-   # Группируем вакансии по странам для отображения разделителей
-   jobs_by_country = {}
-   for job in jobs_for_page:
-       country = job.get('country', 'Неизвестно')
-       if country not in jobs_by_country:
-           jobs_by_country[country] = []
-       jobs_by_country[country].append(job)
-   
-   return render_template('results.html',
-                        jobs=jobs_for_page,
-                        jobs_by_country=jobs_by_country,  # Добавляем группировку
-                        preferences=preferences,
-                        stats=stats,
-                        search_time=round(search_time, 1),
-                        countries=aggregator.countries if aggregator else {},
-                        current_page=page,
-                        total_pages=total_pages,
-                        per_page=per_page,
-                        total_jobs=total_jobs
-                        )
+    # 1) Пробуем взять слепок результатов из Redis
+    try:
+        if 'redis_client' in globals() and redis_client:
+            raw = redis_client.get(key)
+            if raw:
+                loaded = json.loads(raw)
+                if isinstance(loaded, dict):
+                    job_details_map = loaded
+                elif isinstance(loaded, list):
+                    job_details_map = {str(i): v for i, v in enumerate(loaded)}
+    except Exception as e:
+        app.logger.warning(f"Redis get {key} failed: {e}")
+
+    # 2) Фолбэк: локальный in-memory кэш процесса
+    if job_details_map is None and aggregator and results_id in getattr(aggregator, "search_cache", {}):
+        job_details_map = aggregator.search_cache[results_id]
+        # Подогреем Redis, чтобы другие воркеры тоже видели результаты
+        try:
+            if 'redis_client' in globals() and redis_client:
+                redis_client.setex(key, 3600, json.dumps(job_details_map, ensure_ascii=False, default=str))
+        except Exception as e:
+            app.logger.warning(f"Redis set {key} failed: {e}")
+
+    # 3) Список вакансий
+    jobs_data = list(job_details_map.values()) if job_details_map else []
+
+    # Статистика
+    stats = {
+        'total': len(jobs_data),
+        'with_salary': len([j for j in jobs_data if j.get('salary')]),
+        'refugee_friendly': len([j for j in jobs_data if j.get('refugee_friendly')]),
+        'no_language': len([j for j in jobs_data if j.get('language_requirement') == 'no_language_required']),
+    }
+
+    # НОВАЯ СОРТИРОВКА: сначала страна, внутри — приоритеты
+    def sort_key(job):
+        country = job.get('country', '')
+        refugee_friendly = job.get('refugee_friendly', False)
+        no_language = job.get('language_requirement') == 'no_language_required'
+        has_salary = job.get('salary') is not None
+        posted_date = job.get('posted_date', '')
+        return (
+            country,               # группировка по стране
+            not refugee_friendly,  # сперва для беженцев
+            not no_language,       # затем без языка
+            not has_salary,        # затем с зарплатой
+            posted_date            # по дате
+        )
+
+    jobs_sorted = sorted(jobs_data, key=sort_key)
+
+    # Серверная пагинация
+    try:
+        page = int(request.args.get('page', 1))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = int(request.args.get('per_page', 150))
+    except (TypeError, ValueError):
+        per_page = 150
+
+    total_jobs  = len(jobs_sorted)
+    total_pages = max(1, (total_jobs + per_page - 1) // per_page)
+    page        = max(1, min(page, total_pages))
+
+    start = (page - 1) * per_page
+    end   = start + per_page
+    jobs_for_page = jobs_sorted[start:end]
+
+    # Группировка по странам для разделителей
+    jobs_by_country = {}
+    for job in jobs_for_page:
+        country = job.get('country', 'Неизвестно')
+        jobs_by_country.setdefault(country, []).append(job)
+
+    return render_template(
+        'results.html',
+        jobs=jobs_for_page,
+        jobs_by_country=jobs_by_country,
+        preferences=preferences,
+        stats=stats,
+        search_time=round(search_time or 0, 1),
+        countries=getattr(aggregator, "countries", {}) if aggregator else {},
+        current_page=page,
+        total_pages=total_pages,
+        per_page=per_page,
+        total_jobs=total_jobs
+    )
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
