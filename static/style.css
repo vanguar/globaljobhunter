@@ -18,7 +18,6 @@
     
     --border-radius: 12px;
     --transition: all 0.3s ease-in-out;
-    --nav-h: 72px; /* фактическая высота navbar; при необходимости подправь */
 }
 
 * {
@@ -925,20 +924,7 @@ footer .remotive-footer:hover {
 }
 
 /* Пагинационная панель: чуть воздуха */
-/* Пагинация: липкая под шапкой, без зазора, фон слегка прозрачнее */
-.gjh-pager,
-#gjh-pager{
-  position: sticky;
-  top: var(--nav-h);          /* ровно под navbar, без дополнительного отступа */
-  z-index: 1020;              /* выше контента, ниже навбара */
-  margin: 0 0 1rem;           /* убрали верхний зазор */
-  background: rgba(255,255,255,0.90);  /* было плотнее; сделали на ~10% прозрачнее */
-  backdrop-filter: blur(8px);
-  border: 1px solid #eef2f7;
-  border-radius: 12px;
-  padding: .5rem .75rem;
-}
-
+.gjh-pager{ margin: .5rem 0 1rem; }
 
 /* =========================
    RESULTS PAGE — FINAL PATCH
@@ -1088,7 +1074,7 @@ footer .remotive-footer:hover {
 #gjh-pager{
   position: -webkit-sticky; /* Safari */
   position: sticky;
-  top: var(--nav-h);
+  top: calc(var(--nav-h) + 10px); /* маленький зазор, чтобы не задевать логотип */
   z-index: 1020;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
@@ -1125,7 +1111,7 @@ footer .remotive-footer:hover {
   :root{ --nav-h: 150px; }  /* было 72px; подбери 80–92px под свой navbar */
 
   /* + небольшой зазор под тенью шапки */
-  #gjh-pager{ top: var(--nav-h); }
+  #gjh-pager{ top: calc(var(--nav-h) + 6px); }
 }
 
 /* ПАГИНАЦИЯ ДОЛЖНА БЫТЬ ПОД ШАПКОЙ */
@@ -1140,7 +1126,7 @@ footer .remotive-footer:hover {
 
 /* Полупрозрачный стеклянный фон у всей панели (текст чёткий, не размываем opacity’ем) */
 body #gjh-pager{
-  background: rgba(255,255,255,0.75) !important;
+  background: rgba(255,255,255,0.85) !important;
   backdrop-filter: saturate(140%) blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 14px;
@@ -1319,13 +1305,4 @@ body #pager-subscribe-btn .nudge-text {
 /* Вимикаємо анімацію для користувачів з prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   body #pager-subscribe-btn::before { animation: none !important; }
-}
-
-@media (max-width: 991.98px){
-  .gjh-pager,
-  #gjh-pager{
-    position: static;                /* обычный поток на мобилке */
-    background: rgba(255,255,255,1); /* без прозрачности */
-    backdrop-filter: none;
-  }
 }
