@@ -107,6 +107,9 @@ def enforce_canonical_host_and_https():
     # 2) Редиректим только «безопасные» методы
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         return
+    # НЕ трогаем внутренние AJAX (пагинация/частичные рендеры)
+    if request.headers.get("X-Requested-With") in ("fetch", "XMLHttpRequest"):
+        return
 
     # 3) Смотрим на заголовки прокси (в проде)
     host  = request.headers.get("X-Forwarded-Host", request.host)
@@ -328,6 +331,7 @@ except ImportError as e:
 load_dotenv()
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-me')
+app.config['SESSION_COOKIE_DOMAIN'] = '.globaljobhunter.vip'
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True  # у тебя https на Railway
 
