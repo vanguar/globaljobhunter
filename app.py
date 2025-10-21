@@ -594,7 +594,7 @@ def search_jobs():
             session['last_search_preferences'] = preferences
             session['search_time'] = search_time
 
-        return jsonify({
+        payload = {
             'success': True,
             'jobs_count': len(jobs),
             'search_time': round(search_time, 1),
@@ -602,7 +602,17 @@ def search_jobs():
             'sources_used': ['adzuna'] + list(additional_aggregators.keys()),
             'remaining_searches': remaining,
             'redirect_url': url_for('results')
-        })
+        }
+
+        # Если это AJAX/Fetch — отдаём JSON (фронт сам перейдёт по redirect_url).
+        # Если это обычная отправка формы — делаем редирект тут же.
+        is_ajax = request.headers.get('X-Requested-With') in ('fetch', 'XMLHttpRequest')
+        wants_json = 'application/json' in (request.headers.get('Accept', '') or '')
+        if is_ajax or wants_json or request.is_json:
+            return jsonify(payload)
+        else:
+            return redirect(payload['redirect_url'])
+
     
     except Exception as e:
         app.logger.error(f"❌ Ошибка поиска: {e}", exc_info=True)
@@ -857,14 +867,19 @@ def search_stop():
 
     st['status'] = 'done'
 
-    # Здесь можно работать с session (есть request context)
+    redirect_url = url_for('results')
+    is_ajax = request.headers.get('X-Requested-With') in ('fetch', 'XMLHttpRequest')
+    wants_json = 'application/json' in (request.headers.get('Accept', '') or '')
+
     if st.get('results_id'):
         session['results_id'] = st['results_id']
         session['last_search_preferences'] = st['preferences']
-        return jsonify({'ok': True, 'redirect_url': url_for('results')})
+
+    if is_ajax or wants_json or request.is_json:
+        return jsonify({'ok': True, 'redirect_url': redirect_url})
     else:
-        # Ничего не нашли — пошлём на results, пусть покажет "0"
-        return jsonify({'ok': True, 'redirect_url': url_for('results')})
+        return redirect(redirect_url)
+
 
 # ---------------------------------------------------------------------------
 
