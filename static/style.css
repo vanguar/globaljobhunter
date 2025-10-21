@@ -18,6 +18,7 @@
     
     --border-radius: 12px;
     --transition: all 0.3s ease-in-out;
+    --nav-h: 72px; /* фактическая высота navbar; при необходимости подправь */
 }
 
 * {
@@ -924,7 +925,20 @@ footer .remotive-footer:hover {
 }
 
 /* Пагинационная панель: чуть воздуха */
-.gjh-pager{ margin: .5rem 0 1rem; }
+/* Пагинация: липкая под шапкой, без зазора, фон слегка прозрачнее */
+.gjh-pager,
+#gjh-pager{
+  position: sticky;
+  top: var(--nav-h);          /* ровно под navbar, без дополнительного отступа */
+  z-index: 1020;              /* выше контента, ниже навбара */
+  margin: 0 0 1rem;           /* убрали верхний зазор */
+  background: rgba(255,255,255,0.90);  /* было плотнее; сделали на ~10% прозрачнее */
+  backdrop-filter: blur(8px);
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  padding: .5rem .75rem;
+}
+
 
 /* =========================
    RESULTS PAGE — FINAL PATCH
@@ -1305,4 +1319,13 @@ body #pager-subscribe-btn .nudge-text {
 /* Вимикаємо анімацію для користувачів з prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   body #pager-subscribe-btn::before { animation: none !important; }
+}
+
+@media (max-width: 991.98px){
+  .gjh-pager,
+  #gjh-pager{
+    position: static;                /* обычный поток на мобилке */
+    background: rgba(255,255,255,1); /* без прозрачности */
+    backdrop-filter: none;
+  }
 }
