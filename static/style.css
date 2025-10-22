@@ -1066,18 +1066,20 @@ footer .remotive-footer:hover {
   :root { --nav-h: 80px; }  /* десктоп - подберите под свою navbar */
 }
 
-/* 3) Пагинация прилипает к navbar */
+/* 3) Пагинация прилипает к navbar с фиксированным зазором 2mm */
 #gjh-pager {
   position: -webkit-sticky;
   position: sticky;
-  top: var(--nav-h);  /* встык к navbar без зазора */
+  top: calc(var(--nav-h) + 7.56px);  /* 2mm = 7.56px при 96dpi */
   z-index: 1020;
   background: rgba(255,255,255,0.95);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px rgba(0,0,0,.08);
   margin-top: 0 !important;
-  border-radius: 0;  /* без скругления для встык-эффекта */
+  margin-bottom: 0 !important;
+  border-radius: 0;
+  padding-bottom: 1rem;  /* отступ снизу от кнопки подписки */
 }
 
 /* Тонкая линия снизу для визуального отделения */
