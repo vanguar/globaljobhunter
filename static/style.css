@@ -1048,9 +1048,9 @@ footer .remotive-footer:hover {
   margin-right: .25rem;
 }
 
-/* --- ONLY CSS: filters scroll, pager sticks under navbar --- */
+/* --- STICKY PAGER: прилипает к navbar при скролле --- */
 
-/* 1) Фильтры НЕ липкие, даже если в HTML остался .sticky-top */
+/* 1) Убираем липкость с фильтров */
 .filter-bar,
 .filter-bar.sticky-top {
   position: static !important;
@@ -1058,68 +1058,42 @@ footer .remotive-footer:hover {
   z-index: auto !important;
 }
 
-/* 2) Реальная высота шапки (без JS) */
-:root{
+/* 2) Реальная высота шапки (navbar) */
+:root {
   --nav-h: 72px;    /* мобилка */
 }
-@media (min-width: 992px){
-  /* под твой логотип 80px + вертикальные паддинги навбара + тень */
-  :root{ --nav-h: 108px; }
-}
-@media (min-width: 1400px){
-  :root{ --nav-h: 112px; } /* небольшой запас на крупных десктопах */
+@media (min-width: 992px) {
+  :root { --nav-h: 80px; }  /* десктоп - подберите под свою navbar */
 }
 
-/* 3) Верхняя пагинация — прилипает под шапку */
-#gjh-pager{
-  position: -webkit-sticky; /* Safari */
+/* 3) Пагинация прилипает к navbar */
+#gjh-pager {
+  position: -webkit-sticky;
   position: sticky;
-  top: calc(var(--nav-h) + 10px); /* маленький зазор, чтобы не задевать логотип */
+  top: var(--nav-h);  /* встык к navbar без зазора */
   z-index: 1020;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
   margin-top: 0 !important;
+  border-radius: 0;  /* без скругления для встык-эффекта */
 }
 
-/* тонкая линия, чтобы панель визуально отделялась на скролле */
-#gjh-pager::after{
-  content:"";
-  position:absolute; left:0; right:0; bottom:-1px;
-  height:1px; background: rgba(0,0,0,.06);
+/* Тонкая линия снизу для визуального отделения */
+#gjh-pager::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: rgba(0,0,0,.06);
 }
 
-/* --- Pager: скруглить и дать отступ слева --- */
-#gjh-pager{
-  border-radius: 12px;              /* скругление краёв */
-  padding: .6rem .9rem;             /* внутренние отступы */
-  border: 1px solid rgba(0,0,0,.06);/* тонкая рамка для объёма */
-  box-shadow: 0 2px 10px rgba(0,0,0,.06);
-}
-
-/* Если нужно сместить только подпись "На странице:" чуть вправо */
-#gjh-pager label[for="gjh-per-page"],
-#gjh-pager label[for="gjh-per-page-bottom"]{
-  margin-left: .5rem;   /* двинь сильнее/слабее: .25rem / .75rem / 1rem */
-}
-
-/* Альтернатива: отодвинуть всё содержимое панели от левого края */
- /* #gjh-pager{ padding-left: 1rem; } */
-
- /* --- Mobile tweak: опуcтить пагинацию чуть ниже шапки --- */
-@media (max-width: 575.98px){
-  /* вариант 1: поднять «высоту шапки» только для мобилки */
-  :root{ --nav-h: 150px; }  /* было 72px; подбери 80–92px под свой navbar */
-
-  /* + небольшой зазор под тенью шапки */
-  #gjh-pager{ top: calc(var(--nav-h) + 6px); }
-}
-
-/* ПАГИНАЦИЯ ДОЛЖНА БЫТЬ ПОД ШАПКОЙ */
-.navbar.sticky-top{
-  z-index: 1055 !important;   /* шапка всегда выше */
-}
-#gjh-pager{
-  z-index: 1000 !important;   /* пагинация ниже шапки */
+/* 4) Убедимся, что navbar выше пагинации */
+.navbar.sticky-top {
+  z-index: 1055 !important;
 }
 
 /***** PAGER — GLASS / SOFT UI + NUDGE *****/
