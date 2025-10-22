@@ -110,14 +110,16 @@ def enforce_canonical_host_and_https():
     # 2) Редиректим только «безопасные» методы
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         return
-    # НЕ редиректим только пагинацию /results?page=...
-    # Маркером служит спец-заголовок с фронта.
-    if request.headers.get("X-Pagination-Request") == "true":
+
+    # ← ДОБАВИТЬ: пропустить AJAX/Fetch пагинацию
+    if request.headers.get("X-Pagination-Request") == "true" or \
+    request.headers.get("X-Requested-With") in ("fetch", "XMLHttpRequest"):
         return
 
     # 3) Смотрим на заголовки прокси (в проде)
     host  = request.headers.get("X-Forwarded-Host", request.host)
     proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+
 
     need_host_fix  = (host != CANONICAL_HOST)
     need_proto_fix = (proto != CANONICAL_SCHEME)
