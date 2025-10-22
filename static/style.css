@@ -1070,7 +1070,7 @@ footer .remotive-footer:hover {
 #gjh-pager {
   position: -webkit-sticky;
   position: sticky;
-  top: calc(var(--nav-h) + 7.56px);  /* 2mm = 7.56px при 96dpi */
+  top: calc(var(--nav-h) + 12.56px);  /* 2mm = 7.56px при 96dpi */
   z-index: 1020;
   background: rgba(255,255,255,0.95);
   backdrop-filter: blur(10px);
