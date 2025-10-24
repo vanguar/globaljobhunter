@@ -97,10 +97,6 @@ class CareerjetAggregator(BaseJobAggregator):
 
         print(f"✅ Careerjet Aggregator инициализирован (affid: ...{self.affid[-4:]})")
 
-
-
-    from typing import List
-
     def _terms_from_ru(self, ru_title: str) -> List[str]:
         """
         Возвращает список поисковых термов (EN и др.) для русского названия профессии.
@@ -458,6 +454,31 @@ class CareerjetAggregator(BaseJobAggregator):
                         return [j for j in (self._normalize_job_data(x, country_name, term) for x in jobs_raw) if j]
                 except Exception:
                     pass
+                        # 🔧 ВРЕМЕННЫЙ ФОЛБЭК НА СТАРЫЙ HTTP (ТОЛЬКО ДЛЯ ДИАГНОСТИКИ НА STAGING!)
+            if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                try:
+                    old_url = "http://public.api.careerjet.net/search"
+                    old_params = {
+                        'affid': os.getenv('CAREERJET_AFFID', ''),
+                        'keywords': term,
+                        'location': location,
+                        'page': page,
+                        'pagesize': 20,
+                        'sort': 'date',
+                        'locale_code': locale_code,
+                        'user_ip': user_ip,
+                        'user_agent': user_agent,
+                        # Referer/URL как в их примерах
+                        'url': page_url or 'https://www.globaljobhunter.vip/results'
+                    }
+                    r = self.session.get(old_url, params=old_params, timeout=15)
+                    if r.status_code == 200 and (r.json() or {}).get('jobs'):
+                        print("🟡 TEMP fallback to old public.api.careerjet.net/search succeeded")
+                        jobs_raw = r.json().get('jobs') or []
+                        return [j for j in (self._normalize_job_data(x, country_name, term) for x in jobs_raw) if j]
+                except Exception:
+                    pass
+    
             print(f"❌ Careerjet: SSL error page={page} [{location}] term='{term}': {e}")
             return []
         except Exception as e:

@@ -69,6 +69,21 @@ from flask_compress import Compress
 
 app = Flask(__name__)
 
+# --- Диагностика исходящего IP для whitelist Careerjet ---
+def _diag_outbound():
+    import requests, sys, certifi
+    print("certifi:", getattr(certifi, "__version__", "?"),
+          "bundle:", certifi.where(), file=sys.stderr)
+    try:
+        ip = requests.get("https://api.ipify.org", timeout=5).text
+        print("Outbound IP:", ip, file=sys.stderr)
+    except Exception as e:
+        print("Outbound IP: <fail>", e, file=sys.stderr)
+
+_diag_outbound()
+# ----------------------------------------------------------
+
+
 # Сжатие ответа (HTML/CSS/JS/JSON)
 Compress(app)
 app.config.update(
@@ -563,7 +578,12 @@ def search_jobs():
                     continue
                 try:
                     app.logger.info(f"🔄 Дополнительный поиск через {source_name}")
-                    additional_jobs = source_aggregator.search_jobs(preferences)
+                    additional_jobs = source_aggregator.search_jobs(
+                        preferences,
+                        user_ip=client_ip,
+                        user_agent=request.headers.get('User-Agent', 'Mozilla/5.0'),
+                        page_url=request.url
+                    )
                     jobs.extend(additional_jobs)
                     app.logger.info(f"✅ {source_name}: +{len(additional_jobs)} вакансий")
                 except Exception as e:
