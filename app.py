@@ -791,17 +791,21 @@ def _search_worker(sid: str):
                     page_url=page_url
                 )
             except Exception:
-                try:
-                    jobs = src.search_jobs(
-                        prefs,
-                        progress_callback=progress_callback,
-                        cancel_check=cancel_check,
-                        user_ip=ip,
-                        user_agent=ua,
-                        page_url=page_url
-                    )
-                except TypeError:
-                    jobs = src.search_jobs(prefs)
+                # fallback только если у источника реально есть метод search_jobs
+                if hasattr(src, "search_jobs"):
+                    try:
+                        jobs = src.search_jobs(
+                            prefs,
+                            progress_callback=progress_callback,
+                            cancel_check=cancel_check,
+                            user_ip=ip,
+                            user_agent=ua,
+                            page_url=page_url
+                        )
+                    except TypeError:
+                        jobs = src.search_jobs(prefs)
+                else:
+                    jobs = None
 
 
             if jobs:
