@@ -18,6 +18,9 @@ import hashlib
 from dotenv import load_dotenv
 import certifi
 
+DEFAULT_CJ_REFERER = os.getenv("CAREERJET_REFERER", "https://globaljobhunter.vip/results")
+
+
 # --- Переиспользуемые компоненты из adzuna_aggregator ---
 from adzuna_aggregator import JobVacancy, CacheManager, RateLimiter, GlobalJobAggregator
 
@@ -328,7 +331,7 @@ class CareerjetAggregator(BaseJobAggregator):
             - [] — если вакансий нет/страниц больше нет,
             - None — если получен 429 и включён cooldown.
         """
-        # если уже в cooldown — не ходим
+        # глобальный кулдаун после 429
         now = time.time()
         if getattr(self, "cooldown_until", 0) > now:
             return []
@@ -342,42 +345,54 @@ class CareerjetAggregator(BaseJobAggregator):
             'user_ip': user_ip,       # ОБЯЗАТЕЛЬНО
             'user_agent': user_agent, # ОБЯЗАТЕЛЬНО
         }
+
         dbg = dict(params)
         dbg['user_ip'] = (str(dbg.get('user_ip'))[:7] + "xxx") if dbg.get('user_ip') else None
         print("CJ PARAMS =>", dbg, flush=True)
 
         headers = {
             'Accept': 'application/json',
-            'Referer': page_url or 'https://www.globaljobhunter.vip/',
+            'Referer': page_url or os.getenv("CAREERJET_REFERER", "https://www.globaljobhunter.vip/results"),
             'User-Agent': user_agent or 'Mozilla/5.0',
         }
 
-        def _do_get(p):
+        def _do_get(p, verify_mode=None):
+            if verify_mode is None:
+                verify_mode = self._cj_verify_path  # pinned certifi bundle
             return self.session.get(
                 self.base_url,
                 params=p,
-                auth=(self.api_key, ''),   # Basic Auth: username=API_KEY, пароль пустой
+                auth=(self.api_key, ''),     # Basic Auth: username=API_KEY, пароль пустой
                 headers=headers,
                 timeout=15,
-                verify=self._cj_verify_path,   # ВСЕГДА используем пиннутый бандл
+                verify=verify_mode,
             )
 
         try:
             self.rate_limiter.wait_if_needed()
+
+            # Попытка 1: обычная с нашим pinned CA-бандлом
             try:
                 r = _do_get(params)
-            except requests.exceptions.SSLError as e:
-                # Повтор с явным certifi.where() на случай, если env не подхватился
-                print(f"⚠️ SSLError → retry with certifi.where(): {e}")
-                r = self.session.get(
-                    self.base_url,
-                    params=params,
-                    auth=(self.api_key, ''),
-                    headers=headers,
-                    timeout=15,
-                    verify=certifi.where(),
-                )
+            except requests.exceptions.SSLError as e1:
+                print(f"⚠️ SSL error with pinned bundle → try certifi.where(): {e1}")
+                # Попытка 2: явный certifi.where()
+                try:
+                    r = _do_get(params, verify_mode=certifi.where())
+                except requests.exceptions.SSLError as e2:
+                    print(f"⚠️ SSL still failing → try verify=False only if CJ_INSECURE=1: {e2}")
+                    # Попытка 3: без верификации (только для диагностики)
+                    if os.getenv("CJ_INSECURE") == "1":
+                        r = _do_get(params, verify_mode=False)
+                    else:
+                        # Попытка 4: старый HTTP API как последний шанс (временный обход)
+                        if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                            return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
+                        # если фолбэк выключен — фиксируем ошибку и выходим
+                        print(f"❌ Careerjet: SSL error page={page} [{location}] term='{term}': {e2}")
+                        return []
 
+            # 429 → кулдаун и повторить позже
             if r.status_code == 429:
                 cd = float(os.getenv('CAREERJET_COOLDOWN_SEC', '150'))
                 self.cooldown_until = time.time() + cd
@@ -386,11 +401,14 @@ class CareerjetAggregator(BaseJobAggregator):
 
             if r.status_code != 200:
                 print(f"❌ Careerjet: HTTP {r.status_code} page={page} [{location}] term='{term}'")
+                # при не-200 можно попробовать старый HTTP, если разрешено
+                if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                    return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
                 return []
 
             data = r.json() or {}
 
-            # API может вернуть список локаций → берём первую и повторяем запрос
+            # Режим выбора локации
             if data.get('type') == 'LOCATIONS':
                 locs = data.get('locations') or []
                 if not locs:
@@ -398,29 +416,21 @@ class CareerjetAggregator(BaseJobAggregator):
                 params2 = dict(params)
                 params2['location'] = locs[0]
                 try:
-                    r = self.session.get(
-                        self.base_url,
-                        params=params2,
-                        auth=(self.api_key, ''),
-                        headers=headers,
-                        timeout=15,
-                        verify=self._cj_verify_path,
-                    )
+                    r = _do_get(params2)
                 except requests.exceptions.SSLError:
-                    r = self.session.get(
-                        self.base_url,
-                        params=params2,
-                        auth=(self.api_key, ''),
-                        headers=headers,
-                        timeout=15,
-                        verify=certifi.where(),
-                    )
+                    if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                        return self._fallback_old_api(term, locs[0], locale_code, page, user_ip, user_agent, page_url)
+                    return []
                 if r.status_code != 200:
-                    print(f"❌ Careerjet (retry with location): HTTP {r.status_code}")
+                    if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                        return self._fallback_old_api(term, locs[0], locale_code, page, user_ip, user_agent, page_url)
                     return []
                 data = r.json() or {}
 
             if data.get('type') != 'JOBS':
+                # если новый API не даёт JOBS — попробуем старый, если разрешено
+                if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                    return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
                 return []
 
             jobs_raw = data.get('jobs') or []
@@ -436,57 +446,52 @@ class CareerjetAggregator(BaseJobAggregator):
         except requests.Timeout:
             print(f"⚠️ Careerjet: таймаут page={page} [{location}] term='{term}'")
             return []
-        except requests.exceptions.SSLError as e:
-            # Аварийный однократный обход в DEV: CJ_INSECURE=1
-            if os.getenv("CJ_INSECURE") == "1":
-                print(f"🚨 CJ_INSECURE=1 → last-resort request without cert verify: {e}")
-                try:
-                    r = self.session.get(
-                        self.base_url,
-                        params=params,
-                        auth=(self.api_key, ''),
-                        headers=headers,
-                        timeout=15,
-                        verify=False,
-                    )
-                    if r.status_code == 200 and (r.json() or {}).get('type') == 'JOBS':
-                        jobs_raw = r.json().get('jobs') or []
-                        return [j for j in (self._normalize_job_data(x, country_name, term) for x in jobs_raw) if j]
-                except Exception:
-                    pass
-                        # 🔧 ВРЕМЕННЫЙ ФОЛБЭК НА СТАРЫЙ HTTP (ТОЛЬКО ДЛЯ ДИАГНОСТИКИ НА STAGING!)
-            if os.getenv("CJ_USE_OLD_HTTP") == "1":
-                try:
-                    old_url = "http://public.api.careerjet.net/search"
-                    old_params = {
-                        'affid': os.getenv('CAREERJET_AFFID', ''),
-                        'keywords': term,
-                        'location': location,
-                        'page': page,
-                        'pagesize': 20,
-                        'sort': 'date',
-                        'locale_code': locale_code,
-                        'user_ip': user_ip,
-                        'user_agent': user_agent,
-                        # Referer/URL как в их примерах
-                        'url': page_url or 'https://www.globaljobhunter.vip/results'
-                    }
-                    r = self.session.get(old_url, params=old_params, timeout=15)
-                    if r.status_code == 200 and (r.json() or {}).get('jobs'):
-                        print("🟡 TEMP fallback to old public.api.careerjet.net/search succeeded")
-                        jobs_raw = r.json().get('jobs') or []
-                        return [j for j in (self._normalize_job_data(x, country_name, term) for x in jobs_raw) if j]
-                except Exception:
-                    pass
-    
-            print(f"❌ Careerjet: SSL error page={page} [{location}] term='{term}': {e}")
-            return []
         except Exception as e:
             print(f"❌ Careerjet: ошибка page={page} [{location}] term='{term}': {e}")
             return []
 
 
-            
+
+    def _fallback_old_api(self, term: str, location: str, locale_code: str, page: int,
+                      user_ip: str, user_agent: str, page_url: str) -> List[JobVacancy]:
+        """
+        Временный обход на старый HTTP API (v3). Включается, если CJ_USE_OLD_HTTP=1.
+        """
+        try:
+            old_url = "http://public.api.careerjet.net/search"
+            old_params = {
+                'affid': getattr(self, "affid", os.getenv('CAREERJET_AFFID', '')),
+                'keywords': term,
+                'location': location or '',
+                'page': page,
+                'pagesize': 20,
+                'sort': 'date',
+                'locale_code': locale_code,
+                'user_ip': user_ip,
+                'user_agent': user_agent,
+                # Careerjet просит URL страницы-источника
+                'url': page_url or os.getenv("CAREERJET_REFERER", "https://www.globaljobhunter.vip/results"),
+            }
+            r = self.session.get(old_url, params=old_params, timeout=15)
+            if r.status_code != 200:
+                return []
+            data = r.json() or {}
+            if data.get('type') != 'JOBS':
+                return []
+            jobs_raw = data.get('jobs') or []
+            print(f"🟡 TEMP fallback to old public.api.careerjet.net/search succeeded (+{len(jobs_raw)})")
+            # country_name нам уже передают в основной метод; тут не вычисляем заново
+            # вернём нормализованные вакансии на базе того же терма
+            out: List[JobVacancy] = []
+            for raw in jobs_raw:
+                job = self._normalize_job_data(raw, location, term)  # передаём location как country_name-плейсхолдер
+                if job:
+                    out.append(job)
+            return out
+        except Exception as e:
+            print(f"❌ Old API fallback failed: {e}")
+            return []
+        
 
     def _get_locale_code(self, country_code: str) -> str:
         """Возвращает корректный locale_code для Careerjet."""
