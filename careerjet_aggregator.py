@@ -5,6 +5,11 @@ Careerjet Aggregator for GlobalJobHunter
 
 import os
 import requests
+from requests.adapters import HTTPAdapter
+try:
+    from urllib3.util.retry import Retry
+except Exception:
+    Retry = None
 import time
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -29,19 +34,22 @@ class CareerjetAggregator(BaseJobAggregator):
     - **Новая логика:** Выполняет отдельные запросы для каждой профессии для большей точности.
     """
     def __init__(self, adzuna_countries: Dict, specific_jobs_map: Dict, cache_duration_hours: Optional[int] = None):
-        """
-        Инициализация агрегатора Careerjet.
-        TTL: CAREERJET_CACHE_HOURS > CACHE_TTL_HOURS > 24 (по умолчанию).
-        """
         super().__init__(source_name='Careerjet')
         self.base_url = "https://search.api.careerjet.net/v4/query"
 
         self.api_key = os.getenv('CAREERJET_API_KEY')
         if not self.api_key:
             raise ValueError("CAREERJET_API_KEY is not set")
-        # (опционально сохраняем affid, если дальше где-то нужен)
+
+        # (опционально сохраняем affid, если где-то нужен)
         self.affid = os.getenv('CAREERJET_AFFID', '')
+
+        # Всегда используем актуальный CA-бандл и закрепляем его в окружении
         self._cj_verify_path = os.getenv('REQUESTS_CA_BUNDLE') or os.getenv('SSL_CERT_FILE') or certifi.where()
+        os.environ['SSL_CERT_FILE'] = self._cj_verify_path
+        os.environ['REQUESTS_CA_BUNDLE'] = self._cj_verify_path
+        print(f"🔐 Careerjet TLS bundle: {self._cj_verify_path}")
+
         # TTL кеша (часы)
         if cache_duration_hours is None:
             try:
@@ -53,7 +61,7 @@ class CareerjetAggregator(BaseJobAggregator):
         self.rate_limiter = RateLimiter(requests_per_minute=25)
         self.cooldown_until = 0  # глобальный кулдаун при 429
 
-        # Страны и названия (оставляем, как у вас было)
+        # Страны и названия
         self.country_map = {
             'gb': 'United Kingdom', 'us': 'United States', 'de': 'Germany',
             'fr': 'France', 'es': 'Spain', 'it': 'Italy', 'nl': 'Netherlands',
@@ -62,7 +70,7 @@ class CareerjetAggregator(BaseJobAggregator):
             'dk': 'Denmark', 'cz': 'Czech Republic', 'sk': 'Slovakia', 'ua': 'Ukraine'
         }
 
-        # Мапа locale_code, которая действительно нужна Careerjet
+        # locale_code для Careerjet
         self.locale_map = {
             'gb': 'en_GB', 'us': 'en_US', 'de': 'de_DE', 'fr': 'fr_FR',
             'es': 'es_ES', 'it': 'it_IT', 'nl': 'nl_NL', 'pl': 'pl_PL',
@@ -74,7 +82,21 @@ class CareerjetAggregator(BaseJobAggregator):
         self.adzuna_countries = adzuna_countries
         self.specific_jobs_map = specific_jobs_map
 
+        # Сессия с ретраями для стабильности
+        self.session = requests.Session()
+        if Retry:
+            retries = Retry(
+                total=3,
+                backoff_factor=0.6,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=frozenset(["GET"])
+            )
+            self.session.mount("https://", HTTPAdapter(max_retries=retries))
+        else:
+            self.session.mount("https://", HTTPAdapter())
+
         print(f"✅ Careerjet Aggregator инициализирован (affid: ...{self.affid[-4:]})")
+
 
 
     from typing import List
@@ -316,36 +338,49 @@ class CareerjetAggregator(BaseJobAggregator):
             return []
 
         params = {
-            'locale_code': locale_code,     # напр.: 'uk_UA'
+            'locale_code': locale_code,
             'keywords': term,
             'location': location or '',
-            'page': page,                   # 1..10
-            'page_size': 20,                # 1..100  (НОВОЕ имя)
-            'user_ip': user_ip,             # ОБЯЗАТЕЛЬНО
-            'user_agent': user_agent,       # ОБЯЗАТЕЛЬНО
+            'page': page,             # 1..10
+            'page_size': 20,          # 1..100
+            'user_ip': user_ip,       # ОБЯЗАТЕЛЬНО
+            'user_agent': user_agent, # ОБЯЗАТЕЛЬНО
         }
         dbg = dict(params)
         dbg['user_ip'] = (str(dbg.get('user_ip'))[:7] + "xxx") if dbg.get('user_ip') else None
         print("CJ PARAMS =>", dbg, flush=True)
 
-
-
         headers = {
             'Accept': 'application/json',
-            'Referer': page_url or 'https://www.globaljobhunter.vip/',  # ОБЯЗАТЕЛЬНО
+            'Referer': page_url or 'https://www.globaljobhunter.vip/',
             'User-Agent': user_agent or 'Mozilla/5.0',
         }
 
+        def _do_get(p):
+            return self.session.get(
+                self.base_url,
+                params=p,
+                auth=(self.api_key, ''),   # Basic Auth: username=API_KEY, пароль пустой
+                headers=headers,
+                timeout=15,
+                verify=self._cj_verify_path,   # ВСЕГДА используем пиннутый бандл
+            )
+
         try:
             self.rate_limiter.wait_if_needed()
-            r = requests.get(
-            self.base_url,
-            params=params,
-            auth=(self.api_key, ''),   # Basic Auth: username=API_KEY, пароль пустой
-            headers=headers,
-            timeout=15,
-            verify=self._cj_verify_path,   # принудительно используем свежие корневые certifi
-        )
+            try:
+                r = _do_get(params)
+            except requests.exceptions.SSLError as e:
+                # Повтор с явным certifi.where() на случай, если env не подхватился
+                print(f"⚠️ SSLError → retry with certifi.where(): {e}")
+                r = self.session.get(
+                    self.base_url,
+                    params=params,
+                    auth=(self.api_key, ''),
+                    headers=headers,
+                    timeout=15,
+                    verify=certifi.where(),
+                )
 
             if r.status_code == 429:
                 cd = float(os.getenv('CAREERJET_COOLDOWN_SEC', '150'))
@@ -358,32 +393,43 @@ class CareerjetAggregator(BaseJobAggregator):
                 return []
 
             data = r.json() or {}
-            # Если API вернул режим выбора локации — берём первую и повторяем запрос
+
+            # API может вернуть список локаций → берём первую и повторяем запрос
             if data.get('type') == 'LOCATIONS':
                 locs = data.get('locations') or []
-                if locs:
-                    params['location'] = locs[0]
-                    r = requests.get(
+                if not locs:
+                    return []
+                params2 = dict(params)
+                params2['location'] = locs[0]
+                try:
+                    r = self.session.get(
                         self.base_url,
-                        params=params,
+                        params=params2,
                         auth=(self.api_key, ''),
                         headers=headers,
                         timeout=15,
+                        verify=self._cj_verify_path,
                     )
-                    if r.status_code != 200:
-                        print(f"❌ Careerjet (retry with location): HTTP {r.status_code}")
-                        return []
-                    data = r.json() or {}
-                else:
-                    return []  # нет подходящих локаций — вакансий не будет
+                except requests.exceptions.SSLError:
+                    r = self.session.get(
+                        self.base_url,
+                        params=params2,
+                        auth=(self.api_key, ''),
+                        headers=headers,
+                        timeout=15,
+                        verify=certifi.where(),
+                    )
+                if r.status_code != 200:
+                    print(f"❌ Careerjet (retry with location): HTTP {r.status_code}")
+                    return []
+                data = r.json() or {}
 
-            # Если это не список вакансий — выходим
             if data.get('type') != 'JOBS':
                 return []
+
             jobs_raw = data.get('jobs') or []
             batch: List[JobVacancy] = []
             for raw in jobs_raw:
-                # ⬇️ _normalize_job_data ожидает country_name и search_term
                 job = self._normalize_job_data(raw, country_name, term)
                 if job:
                     batch.append(job)
@@ -394,9 +440,30 @@ class CareerjetAggregator(BaseJobAggregator):
         except requests.Timeout:
             print(f"⚠️ Careerjet: таймаут page={page} [{location}] term='{term}'")
             return []
+        except requests.exceptions.SSLError as e:
+            # Аварийный однократный обход в DEV: CJ_INSECURE=1
+            if os.getenv("CJ_INSECURE") == "1":
+                print(f"🚨 CJ_INSECURE=1 → last-resort request without cert verify: {e}")
+                try:
+                    r = self.session.get(
+                        self.base_url,
+                        params=params,
+                        auth=(self.api_key, ''),
+                        headers=headers,
+                        timeout=15,
+                        verify=False,
+                    )
+                    if r.status_code == 200 and (r.json() or {}).get('type') == 'JOBS':
+                        jobs_raw = r.json().get('jobs') or []
+                        return [j for j in (self._normalize_job_data(x, country_name, term) for x in jobs_raw) if j]
+                except Exception:
+                    pass
+            print(f"❌ Careerjet: SSL error page={page} [{location}] term='{term}': {e}")
+            return []
         except Exception as e:
             print(f"❌ Careerjet: ошибка page={page} [{location}] term='{term}': {e}")
             return []
+
 
             
 
