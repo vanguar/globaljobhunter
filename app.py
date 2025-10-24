@@ -69,6 +69,80 @@ from flask_compress import Compress
 
 app = Flask(__name__)
 
+# ---------- CJ TLS DIAGNOSTICS (remove after debugging) ----------
+@app.get("/diag/cj_tls")
+def diag_cj_tls():
+    import ssl, socket, certifi, requests, os
+    host = "search.api.careerjet.net"
+    out = {}
+
+    # 1) Инфо о peer cert
+    try:
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        with socket.create_connection((host, 443), timeout=10) as s:
+            with ctx.wrap_socket(s, server_hostname=host) as t:
+                cert = t.getpeercert()
+        out["peer_cert"] = {
+            "CN": dict(x[0] for x in cert["subject"]).get("commonName"),
+            "Issuer": dict(x[0] for x in cert["issuer"]).get("commonName"),
+            "notBefore": cert.get("notBefore"),
+            "notAfter": cert.get("notAfter"),
+        }
+    except Exception as e:
+        out["peer_cert_error"] = str(e)
+
+    # 2) Проба HTTPS запроса к v4 с pinned certifi
+    params = {
+        "locale_code": "en_GB",
+        "keywords": "test",
+        "user_ip": "1.2.3.4",
+        "user_agent": "diag",
+    }
+    headers = {
+        "Accept": "application/json",
+        "Referer": os.getenv("CAREERJET_REFERER", "https://globaljobhunter.vip/results"),
+    }
+    try:
+        r = requests.get(
+            f"https://{host}/v4/query",
+            params=params,
+            auth=(os.getenv("CAREERJET_API_KEY", ""), ""),
+            headers=headers,
+            timeout=10,
+            verify=certifi.where(),
+        )
+        ctype = r.headers.get("content-type", "")
+        out["https_status"] = r.status_code
+        out["https_ct"] = ctype
+        if "application/json" in ctype.lower():
+            try:
+                out["https_type"] = (r.json() or {}).get("type")
+            except Exception:
+                out["https_type"] = "<json parse error>"
+        else:
+            out["https_type"] = "<non-json>"
+    except Exception as e:
+        out["https_error"] = str(e)
+
+    return out
+# -----------------------------------------------------------------
+
+
+# --- Диагностика исходящего IP для whitelist Careerjet ---
+def _diag_outbound():
+    import requests, sys, certifi
+    print("certifi:", getattr(certifi, "__version__", "?"),
+          "bundle:", certifi.where(), file=sys.stderr)
+    try:
+        ip = requests.get("https://api.ipify.org", timeout=5).text
+        print("Outbound IP:", ip, file=sys.stderr)
+    except Exception as e:
+        print("Outbound IP: <fail>", e, file=sys.stderr)
+
+_diag_outbound()
+# ----------------------------------------------------------
+
+
 # Сжатие ответа (HTML/CSS/JS/JSON)
 Compress(app)
 app.config.update(
@@ -110,14 +184,16 @@ def enforce_canonical_host_and_https():
     # 2) Редиректим только «безопасные» методы
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         return
-    # НЕ редиректим только пагинацию /results?page=...
-    # Маркером служит спец-заголовок с фронта.
-    if request.headers.get("X-Pagination-Request") == "true":
+
+    # ← ДОБАВИТЬ: пропустить AJAX/Fetch пагинацию
+    if request.headers.get("X-Pagination-Request") == "true" or \
+    request.headers.get("X-Requested-With") in ("fetch", "XMLHttpRequest"):
         return
 
     # 3) Смотрим на заголовки прокси (в проде)
     host  = request.headers.get("X-Forwarded-Host", request.host)
     proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+
 
     need_host_fix  = (host != CANONICAL_HOST)
     need_proto_fix = (proto != CANONICAL_SCHEME)
@@ -561,7 +637,12 @@ def search_jobs():
                     continue
                 try:
                     app.logger.info(f"🔄 Дополнительный поиск через {source_name}")
-                    additional_jobs = source_aggregator.search_jobs(preferences)
+                    additional_jobs = source_aggregator.search_jobs(
+                        preferences,
+                        user_ip=client_ip,
+                        user_agent=request.headers.get('User-Agent', 'Mozilla/5.0'),
+                        page_url=request.url
+                    )
                     jobs.extend(additional_jobs)
                     app.logger.info(f"✅ {source_name}: +{len(additional_jobs)} вакансий")
                 except Exception as e:
@@ -769,17 +850,21 @@ def _search_worker(sid: str):
                     page_url=page_url
                 )
             except Exception:
-                try:
-                    jobs = src.search_jobs(
-                        prefs,
-                        progress_callback=progress_callback,
-                        cancel_check=cancel_check,
-                        user_ip=ip,
-                        user_agent=ua,
-                        page_url=page_url
-                    )
-                except TypeError:
-                    jobs = src.search_jobs(prefs)
+                # fallback только если у источника реально есть метод search_jobs
+                if hasattr(src, "search_jobs"):
+                    try:
+                        jobs = src.search_jobs(
+                            prefs,
+                            progress_callback=progress_callback,
+                            cancel_check=cancel_check,
+                            user_ip=ip,
+                            user_agent=ua,
+                            page_url=page_url
+                        )
+                    except TypeError:
+                        jobs = src.search_jobs(prefs)
+                else:
+                    jobs = None
 
 
             if jobs:
