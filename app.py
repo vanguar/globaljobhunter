@@ -69,6 +69,65 @@ from flask_compress import Compress
 
 app = Flask(__name__)
 
+# ---------- CJ TLS DIAGNOSTICS (remove after debugging) ----------
+@app.get("/diag/cj_tls")
+def diag_cj_tls():
+    import ssl, socket, certifi, requests, os
+    host = "search.api.careerjet.net"
+    out = {}
+
+    # 1) Инфо о peer cert
+    try:
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        with socket.create_connection((host, 443), timeout=10) as s:
+            with ctx.wrap_socket(s, server_hostname=host) as t:
+                cert = t.getpeercert()
+        out["peer_cert"] = {
+            "CN": dict(x[0] for x in cert["subject"]).get("commonName"),
+            "Issuer": dict(x[0] for x in cert["issuer"]).get("commonName"),
+            "notBefore": cert.get("notBefore"),
+            "notAfter": cert.get("notAfter"),
+        }
+    except Exception as e:
+        out["peer_cert_error"] = str(e)
+
+    # 2) Проба HTTPS запроса к v4 с pinned certifi
+    params = {
+        "locale_code": "en_GB",
+        "keywords": "test",
+        "user_ip": "1.2.3.4",
+        "user_agent": "diag",
+    }
+    headers = {
+        "Accept": "application/json",
+        "Referer": os.getenv("CAREERJET_REFERER", "https://globaljobhunter.vip/results"),
+    }
+    try:
+        r = requests.get(
+            f"https://{host}/v4/query",
+            params=params,
+            auth=(os.getenv("CAREERJET_API_KEY", ""), ""),
+            headers=headers,
+            timeout=10,
+            verify=certifi.where(),
+        )
+        ctype = r.headers.get("content-type", "")
+        out["https_status"] = r.status_code
+        out["https_ct"] = ctype
+        if "application/json" in ctype.lower():
+            try:
+                out["https_type"] = (r.json() or {}).get("type")
+            except Exception:
+                out["https_type"] = "<json parse error>"
+        else:
+            out["https_type"] = "<non-json>"
+    except Exception as e:
+        out["https_error"] = str(e)
+
+    return out
+# -----------------------------------------------------------------
+
+
 # --- Диагностика исходящего IP для whitelist Careerjet ---
 def _diag_outbound():
     import requests, sys, certifi
