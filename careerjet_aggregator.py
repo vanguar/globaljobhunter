@@ -11,6 +11,7 @@ from typing import List, Dict, Optional
 from dataclasses import asdict
 import hashlib
 from dotenv import load_dotenv
+import certifi
 
 # --- Переиспользуемые компоненты из adzuna_aggregator ---
 from adzuna_aggregator import JobVacancy, CacheManager, RateLimiter, GlobalJobAggregator
@@ -40,7 +41,7 @@ class CareerjetAggregator(BaseJobAggregator):
             raise ValueError("CAREERJET_API_KEY is not set")
         # (опционально сохраняем affid, если дальше где-то нужен)
         self.affid = os.getenv('CAREERJET_AFFID', '')
-
+        self._cj_verify_path = os.getenv('REQUESTS_CA_BUNDLE') or os.getenv('SSL_CERT_FILE') or certifi.where()
         # TTL кеша (часы)
         if cache_duration_hours is None:
             try:
@@ -343,6 +344,7 @@ class CareerjetAggregator(BaseJobAggregator):
             auth=(self.api_key, ''),   # Basic Auth: username=API_KEY, пароль пустой
             headers=headers,
             timeout=15,
+            verify=self._cj_verify_path,   # принудительно используем свежие корневые certifi
         )
 
             if r.status_code == 429:
