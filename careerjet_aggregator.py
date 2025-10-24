@@ -202,7 +202,7 @@ class CareerjetAggregator(BaseJobAggregator):
 
         # лимит страниц на один term
         try:
-            max_pages = int(os.getenv("CAREERJET_MAX_PAGES_PER_TERM", "15"))
+            max_pages = int(os.getenv("CAREERJET_MAX_PAGES_PER_TERM", "5"))
         except Exception:
             max_pages = 15
         max_pages = min(max_pages, 10)
@@ -341,7 +341,7 @@ class CareerjetAggregator(BaseJobAggregator):
             'keywords': term,
             'location': location or '',
             'page': page,             # 1..10
-            'page_size': 20,          # 1..100
+            'page_size': int(os.getenv("CJ_PAGE_SIZE", "50")),  # 1..100 (дефолт 50)
             'user_ip': user_ip,       # ОБЯЗАТЕЛЬНО
             'user_agent': user_agent, # ОБЯЗАТЕЛЬНО
         }
@@ -385,10 +385,9 @@ class CareerjetAggregator(BaseJobAggregator):
                     if os.getenv("CJ_INSECURE") == "1":
                         r = _do_get(params, verify_mode=False)
                     else:
-                        # Попытка 4: старый HTTP API как последний шанс (временный обход)
-                        if os.getenv("CJ_USE_OLD_HTTP") == "1":
-                            return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
-                        # если фолбэк выключен — фиксируем ошибку и выходим
+                        # Фолбэк на старый HTTP отключён
+                        # if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                        #     return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
                         print(f"❌ Careerjet: SSL error page={page} [{location}] term='{term}': {e2}")
                         return []
 
@@ -401,14 +400,14 @@ class CareerjetAggregator(BaseJobAggregator):
 
             if r.status_code != 200:
                 print(f"❌ Careerjet: HTTP {r.status_code} page={page} [{location}] term='{term}'")
-                # при не-200 можно попробовать старый HTTP, если разрешено
-                if os.getenv("CJ_USE_OLD_HTTP") == "1":
-                    return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
+                # фолбэк на старый HTTP отключён
+                # if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                #     return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
                 return []
 
             data = r.json() or {}
 
-            # Режим выбора локации
+            # --- Режим выбора локации ---
             if data.get('type') == 'LOCATIONS':
                 locs = data.get('locations') or []
                 if not locs:
@@ -418,19 +417,22 @@ class CareerjetAggregator(BaseJobAggregator):
                 try:
                     r = _do_get(params2)
                 except requests.exceptions.SSLError:
-                    if os.getenv("CJ_USE_OLD_HTTP") == "1":
-                        return self._fallback_old_api(term, locs[0], locale_code, page, user_ip, user_agent, page_url)
+                    # фолбэк на старый HTTP отключён
+                    # if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                    #     return self._fallback_old_api(term, locs[0], locale_code, page, user_ip, user_agent, page_url)
                     return []
                 if r.status_code != 200:
-                    if os.getenv("CJ_USE_OLD_HTTP") == "1":
-                        return self._fallback_old_api(term, locs[0], locale_code, page, user_ip, user_agent, page_url)
+                    # фолбэк на старый HTTP отключён
+                    # if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                    #     return self._fallback_old_api(term, locs[0], locale_code, page, user_ip, user_agent, page_url)
                     return []
                 data = r.json() or {}
 
+            # ←← ВАЖНО: вот здесь и только здесь делаем финальную проверку типа
             if data.get('type') != 'JOBS':
-                # если новый API не даёт JOBS — попробуем старый, если разрешено
-                if os.getenv("CJ_USE_OLD_HTTP") == "1":
-                    return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
+                # фолбэк на старый HTTP отключён
+                # if os.getenv("CJ_USE_OLD_HTTP") == "1":
+                #     return self._fallback_old_api(term, location, locale_code, page, user_ip, user_agent, page_url)
                 return []
 
             jobs_raw = data.get('jobs') or []
