@@ -33,11 +33,13 @@ class CareerjetAggregator(BaseJobAggregator):
         TTL: CAREERJET_CACHE_HOURS > CACHE_TTL_HOURS > 24 (по умолчанию).
         """
         super().__init__(source_name='Careerjet')
-        self.base_url = "http://public.api.careerjet.net/search"
+        self.base_url = "https://search.api.careerjet.net/v4/query"
 
-        self.affid = os.getenv('CAREERJET_AFFID')
-        if not self.affid:
-            raise ValueError("CAREERJET_AFFID не найден в .env файле!")
+        self.api_key = os.getenv('CAREERJET_API_KEY')
+        if not self.api_key:
+            raise ValueError("CAREERJET_API_KEY is not set")
+        # (опционально сохраняем affid, если дальше где-то нужен)
+        self.affid = os.getenv('CAREERJET_AFFID', '')
 
         # TTL кеша (часы)
         if cache_duration_hours is None:
@@ -56,7 +58,7 @@ class CareerjetAggregator(BaseJobAggregator):
             'fr': 'France', 'es': 'Spain', 'it': 'Italy', 'nl': 'Netherlands',
             'pl': 'Poland', 'ca': 'Canada', 'au': 'Australia', 'at': 'Austria',
             'ch': 'Switzerland', 'be': 'Belgium', 'se': 'Sweden', 'no': 'Norway',
-            'dk': 'Denmark', 'cz': 'Czech Republic', 'sk': 'Slovakia'
+            'dk': 'Denmark', 'cz': 'Czech Republic', 'sk': 'Slovakia', 'ua': 'Ukraine'
         }
 
         # Мапа locale_code, которая действительно нужна Careerjet
@@ -65,7 +67,7 @@ class CareerjetAggregator(BaseJobAggregator):
             'es': 'es_ES', 'it': 'it_IT', 'nl': 'nl_NL', 'pl': 'pl_PL',
             'ca': 'en_CA', 'au': 'en_AU', 'at': 'de_AT', 'ch': 'de_CH',
             'be': 'nl_BE', 'se': 'sv_SE', 'no': 'no_NO', 'dk': 'da_DK',
-            'cz': 'cs_CZ', 'sk': 'sk_SK'
+            'cz': 'cs_CZ', 'sk': 'sk_SK', 'ua': 'uk_UA'
         }
 
         self.adzuna_countries = adzuna_countries
@@ -181,21 +183,15 @@ class CareerjetAggregator(BaseJobAggregator):
             max_pages = int(os.getenv("CAREERJET_MAX_PAGES_PER_TERM", "15"))
         except Exception:
             max_pages = 15
-
-        # маппинг из RU-названия профессии в англ. термы
-        def _terms_from_ru(ru_title: str) -> List[str]:
-            for cat in self.specific_jobs_map.values():
-                if ru_title in cat:
-                    return [t for t in cat[ru_title] if t]
-            return []
-
+        max_pages = min(max_pages, 10)
+        
         # основной цикл
         for ru_title in selected_jobs:
             if cancel_check and cancel_check():
                 break
 
             # === ВАЖНО: берём только термы этой профессии; если маппинга нет — пропускаем ===
-            en_terms = list(dict.fromkeys([t for t in _terms_from_ru(ru_title) if t]))
+            en_terms = list(dict.fromkeys([t for t in self._terms_from_ru(ru_title) if t]))
             if not en_terms:
                 # нет маппинга — вообще не трогаем этот ru_title
                 continue
@@ -319,28 +315,35 @@ class CareerjetAggregator(BaseJobAggregator):
             return []
 
         params = {
-            'affid': self.affid,
+            'locale_code': locale_code,     # напр.: 'uk_UA'
             'keywords': term,
-            'location': location,
-            'page': page,
-            'pagesize': 20,
-            'sort': 'date',
-            'locale_code': locale_code,
-            'user_ip': user_ip,
-            'user_agent': user_agent,
-            'url': page_url or 'https://www.globaljobhunter.vip/results'
+            'location': location or '',
+            'page': page,                   # 1..10
+            'page_size': 20,                # 1..100  (НОВОЕ имя)
+            'user_ip': user_ip,             # ОБЯЗАТЕЛЬНО
+            'user_agent': user_agent,       # ОБЯЗАТЕЛЬНО
         }
         dbg = dict(params)
-        dbg['user_ip'] = str(dbg.get('user_ip'))[:7] + "xxx"  # подсечь IP в логах
+        dbg['user_ip'] = (str(dbg.get('user_ip'))[:7] + "xxx") if dbg.get('user_ip') else None
         print("CJ PARAMS =>", dbg, flush=True)
 
 
 
-        headers = {'User-Agent': user_agent}
+        headers = {
+            'Accept': 'application/json',
+            'Referer': page_url or 'https://www.globaljobhunter.vip/',  # ОБЯЗАТЕЛЬНО
+            'User-Agent': user_agent or 'Mozilla/5.0',
+        }
 
         try:
             self.rate_limiter.wait_if_needed()
-            r = requests.get(self.base_url, params=params, headers=headers, timeout=15)
+            r = requests.get(
+            self.base_url,
+            params=params,
+            auth=(self.api_key, ''),   # Basic Auth: username=API_KEY, пароль пустой
+            headers=headers,
+            timeout=15,
+        )
 
             if r.status_code == 429:
                 cd = float(os.getenv('CAREERJET_COOLDOWN_SEC', '150'))
@@ -353,6 +356,28 @@ class CareerjetAggregator(BaseJobAggregator):
                 return []
 
             data = r.json() or {}
+            # Если API вернул режим выбора локации — берём первую и повторяем запрос
+            if data.get('type') == 'LOCATIONS':
+                locs = data.get('locations') or []
+                if locs:
+                    params['location'] = locs[0]
+                    r = requests.get(
+                        self.base_url,
+                        params=params,
+                        auth=(self.api_key, ''),
+                        headers=headers,
+                        timeout=15,
+                    )
+                    if r.status_code != 200:
+                        print(f"❌ Careerjet (retry with location): HTTP {r.status_code}")
+                        return []
+                    data = r.json() or {}
+                else:
+                    return []  # нет подходящих локаций — вакансий не будет
+
+            # Если это не список вакансий — выходим
+            if data.get('type') != 'JOBS':
+                return []
             jobs_raw = data.get('jobs') or []
             batch: List[JobVacancy] = []
             for raw in jobs_raw:
@@ -379,8 +404,8 @@ class CareerjetAggregator(BaseJobAggregator):
         
 
 
-
-    def _fetch_all_pages(
+    # DEPRECATED: legacy Careerjet v3.0 flow — not used with v4 API
+    def _fetch_all_pages_legacy(
     self,
     keywords: str,
     location: str,
