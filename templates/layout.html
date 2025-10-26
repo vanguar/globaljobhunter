@@ -96,6 +96,11 @@
             <i class="bi bi-compass me-1"></i>
             <span data-i18n="Полезные ссылки">Полезные ссылки</span>
             </a>
+            <a class="nav-link btn-hover {{ 'active' if request.endpoint == 'resumes' }}" href="{{ url_for('resumes') }}">
+            <i class="bi bi-file-earmark-text me-1"></i>
+            <span data-i18n="Шаблоны CV">Шаблоны CV</span>
+            </a>
+
 
             <a class="nav-link btn-hover" href="https://www.facebook.com/GlobalJobHunter/" target="_blank" rel="noopener" aria-label="Facebook">
             <i class="bi bi-facebook"></i>
@@ -168,6 +173,12 @@
                         <i class="bi bi-compass me-2"></i><span data-i18n="Полезные ссылки">Полезные ссылки</span>
                     </a>
                     </li>
+                    <li class="mb-2">
+                    <a href="{{ url_for('resumes') }}" class="text-light opacity-75 text-decoration-none btn-hover">
+                        <i class="bi bi-file-earmark-text me-2"></i><span data-i18n="Шаблоны CV">Шаблоны CV</span>
+                    </a>
+                    </li>
+
                     <li class="mb-2">
                         <a href="{{ url_for('support') }}" class="text-light opacity-75 text-decoration-none btn-hover">
                             <i class="bi bi-heart me-2"></i>Поддержать проект

@@ -1,0 +1,690 @@
+
+{% extends "layout.html" %}
+{% block title %}Образцы резюме по странам — GlobalJobHunter{% endblock %}
+
+{% block content %}
+<section class="bg-light border-bottom py-5">
+  <div class="container">
+    <h1 class="display-6 fw-bold mb-2" data-i18n="Образцы резюме по странам">Образцы резюме по странам</h1>
+    <p class="lead mb-0" data-i18n="Ниже — скачиваемые примеры резюме/CV (PDF и Word) для каждой страны: англоязычный и местный образец. Нажмите на плитку, чтобы развернуть полное описание и перейти на страницу скачивания.">
+      Ниже — скачиваемые примеры резюме/CV (PDF и Word) для каждой страны: англоязычный и местный образец. Нажмите на плитку, чтобы развернуть полное описание и перейти на страницу скачивания.
+    </p>
+  </div>
+</section>
+
+<section class="py-5">
+  <div class="container">
+
+    <div class="row gy-3 mb-4">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold" data-i18n="Поиск по стране">Поиск по стране</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input id="cvSearch" class="form-control" type="search" placeholder="США, Германия, Польша…" data-i18n="США, Германия, Польша…">
+        </div>
+      </div>
+    </div>
+
+    <div class="cv-vertical-list" id="cvList">
+
+      <!-- USA -->
+      <article class="cv-card" data-country="США USA United States">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-us" aria-expanded="false" aria-controls="cv-us" role="button">
+          <div class="cv-flag"><span class="fi fi-us"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">United States (USA)</h3>
+            <p class="cv-sub" data-i18n="Классический краткий résumé (1–2 страницы), без фото и возраста; акцент на достижениях.">Классический краткий résumé (1–2 страницы), без фото и возраста; акцент на достижениях.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-us" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.southeastern.edu/admin/career_srv/student_alumni/build_a_resume/resume-samples/" target="_blank" rel="noopener" class="ms-1" data-i18n="PDF">PDF</a>
+              <span class="opacity-50">·</span>
+              <a href="https://www.southeastern.edu/admin/career_srv/student_alumni/build_a_resume/resume-samples/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://careered.stanford.edu/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Canada -->
+      <article class="cv-card" data-country="Канада Canada">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-ca" aria-expanded="false" aria-controls="cv-ca" role="button">
+          <div class="cv-flag"><span class="fi fi-ca"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Canada</h3>
+            <p class="cv-sub" data-i18n="Кратко, по делу, без фото. Career Profile и измеримые результаты.">Кратко, по делу, без фото. Career Profile и измеримые результаты.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-ca" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.dawsoncollege.qc.ca/student-employment/wp-content/uploads/sites/81/Concordia-UN-Resume_-Template.pdf" target="_blank" rel="noopener" data-i18n="PDF">English (PDF):</a>
+            </li>, 
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.dawsoncollege.qc.ca/french/wp-content/uploads/sites/94/2.-Exemples-de-CV.pdf" target="_blank" rel="noopener" data-i18n="PDF">French (PDF):</a>
+            </li>
+            <li class="mt-1"><a href="https://www.dawsoncollege.qc.ca/counselling/career-development/resume-and-cover-letter-samples/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- UK -->
+      <article class="cv-card" data-country="Великобритания UK United Kingdom">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-uk" aria-expanded="false" aria-controls="cv-uk" role="button">
+          <div class="cv-flag"><span class="fi fi-gb"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">United Kingdom</h3>
+            <p class="cv-sub" data-i18n="CV на 1–2 страницы, без фото; профиль, опыт, образование.">CV на 1–2 страницы, без фото; профиль, опыт, образование.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-uk" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.sbs.ox.ac.uk/sites/default/files/2019-01/cv-template.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+              <span class="opacity-50">·</span>
+              <a href="https://careerservices.fas.harvard.edu/resources/bullet-point-resume-template/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.southampton.gov.uk/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Ireland -->
+      <article class="cv-card" data-country="Ирландия Ireland">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-ie" aria-expanded="false" aria-controls="cv-ie" role="button">
+          <div class="cv-flag"><span class="fi fi-ie"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Ireland</h3>
+            <p class="cv-sub" data-i18n="Формат как в UK: акцент на достижениях и управленческом опыте.">Формат как в UK: акцент на достижениях и управленческом опыте.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-ie" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.sbs.ox.ac.uk/sites/default/files/2019-01/cv-template.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+              <span class="opacity-50">·</span>
+              <a href="https://careerservices.fas.harvard.edu/resources/bullet-point-resume-template/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.publicjobs.ie/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Australia -->
+      <article class="cv-card" data-country="Австралия Australia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-au" aria-expanded="false" aria-controls="cv-au" role="button">
+          <div class="cv-flag"><span class="fi fi-au"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Australia</h3>
+            <p class="cv-sub" data-i18n="Часто 2-страничный CV; без фото; рефери по запросу.">Часто 2-страничный CV; без фото; рефери по запросу.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-au" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.youthcentral.vic.gov.au/jobs/resumes-and-cover-letters" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+              <span class="opacity-50">·</span>
+              <a href="https://www.youthcentral.vic.gov.au/jobs/resumes-and-cover-letters" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.dewr.gov.au/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- New Zealand -->
+      <article class="cv-card" data-country="Новая Зеландия New Zealand">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-nz" aria-expanded="false" aria-controls="cv-nz" role="button">
+          <div class="cv-flag"><span class="fi fi-nz"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">New Zealand</h3>
+            <p class="cv-sub" data-i18n="Подробный, честный стиль; фото не обязательно.">Подробный, честный стиль; фото не обязательно.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-nz" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.careers.govt.nz/job-hunting/cvs-and-cover-letters/templates/" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+              <span class="opacity-50">·</span>
+              <a href="https://www.careers.govt.nz/job-hunting/cvs-and-cover-letters/templates/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.careers.govt.nz/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Germany -->
+      <article class="cv-card" data-country="Германия Germany">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-de" aria-expanded="false" aria-controls="cv-de" role="button">
+          <div class="cv-flag"><span class="fi fi-de"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Germany</h3>
+            <p class="cv-sub" data-i18n="Lebenslauf; личные данные; фото опционально.">Lebenslauf; личные данные; фото опционально.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-de" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.azubiyo.de/bewerbung/lebenslauf/vorlagen/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.arbeitsagentur.de/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Spain -->
+      <article class="cv-card" data-country="Испания Spain">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-es" aria-expanded="false" aria-controls="cv-es" role="button">
+          <div class="cv-flag"><span class="fi fi-es"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Spain</h3>
+            <p class="cv-sub" data-i18n="CV на испанском, часто с фото; обратная хронология.">CV на испанском, часто с фото; обратная хронология.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-es" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.udlap.mx/centrodeescritura/files/curriculumVitae-Ejemplos.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://www.sepe.es/HomeSepe/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Poland -->
+      <article class="cv-card" data-country="Польша Poland">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-pl" aria-expanded="false" aria-controls="cv-pl" role="button">
+          <div class="cv-flag"><span class="fi fi-pl"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Poland</h3>
+            <p class="cv-sub" data-i18n="Часто с фото; 1–2 стр; фраза-согласие на обработку данных.">Часто с фото; 1–2 стр; фраза-согласие на обработку данных.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-pl" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.bk.pw.edu.pl/uploads/attaches/VZyX9iZGpqaSrji8Evbazq9DPzq4EvteMGUmivI4.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://zielonalinia.gov.pl/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Czechia -->
+      <article class="cv-card" data-country="Чехия Czechia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-cz" aria-expanded="false" aria-controls="cv-cz" role="button">
+          <div class="cv-flag"><span class="fi fi-cz"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Czech Republic</h3>
+            <p class="cv-sub" data-i18n="Strukturovaný жизнтопис; 1–2 стр; фото по желанию.">Strukturovaný жизнтопис; 1–2 стр; фото по желанию.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-cz" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.careers.govt.nz/job-hunting/cvs-and-cover-letters/templates/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.mpsv.cz/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Hungary -->
+      <article class="cv-card" data-country="Венгрия Hungary">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-hu" aria-expanded="false" aria-controls="cv-hu" role="button">
+          <div class="cv-flag"><span class="fi fi-hu"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Hungary</h3>
+            <p class="cv-sub" data-i18n="Европейский стиль; часто с фото; 1–2 стр.">Европейский стиль; часто с фото; 1–2 стр.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-hu" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.profession.hu/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://job-center.hu/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Italy -->
+      <article class="cv-card" data-country="Италия Italy">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-it" aria-expanded="false" aria-controls="cv-it" role="button">
+          <div class="cv-flag"><span class="fi fi-it"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Italy</h3>
+            <p class="cv-sub" data-i18n="Часто Europass; подробный CV на 2 страницы.">Часто Europass; подробный CV на 2 страницы.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-it" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.sbs.ox.ac.uk/sites/default/files/2019-01/cv-template.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://europass.europa.eu/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Switzerland -->
+      <article class="cv-card" data-country="Швейцария Switzerland">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-ch" aria-expanded="false" aria-controls="cv-ch" role="button">
+          <div class="cv-flag"><span class="fi fi-ch"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Switzerland</h3>
+            <p class="cv-sub" data-i18n="CV на DE/FR/EN; часто с фото; ~2 стр.">CV на DE/FR/EN; часто с фото; ~2 стр.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-ch" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.zhaw.ch/de/hochschule" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.zhaw.ch/de/hochschule" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Luxembourg -->
+      <article class="cv-card" data-country="Люксембург Luxembourg">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-lu" aria-expanded="false" aria-controls="cv-lu" role="button">
+          <div class="cv-flag"><span class="fi fi-lu"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Luxembourg</h3>
+            <p class="cv-sub" data-i18n="Псевдо-анонимное CV приветствуется; FR/DE/EN.">Псевдо-анонимное CV приветствуется; FR/DE/EN.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-lu" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.dawsoncollege.qc.ca/french/wp-content/uploads/sites/94/2.-Exemples-de-CV.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://adem.public.lu/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Netherlands -->
+      <article class="cv-card" data-country="Нидерланды Netherlands Holland">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-nl" aria-expanded="false" aria-controls="cv-nl" role="button">
+          <div class="cv-flag"><span class="fi fi-nl"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Netherlands</h3>
+            <p class="cv-sub" data-i18n="Лаконичный NL/EN стиль; 1–2 стр; ключевые компетенции.">Лаконичный NL/EN стиль; 1–2 стр; ключевые компетенции.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-nl" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.cv.nl/app/resumes/90f8a099-758a-460a-b5ea-f2e42402c2bb/edit?evclid=665e05370eae45ac9419b26be34bb924&utm_source=Woody%20Media&utm_medium=affiliate&utm_campaign=0&utm_creative=&utm_id=25" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+              <span class="opacity-50">·</span>
+              <a href="https://www.solliciteer.net/cv-voorbeeld-downloaden/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.werk.nl/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Belgium -->
+      <article class="cv-card" data-country="Бельгия Belgium">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-be" aria-expanded="false" aria-controls="cv-be" role="button">
+          <div class="cv-flag"><span class="fi fi-be"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Belgium</h3>
+            <p class="cv-sub" data-i18n="NL/FR/EN; 1–2 стр; фото опционально.">NL/FR/EN; 1–2 стр; фото опционально.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-be" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.vdab.be/jobs/solliciteren/cv/templates" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.vdab.be/jobs/solliciteren/cv/templates" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Denmark -->
+      <article class="cv-card" data-country="Дания Denmark">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-dk" aria-expanded="false" aria-controls="cv-dk" role="button">
+          <div class="cv-flag"><span class="fi fi-dk"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Denmark</h3>
+            <p class="cv-sub" data-i18n="Чёткое CV на DA/EN; 1–2 стр; фото необязательна.">Чёткое CV на DA/EN; 1–2 стр; фото необязательна.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-dk" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://jobdanmark.dk/jobsoeger/cv-skabeloner" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://jobdanmark.dk/jobsoeger/cv-skabeloner" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Norway -->
+      <article class="cv-card" data-country="Норвегия Norway">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-no" aria-expanded="false" aria-controls="cv-no" role="button">
+          <div class="cv-flag"><span class="fi fi-no"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Norway</h3>
+            <p class="cv-sub" data-i18n="Кратко и фактологично; 1–2 стр; PDF.">Кратко и фактологично; 1–2 стр; PDF.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-no" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.tekna.no/karriere/soknad-og-cv/hvordan-skrive-en-god-cv/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://arbeidsplassen.nav.no/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Sweden -->
+      <article class="cv-card" data-country="Швеция Sweden">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-se" aria-expanded="false" aria-controls="cv-se" role="button">
+          <div class="cv-flag"><span class="fi fi-se"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Sweden</h3>
+            <p class="cv-sub" data-i18n="1–2 стр, часто без фото; официальные бесплатные шаблоны.">1–2 стр, часто без фото; официальные бесплатные шаблоны.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-se" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.allakando.se/cv-mall/" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.allakando.se/cv-mall/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Finland -->
+      <article class="cv-card" data-country="Финляндия Finland">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-fi" aria-expanded="false" aria-controls="cv-fi" role="button">
+          <div class="cv-flag"><span class="fi fi-fi"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Finland</h3>
+            <p class="cv-sub" data-i18n="Ansioluettelo: лаконично; фото допустима; PDF.">Ansioluettelo: лаконично; фото допустима; PDF.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-fi" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.adecco.com/fi-fi/tyonhakijoille/blogit/lataa-cv-malli" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+              <span class="opacity-50">·</span>
+              <a href="https://www.adecco.com/fi-fi/tyonhakijoille/blogit/lataa-cv-malli" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://www.adecco.com/fi-fi" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Croatia -->
+      <article class="cv-card" data-country="Хорватия Croatia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-hr" aria-expanded="false" aria-controls="cv-hr" role="button">
+          <div class="cv-flag"><span class="fi fi-hr"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Croatia</h3>
+            <p class="cv-sub" data-i18n="Часто Europass; 2 стр; фото нередко просят.">Часто Europass; 2 стр; фото нередко просят.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-hr" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.hzz.hr/app/uploads/2022/08/Europass-CV-HR_1.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://www.hzz.hr/usluge/zamolba-i-zivotopis/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Slovenia -->
+      <article class="cv-card" data-country="Словения Slovenia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-si" aria-expanded="false" aria-controls="cv-si" role="button">
+          <div class="cv-flag"><span class="fi fi-si"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Slovenia</h3>
+            <p class="cv-sub" data-i18n="Europass življenjepis; 1–2 стр; язык — словенский.">Europass življenjepis; 1–2 стр; язык — словенский.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-si" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://portalosv.splet.arnes.si/files/2014/09/prijava_vloga_ponudba_in_zivljenjepis.pdf" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://portalosv.splet.arnes.si/files/2014/09/Komunikacija1.pdf" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Slovakia -->
+      <article class="cv-card" data-country="Словакия Slovakia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-sk" aria-expanded="false" aria-controls="cv-sk" role="button">
+          <div class="cv-flag"><span class="fi fi-sk"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Slovakia</h3>
+            <p class="cv-sub" data-i18n="Štruktúrovanый жизнтопис; часто Europass; согласие на данные.">Štruktúrovanый жизнтопис; часто Europass; согласие на данные.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-sk" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.eures.sk/app/uploads/2017/08/Zivotopis-anglicky-Curriculum-vitae.docx?x48611=&utm_source=chatgpt.com" target="_blank" rel="noopener" data-i18n="PDF">PDF</a>
+            </li>
+            <li class="mt-1"><a href="https://www.upsvr.gov.sk/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Lithuania -->
+      <article class="cv-card" data-country="Литва Lithuania">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-lt" aria-expanded="false" aria-controls="cv-lt" role="button">
+          <div class="cv-flag"><span class="fi fi-lt"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Lithuania</h3>
+            <p class="cv-sub" data-i18n="Часто Europass; 1–2 стр; конкретика и краткость.">Часто Europass; 1–2 стр; конкретика и краткость.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-lt" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://dokumentuvaldymas.lt/dokumentu-sablonai/cv" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://europass.lt/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Estonia -->
+      <article class="cv-card" data-country="Эстония Estonia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-ee" aria-expanded="false" aria-controls="cv-ee" role="button">
+          <div class="cv-flag"><span class="fi fi-ee"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Estonia</h3>
+            <p class="cv-sub" data-i18n="CV на ET/EN; фото по усмотрению; 1–2 стр.">CV на ET/EN; фото по усмотрению; 1–2 стр.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-ee" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://teadmiseks.ee/wp-content/uploads/cv-naidis.rtf" target="_blank" rel="noopener" data-i18n="RTF/TXT">CV näidis (RTF)</a>
+            </li>
+            <li class="mt-1"><a href="https://teadmiseks.ee/dokumendid/cv-koostamine-naidis/" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Latvia -->
+      <article class="cv-card" data-country="Латвия Latvia">
+        <header class="cv-card-header" data-bs-toggle="collapse" data-bs-target="#cv-lv" aria-expanded="false" aria-controls="cv-lv" role="button">
+          <div class="cv-flag"><span class="fi fi-lv"></span></div>
+          <div>
+            <h3 class="cv-title h5 mb-0">Latvia</h3>
+            <p class="cv-sub" data-i18n="CV на LV/EN; 1–2 стр; фото распространено.">CV на LV/EN; 1–2 стр; фото распространено.</p>
+          </div>
+          <i class="bi bi-chevron-down cv-caret"></i>
+        </header>
+        <div id="cv-lv" class="collapse cv-body">
+          <div class="cv-divider"></div>
+          <ul class="cv-links">
+            <li>
+              <span data-i18n="Скачать:">Скачать:</span>
+              <a href="https://www.nva.gov.lv/sites/nva/files/content/270720/cv-paraugs.doc" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+              <span class="opacity-50">·</span>
+              <a href="https://www.nva.gov.lv/sites/nva/files/content/270720/cv-paraugs.doc" target="_blank" rel="noopener" data-i18n="Word DOC">Word DOC</a>
+            </li>
+            <li class="mt-1"><a href="https://www.nva.gov.lv/en/registration-cv" target="_blank" rel="noopener" data-i18n="Открыть страницу источника">Открыть страницу источника</a></li>
+          </ul>
+        </div>
+      </article>
+
+    </div>
+
+    <div id="emptyCvState" class="text-center d-none py-5">
+      <div class="display-6" data-i18n="🤔 Ничего не нашлось">🤔 Ничего не нашлось</div>
+      <p class="text-muted" data-i18n="Проверьте написание названия страны или очистите поиск.">Проверьте написание названия страны или очистите поиск.</p>
+    </div>
+
+    <div class="text-center mt-5">
+      <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 w-100 w-md-auto" role="button">
+        <i class="bi bi-arrow-left-circle me-2"></i><span data-i18n="Вернуться к поиску вакансий">Вернуться к поиску вакансий</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<button id="cvToTop" class="to-top btn btn-primary btn-lg rounded-circle" aria-label="Наверх">
+  <i class="bi bi-arrow-up-short" style="font-size:1.5rem"></i>
+</button>
+
+<style>
+.cv-vertical-list{display:flex;flex-direction:column;gap:1rem}
+.cv-card{border:1px solid #e9ecef;border-radius:16px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.04);overflow:hidden}
+.cv-card-header{display:flex;align-items:center;gap:.9rem;padding:1rem 1.1rem;cursor:pointer;position:relative}
+.cv-card-header:hover{background:#f8f9fa}
+.cv-flag{font-size:1.25rem;line-height:1}
+.cv-title{margin:0;font-weight:700}
+.cv-sub{margin:.15rem 0 0;color:#5c6773;font-size:.95rem}
+.cv-caret{margin-left:auto;transition:transform .2s ease}
+.cv-card-header[aria-expanded="true"] .cv-caret{transform:rotate(180deg)}
+.cv-divider{height:4px;width:120px;border-radius:999px;background:linear-gradient(90deg,#0d6efd 0%,#ffd700 100%);margin:.2rem 0 .8rem}
+.cv-body{border-top:1px dashed #eef2f6;padding:1rem 1.1rem 1.25rem;color:#404a57}
+.cv-links{margin:.25rem 0 0;padding-left:1.1rem}
+.cv-links li{margin:.15rem 0}
+.cv-links a{text-decoration:none}
+.cv-links a:hover{text-decoration:underline;text-underline-offset:2px}
+.to-top{position:fixed;right:1rem;bottom:1rem;z-index:50;display:none;box-shadow:0 10px 30px rgba(13,110,253,.35)}
+</style>
+
+<script>
+(function(){
+  const toTop = document.getElementById('cvToTop');
+  window.addEventListener('scroll', () => { toTop.style.display = window.scrollY > 600 ? 'inline-flex' : 'none'; });
+  toTop.addEventListener('click', () => window.scrollTo({top:0,behavior:'smooth'}));
+
+  document.querySelectorAll('.cv-card-header').forEach(h=>{
+    const tSel = h.getAttribute('data-bs-target');
+    const t = document.querySelector(tSel);
+    t?.addEventListener('shown.bs.collapse', ()=> h.setAttribute('aria-expanded','true'));
+    t?.addEventListener('hidden.bs.collapse', ()=> h.setAttribute('aria-expanded','false'));
+  });
+
+  const input = document.getElementById('cvSearch');
+  const list = document.getElementById('cvList');
+  const empty = document.getElementById('emptyCvState');
+  function applyFilter(){
+    const q = (input?.value||'').trim().toLowerCase();
+    let visible = 0;
+    list.querySelectorAll('.cv-card').forEach(card=>{
+      const hay = (card.getAttribute('data-country')||'').toLowerCase();
+      const ok = !q || hay.includes(q);
+      card.style.display = ok ? '' : 'none';
+      if(ok) visible++;
+    });
+    empty.classList.toggle('d-none', visible>0);
+  }
+  input?.addEventListener('input', applyFilter);
+})();
+</script>
+{% endblock %}

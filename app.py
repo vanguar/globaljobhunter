@@ -159,6 +159,15 @@ def useful_links():
     resp.headers["Cache-Control"] = "public, max-age=3600"
     return resp
 
+@app.route("/resumes")
+def resumes():
+    # Страница статическая — можно отдать с лёгким кэшем
+    html = render_template("resumes.html")
+    resp = make_response(html)
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
 @app.after_request
 def add_noindex(resp):
     if request.path.startswith(("/health","/results","/search","/analytics","/out")):

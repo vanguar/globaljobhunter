@@ -104,35 +104,8 @@ https://remotive.getrewardful.com/signup   -  Регистрация
 jobicy -Только для работодателей
 
 
+Запускаем Flask в режиме разработки
 
-import requests
+python -m flask run
 
-API_KEY = "f1b41d9dc631ff3c56dec05b6e97dd7b"
-
-params = {
-    "locale_code": "uk_UA",
-    "keywords": "python developer",
-    "location": "Київ",
-    "user_ip": "88.154.9.254",      # твой локальный белый IP, добавлен в whitelist
-    "user_agent": "Mozilla/5.0",
-    "page": 1,
-    "page_size": 20
-}
-headers = {
-    "Accept": "application/json",
-    "Referer": "https://www.globaljobhunter.vip/find-jobs/?s=python&l=%D0%9A%D0%B8%D1%97%D0%B2"
-}
-
-r = requests.get(
-    "https://search.api.careerjet.net/v4/query",
-    params=params,
-    auth=(API_KEY, ""),   # Basic Auth
-    headers=headers,
-    timeout=10
-)
-
-print(r.status_code, r.json().get("type"), r.json().get("hits"), r.json().get("pages"))
-
-
-
-
+http://127.0.0.1:5000/
