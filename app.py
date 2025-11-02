@@ -170,8 +170,16 @@ def resumes():
 
 @app.after_request
 def add_noindex(resp):
-    if request.path.startswith(("/health","/results","/search","/analytics","/out")):
+    # то, что у вас уже было
+    if request.path.startswith(("/health", "/results", "/search", "/analytics", "/out")):
         resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+
+    # защита от кеширования для живых метрик
+    if request.path.startswith(("/admin/stats", "/health")):
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+
     return resp
 
 # Долгий кеш для /static (безопасно, т.к. URL версиируется query-параметрами)
