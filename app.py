@@ -894,18 +894,19 @@ def _search_worker(sid: str):
             st['completed_sources'].append(name)
 
     # ФИНАЛИЗАЦИЯ БЕЗ session: просто запишем в кэш и отметим результат
-    if st['job_map']:
-        st['results_id'] = str(uuid.uuid4())
-        aggregator.search_cache[st['results_id']] = st['job_map']
-        # ↓↓↓ ДОБАВИТЬ ЭТО ПЕРЕД st['status'] = 'done'
-        if 'redis_client' in globals() and redis_client:
-            try:
-                redis_client.setex(
-                    f"results:{st['results_id']}", 3600,
-                    json.dumps(st['job_map'], ensure_ascii=False, default=str)
-                )
-            except Exception as e:
-                app.logger.warning(f"Redis set results:{st['results_id']} failed: {e}")
+    st['results_id'] = st.get('results_id') or str(uuid.uuid4())
+    snapshot = st.get('job_map') or {}
+    aggregator.search_cache[st['results_id']] = snapshot
+
+    if 'redis_client' in globals() and redis_client:
+        try:
+            redis_client.setex(
+                f"results:{st['results_id']}", 3600,
+                json.dumps(snapshot, ensure_ascii=False, default=str)
+            )
+        except Exception as e:
+            app.logger.warning(f"Redis set results:{st['results_id']} failed: {e}")
+
     st['status'] = 'done'
 
 @app.route('/search/progress')
