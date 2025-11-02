@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 import pickle
 from urllib.parse import urlparse
 import random
-from typing import Dict
 
 # --- circuit breaker + микро-пауза ---
 class RateLimitedError(Exception):
@@ -1671,30 +1670,7 @@ class GlobalJobAggregator:
 
     # Добавьте в класс GlobalJobAggregator после self.specific_jobs:
 
-    def _inc_metric(self, field: str, n: int = 1):
-        """Атомарно увеличивает метрику локально и в Redis (если он есть).
-        Делает fallback: если CacheManager.redis_client отсутствует, создаём клиент из REDIS_URL/REDIS_TLS_URL.
-        """
-        # локально (как было)
-        self.stats[field] = int(self.stats.get(field, 0)) + int(n)
-
-        # глобально в Redis
-        r = getattr(self.cache_manager, "redis_client", None)
-        if r is None:
-            try:
-                import os, redis as _r
-                _url = os.getenv("REDIS_TLS_URL") or os.getenv("REDIS_URL")
-                if _url:
-                    r = _r.from_url(_url, decode_responses=False)
-            except Exception:
-                r = None
-
-        if r:
-            try:
-                r.hincrby("gjh:metrics:v1", field, int(n))
-            except Exception:
-                # не роняем поток поиска
-                pass  
+        
     
     def search_specific_jobs(self, preferences: Dict, progress_callback=None, cancel_check=None) -> List[JobVacancy]:
         """
@@ -1710,7 +1686,7 @@ class GlobalJobAggregator:
         # --- НАЧАЛО ИЗМЕНЕНИЙ ---
         if cached_full:
             # ✅ СЧИТАЕМ ПОПАДАНИЕ В КЕШ
-            self._inc_metric('cache_hits', 1)
+            self.stats['cache_hits'] = self.stats.get('cache_hits', 0) + 1
             
             print(f"🎯 Общий кеш: {len(cached_full)} вакансий (стартовый набор)")
             for j in cached_full:
@@ -1725,7 +1701,7 @@ class GlobalJobAggregator:
                     pass
         else:
             # ❌ СЧИТАЕМ ПРОМАХ КЕША
-            self._inc_metric('cache_misses', 1)
+            self.stats['cache_misses'] = self.stats.get('cache_misses', 0) + 1
         # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         # 1) Реальный поиск с суб-кешем (внутри _batch_search_jobs)
@@ -1742,7 +1718,7 @@ class GlobalJobAggregator:
         final_list = list(job_map.values())
         if final_list:
             self.cache_manager.cache_result(preferences, final_list)
-            self._inc_metric('total_jobs_found', len(final_list))
+            self.stats['total_jobs_found'] = self.stats.get('total_jobs_found', 0) + len(final_list)
 
         return final_list
 
@@ -2175,7 +2151,7 @@ class GlobalJobAggregator:
 
         try:
             response = requests.get(url, params=params, timeout=12)
-            self._inc_metric('api_requests', 1)
+            self.stats['api_requests'] += 1
             print(f"     📡 API ответ: {response.status_code}")
 
             if response.status_code == 200:
@@ -3351,47 +3327,17 @@ class GlobalJobAggregator:
         return unique_jobs
     
     def get_cache_stats(self) -> Dict:
-        """Статистика кеша и запросов: читаем Redis (gjh:metrics:v1) с fallback на локальные self.stats."""
-        local = {
-            "cache_hits": int(self.stats.get("cache_hits", 0)),
-            "cache_misses": int(self.stats.get("cache_misses", 0)),
-            "api_requests": int(self.stats.get("api_requests", 0)),
-            "total_jobs_found": int(self.stats.get("total_jobs_found", 0)),
-        }
-
-        r = getattr(self.cache_manager, "redis_client", None)
-        if r is None:
-            try:
-                import os, redis as _r
-                _url = os.getenv("REDIS_TLS_URL") or os.getenv("REDIS_URL")
-                if _url:
-                    r = _r.from_url(_url, decode_responses=False)
-            except Exception:
-                r = None
-
-        if r:
-            try:
-                raw = r.hgetall("gjh:metrics:v1")
-                for k, v in raw.items():
-                    key = k.decode() if isinstance(k, (bytes, bytearray)) else k
-                    if key in local:
-                        try:
-                            local[key] = int(v if not isinstance(v, (bytes, bytearray)) else v.decode())
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-
-        hits, misses = local["cache_hits"], local["cache_misses"]
-        total = hits + misses
-        hit_rate = f"{(hits/total*100):.1f}%" if total else "0.0%"
-
+        """Получение статистики кеширования"""
+        cache_hit_rate = 0
+        if self.stats['cache_hits'] + self.stats['cache_misses'] > 0:
+            cache_hit_rate = self.stats['cache_hits'] / (self.stats['cache_hits'] + self.stats['cache_misses']) * 100
+        
         return {
-            "cache_hits": hits,
-            "cache_misses": misses,
-            "cache_hit_rate": hit_rate,
-            "api_requests": local["api_requests"],
-            "total_jobs_found": local["total_jobs_found"],
+            'cache_hits': self.stats['cache_hits'],
+            'cache_misses': self.stats['cache_misses'],
+            'cache_hit_rate': f"{cache_hit_rate:.1f}%",
+            'api_requests': self.stats['api_requests'],
+            'total_jobs_found': self.stats['total_jobs_found']
         }
     
     def cleanup_cache(self):
