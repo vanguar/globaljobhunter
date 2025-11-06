@@ -1721,7 +1721,7 @@ def admin_subscribers():
     </html>
     """
     
-    return html  
+    return redirect(url_for('admin_subscribers_secure'))
 
 @app.route('/admin/stats')
 def admin_stats():
@@ -1769,7 +1769,7 @@ def admin_stats():
             
             <div class="nav">
                 <a href="/">🏠 Главная</a>
-                <a href="/admin/subscribers?key={os.getenv('ADMIN_KEY')}">👥 Подписчики</a>
+                <a href="/admin/subscribers_secure">👥 Подписчики</a>
                 <a href="/health">💚 Здоровье системы</a>
                 <a href="/admin/cache">🧹 Кэш</a>
             </div>
