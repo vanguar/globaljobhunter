@@ -2878,7 +2878,8 @@ def admin_subscribers_secure():
             
             <script>
             function validateEmail(email) {{
-            return /^[A-Za-z0-9.!#$%&'*+/=?^_`{{|}}~-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{{2,}}$/.test(email);
+            // Простой и надёжный паттерн
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{{2,}}$/.test(email);
             }}
             function handleEditSubmit(form, currentEmail) {{
             const entered = prompt('Введите новый email', currentEmail);
@@ -2889,6 +2890,7 @@ def admin_subscribers_secure():
             return true; // обычный POST → Flask сделает redirect/flash
             }}
             </script>
+
 
 
 
