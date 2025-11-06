@@ -2713,18 +2713,27 @@ def admin_subscribers_secure():
                 
                 subscribers_rows += f"""
                     <tr>
-                        <td style="min-width: 260px;">
-                            <form method="post" action="/admin/subscribers/update_email" style="display:inline-block;" onsubmit="return handleEdit(this);">
+                        <td>{sub.email}</td>
+                        <td>{status}</td>
+                        <td>{refugee}</td>
+                        <td class="job-list">{jobs}</td>
+                        <td>{countries}</td>
+                        <td>{city}</td>
+                        <td>{created}</td>
+                        <td>
+                            <form method="post"
+                                action="/admin/subscribers/update_email"
+                                onsubmit="return handleEditSubmit(this, '{sub.email}')"
+                                style="display:inline-block; margin-right:6px">
                                 <input type="hidden" name="id" value="{sub.id}">
-                                <input type="hidden" name="email" value="{sub.email}"> 
-                                <button type="submit" class="btn-action btn-edit" title="Редактировать email">✏️ Редактировать</button>
+                                <input type="hidden" name="email" value="{sub.email}">
+                                <button type="submit" title="Редактировать email">✏️ Редактировать</button>
                             </form>
-                            
                             <form method="post" action="/admin/subscribers/delete"
-                                  style="display:inline-block;"
-                                  onsubmit="return confirm('Удалить подписчика {sub.email}?');">
+                                style="display:inline-block"
+                                onsubmit="return confirm('Удалить подписчика {sub.email}?');">
                                 <input type="hidden" name="id" value="{sub.id}">
-                                <button type="submit" class="btn-action btn-delete" title="Удалить">🗑️ Удалить</button>
+                                <button type="submit" title="Удалить">🗑️ Удалить</button>
                             </form>
                         </td>
 
@@ -2736,18 +2745,27 @@ def admin_subscribers_secure():
                 print(f"❌ Ошибка обработки подписчика {sub.id}: {e}")
                 subscribers_rows += f"""
                     <tr>
-                        <td style="min-width: 260px;">
-                            <form method="post" action="/admin/subscribers/update_email" style="display:inline-block;" onsubmit="return handleEdit(this);">
+                        <td>{sub.email}</td>
+                        <td>{status}</td>
+                        <td>{refugee}</td>
+                        <td class="job-list">{jobs}</td>
+                        <td>{countries}</td>
+                        <td>{city}</td>
+                        <td>{created}</td>
+                        <td>
+                            <form method="post"
+                                action="/admin/subscribers/update_email"
+                                onsubmit="return handleEditSubmit(this, '{sub.email}')"
+                                style="display:inline-block; margin-right:6px">
                                 <input type="hidden" name="id" value="{sub.id}">
-                                <input type="hidden" name="email" value="{sub.email}"> 
-                                <button type="submit" class="btn-action btn-edit" title="Редактировать email">✏️ Редактировать</button>
+                                <input type="hidden" name="email" value="{sub.email}">
+                                <button type="submit" title="Редактировать email">✏️ Редактировать</button>
                             </form>
-                            
                             <form method="post" action="/admin/subscribers/delete"
-                                  style="display:inline-block;"
-                                  onsubmit="return confirm('Удалить подписчика {sub.email}?');">
+                                style="display:inline-block"
+                                onsubmit="return confirm('Удалить подписчика {sub.email}?');">
                                 <input type="hidden" name="id" value="{sub.id}">
-                                <button type="submit" class="btn-action btn-delete" title="Удалить">🗑️ Удалить</button>
+                                <button type="submit" title="Удалить">🗑️ Удалить</button>
                             </form>
                         </td>
                     </tr>"""
@@ -2867,33 +2885,19 @@ def admin_subscribers_secure():
             </div>
             
             <script>
-                function handleEdit(form) {{
-                    // 1. Берем текущий email из скрытого поля
-                    const currentEmail = form.email.value;
-                    
-                    // 2. Вызываем prompt, предлагая изменить его
-                    const newEmail = prompt("Введите новый email:", currentEmail);
-                    
-                    if (newEmail === null) {{
-                        // Пользователь нажал "Отмена"
-                        return false; 
-                    }}
-
-                    if (newEmail.trim() === "") {{
-                        alert("Email не может быть пустым.");
-                        return false; 
-                    }}
-                    
-                    // 3. Обновляем значение скрытого поля
-                    form.email.value = newEmail.trim().toLowerCase();
-                    
-                    // 4. Разрешаем отправку формы
-                    return true; 
-                }}
+            function validateEmail(email) {{
+            // Простой и надёжный паттерн
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{{2,}}$/.test(email);
+            }}
+            function handleEditSubmit(form, currentEmail) {{
+            const entered = prompt('Введите новый email', currentEmail);
+            if (entered === null) return false; // отмена
+            const email = (entered || '').trim().toLowerCase();
+            if (!validateEmail(email)) {{ alert('Некорректный email'); return false; }}
+            form.querySelector('input[name="email"]').value = email; // кладём в hidden
+            return true; // обычный POST → Flask сделает redirect/flash
+            }}
             </script>
-            
-        
-        </body>
 
 
 
