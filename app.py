@@ -37,6 +37,8 @@ from pathlib import Path
 import time
 from sqlalchemy import func
 from datetime import datetime, timezone
+import re
+EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$")
 
 from threading import Thread
 import schedule
@@ -1138,8 +1140,10 @@ def subscribe():
 
 
         
-        if not email or '@' not in email:
-            print("❌ Неверный email")
+        # Нормализуем и валидируем email
+        email = re.sub(r'\s+', '', email).lower()
+        if not EMAIL_RE.match(email):
+            print("❌ Неверный email (валидация)")
             return jsonify({'error': 'Неверный email адрес'}), 400
         
         # Получаем предпочтения из сессии
@@ -1653,6 +1657,7 @@ def admin_subscribers():
                     <th>Город</th>
                     <th>Частота</th>
                     <th>Дата регистрации</th>
+                    <th>Действия</th>
                 </tr>
     """
     
@@ -2715,7 +2720,21 @@ def admin_subscribers_secure():
                         <td>{countries}</td>
                         <td>{city}</td>
                         <td>{created}</td>
+                        <td>
+                            <form method="post" action="/admin/subscribers/update_email" style="display:inline-block; margin-right:8px">
+                                <input type="hidden" name="id" value="{sub.id}">
+                                <input type="text" name="email" value="{sub.email}" style="width:220px">
+                                <button type="submit" title="Сохранить email">💾</button>
+                            </form>
+                            <form method="post" action="/admin/subscribers/delete"
+                                style="display:inline-block"
+                                onsubmit="return confirm('Удалить подписчика {sub.email}?');">
+                                <input type="hidden" name="id" value="{sub.id}">
+                                <button type="submit" title="Удалить">🗑️</button>
+                            </form>
+                        </td>
                     </tr>"""
+
                     
             except Exception as e:
                 print(f"❌ Ошибка обработки подписчика {sub.id}: {e}")
@@ -2827,6 +2846,7 @@ def admin_subscribers_secure():
                         <th>Страны</th>
                         <th>Город</th>
                         <th>Дата регистрации</th>
+                        <th>Действия</th>
                     </tr>
                     {subscribers_rows}
                 </table>
@@ -2860,6 +2880,8 @@ def admin_subscribers_secure():
         </html>
         """, 500
     
+
+    
 def _pretty_json(value):
     """Возвращает человекочитаемую строку из JSON/списка/словаря."""
     try:
@@ -2877,6 +2899,65 @@ def _pretty_json(value):
         return str(value)
     except Exception:
         return str(value)
+
+@app.route('/admin/subscribers/update_email', methods=['POST'])
+def admin_update_subscriber_email():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+    import re
+    EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$")
+
+    sid = request.form.get('id', '').strip()
+    new_email = (request.form.get('email') or '').strip().lower()
+    new_email = re.sub(r'\s+', '', new_email)
+
+    if not sid.isdigit():
+        flash('❌ Неверный идентификатор подписчика', 'error')
+        return redirect(url_for('admin_subscribers_secure'))
+
+    sub = Subscriber.query.get(int(sid))
+    if not sub:
+        flash('❌ Подписчик не найден', 'error')
+        return redirect(url_for('admin_subscribers_secure'))
+
+    if not EMAIL_RE.match(new_email):
+        flash('❌ Введите корректный email', 'error')
+        return redirect(url_for('admin_subscribers_secure'))
+
+    conflict = Subscriber.query.filter(Subscriber.email == new_email, Subscriber.id != sub.id).first()
+    if conflict:
+        flash('❌ Такой email уже используется', 'error')
+        return redirect(url_for('admin_subscribers_secure'))
+
+    sub.email = new_email
+    db.session.commit()
+    flash('✅ Email обновлён', 'success')
+    return redirect(url_for('admin_subscribers_secure'))
+
+
+@app.route('/admin/subscribers/delete', methods=['POST'])
+def admin_delete_subscriber():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login_page'))
+
+    sid = request.form.get('id', '').strip()
+    if not sid.isdigit():
+        flash('❌ Неверный идентификатор подписчика', 'error')
+        return redirect(url_for('admin_subscribers_secure'))
+
+    sub = Subscriber.query.get(int(sid))
+    if not sub:
+        flash('❌ Подписчик не найден', 'error')
+        return redirect(url_for('admin_subscribers_secure'))
+
+    # Отвяжем логи, чтобы ссылка FK не мешала удалению
+    EmailLog.query.filter_by(subscriber_id=sub.id).update({'subscriber_id': None})
+    db.session.delete(sub)
+    db.session.commit()
+
+    flash('✅ Подписчик удалён', 'success')
+    return redirect(url_for('admin_subscribers_secure'))
+
 
 
 @app.route('/admin/stats_secure')
