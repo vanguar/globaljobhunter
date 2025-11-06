@@ -2721,21 +2721,22 @@ def admin_subscribers_secure():
                         <td>{city}</td>
                         <td>{created}</td>
                         <td>
-                            <button type="button"
-                                    class="btn-edit"
-                                    data-id="{sub.id}"
-                                    data-email="{sub.email}"
-                                    onclick="editEmail(this)"
-                                    title="Редактировать email">
-                                ✏️ Редактировать
-                            </button>
+                            <form method="post"
+                                action="/admin/subscribers/update_email"
+                                onsubmit="return handleEditSubmit(this, '{sub.email}')"
+                                style="display:inline-block; margin-right:6px">
+                                <input type="hidden" name="id" value="{sub.id}">
+                                <input type="hidden" name="email" value="{sub.email}">
+                                <button type="submit" title="Редактировать email">✏️ Редактировать</button>
+                            </form>
                             <form method="post" action="/admin/subscribers/delete"
-                                style="display:inline-block; margin-left:6px"
+                                style="display:inline-block"
                                 onsubmit="return confirm('Удалить подписчика {sub.email}?');">
                                 <input type="hidden" name="id" value="{sub.id}">
                                 <button type="submit" title="Удалить">🗑️ Удалить</button>
                             </form>
                         </td>
+
                     </tr>"""
 
 
@@ -2744,6 +2745,13 @@ def admin_subscribers_secure():
                 print(f"❌ Ошибка обработки подписчика {sub.id}: {e}")
                 subscribers_rows += f"""
                     <tr>
+                        <td>{sub.email}</td>
+                        <td>{status}</td>
+                        <td>{refugee}</td>
+                        <td class="job-list">{jobs}</td>
+                        <td>{countries}</td>
+                        <td>{city}</td>
+                        <td>{created}</td>
                         <td>
                             <form method="post"
                                 action="/admin/subscribers/update_email"
