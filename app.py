@@ -2867,32 +2867,32 @@ def admin_subscribers_secure():
             </div>
             
             <script>
-                function handleEdit(form) {
+                function handleEdit(form) {{
                     // 1. Берем текущий email из скрытого поля
                     const currentEmail = form.email.value;
                     
                     // 2. Вызываем prompt, предлагая изменить его
                     const newEmail = prompt("Введите новый email:", currentEmail);
                     
-                    if (newEmail === null) {
+                    if (newEmail === null) {{
                         // Пользователь нажал "Отмена"
                         return false; 
-                    }
+                    }}
 
-                    if (newEmail.trim() === "") {
+                    if (newEmail.trim() === "") {{
                         alert("Email не может быть пустым.");
                         return false; 
-                    }
+                    }}
                     
                     // 3. Обновляем значение скрытого поля
                     form.email.value = newEmail.trim().toLowerCase();
                     
                     // 4. Разрешаем отправку формы
                     return true; 
-                }
+                }}
             </script>
             
-        </body>
+        
         </body>
 
 
