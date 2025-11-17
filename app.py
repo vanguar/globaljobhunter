@@ -307,6 +307,14 @@ def google_site_verification():
     body = f"google-site-verification: {VERIFICATION_FILENAME}"
     return Response(body, mimetype="text/plain; charset=utf-8")
 
+# === Ads.txt (AdSense verification) ===
+@app.route('/ads.txt')
+def serve_ads_txt():
+    # Эта команда ищет файл 'ads.txt' в той же папке,
+    # где находится app.py (в app.root_path) и отдает его.
+    return send_from_directory(app.root_path, 'ads.txt')
+# ====================================
+
 
 @app.route("/robots.txt")
 def robots_txt():
