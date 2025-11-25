@@ -358,15 +358,33 @@ def _search_all_sources(main_aggregator, additional_aggregators, preferences):
 
     # 2) Дополнительные агрегаторы
     use_remote = _remote_allowed_email(preferences, getattr(main_aggregator, 'specific_jobs', {}))
+    # Параметры для API (Careerjet требует IP/UA)
+    server_ip = "127.0.0.1"
+    server_ua = "GlobalJobHunter/EmailScheduler (+https://www.globaljobhunter.vip)"
+    server_url = "https://www.globaljobhunter.vip/results"
     for source_name, aggregator in additional_aggregators.items():
         # Скипаем remote-only источники при не-удалённых профессиях
         if source_name in ('remotive', 'jobicy') and not use_remote:
             print(f"   ⛔ Пропуск {source_name}: выбранные профессии не допускают удалёнку")
             continue
         try:
-            additional_jobs = aggregator.search_jobs(preferences)
+            # Careerjet требует user_ip и user_agent
+            additional_jobs = aggregator.search_jobs(
+                preferences, 
+                user_ip=server_ip, 
+                user_agent=server_ua, 
+                page_url=server_url
+            )
             all_found_jobs.extend(additional_jobs)
             print(f"   ✅ {source_name.title()}: найдено {len(additional_jobs)} вакансий")
+        except TypeError:
+            # Если агрегатор не принимает IP (фолбэк)
+            try:
+                additional_jobs = aggregator.search_jobs(preferences)
+                all_found_jobs.extend(additional_jobs)
+                print(f"   ✅ {source_name.title()} (no params): найдено {len(additional_jobs)} вакансий")
+            except Exception as e:
+                print(f"   ⚠️ {source_name.title()} ошибка: {e}")
         except Exception as e:
             print(f"   ⚠️ {source_name.title()} ошибка: {e}")
 
