@@ -109,3 +109,10 @@ jobicy -Только для работодателей
 python -m flask run
 
 http://127.0.0.1:5000/
+
+
+UsemSasat1999@
+
+
+Рекламма
+https://reklamawgrupach.wixsite.com/reklama?fbclid=IwY2xjawOo6HBleHRuA2FlbQIxMABicmlkETE4aVFGcVZuQnR0dTNwVXdwc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHrsEardmZEDjLwyvHi_FhppeKkFS7b1kbGkFmmc1q7oiGxtlxwWauP_Drpe1_aem_nK7h8DcDsTQ1BbpM4KppOw&lang=ru
