@@ -1,53 +1,57 @@
-/* === 1. КРУГЛАЯ МЯГКАЯ КНОПКА === */
+/* === 1. КНОПКА (Мягкая, круглая) === */
 .theme-toggle-btn {
-    width: 45px;
-    height: 45px;
-    border-radius: 50% !important;  /* ПРИНУДИТЕЛЬНО КРУГ */
-    border: none !important;        /* УБИРАЕМ РАМКИ */
+    width: 44px;
+    height: 44px;
+    border-radius: 50% !important;   /* Принудительно круг */
+    border: 1px solid rgba(128, 128, 128, 0.3); /* Тонкая рамка */
     background: transparent;
-    color: var(--primary-dark);
+    color: inherit;                  /* Цвет берет от текста */
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
     margin-right: 15px;
-    box-shadow: none;               /* Убираем тени, если есть */
 }
 
-/* Эффект наведения - мягкий круг */
 .theme-toggle-btn:hover {
-    background-color: rgba(127, 140, 141, 0.2); /* Легкий серый фон */
+    background-color: rgba(128, 128, 128, 0.1);
     transform: scale(1.1);
 }
 
-/* Убираем квадратную обводку при клике */
-.theme-toggle-btn:focus, 
-.theme-toggle-btn:active {
-    outline: none !important;
-    box-shadow: none !important;
+.theme-toggle-btn:focus {
+    outline: none;
 }
 
-/* === 2. ТЁМНАЯ ТЕМА (ГЛУБОКИЙ ФОН) === */
-[data-bs-theme="dark"] {
-    --background-color: #1a1d20;    /* Глубокий темный */
-    --white: #272b30;               /* Карточки */
-    --primary-dark: #e9ecef;        /* Текст */
-    --secondary-gray: #adb5bd;
-    --light-gray: #343a40;
-}
-
-/* === 3. ПРИНУДИТЕЛЬНАЯ ЗАЛИВКА ФОНА === */
+/* === 2. ТЕМНАЯ ТЕМА (ПРИНУДИТЕЛЬНАЯ) === */
 [data-bs-theme="dark"] body {
-    background-color: #1a1d20 !important; /* Красим фон страницы */
-    color: #e9ecef !important;
+    background-color: #121212 !important; /* Темный фон страницы */
+    color: #e0e0e0 !important;            /* Светлый текст */
 }
 
-/* Красим карточки и шапку */
+/* Красим карточки, меню и белые блоки в темно-серый */
 [data-bs-theme="dark"] .card,
 [data-bs-theme="dark"] .navbar,
-[data-bs-theme="dark"] .bg-white {
-    background-color: #272b30 !important;
-    color: #e9ecef !important;
-    border-color: #373b3e !important;
+[data-bs-theme="dark"] .bg-white,
+[data-bs-theme="dark"] .modal-content,
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: #1e1e1e !important;
+    color: #e0e0e0 !important;
+    border-color: #333 !important;
+}
+
+/* Исправляем цвет ссылок и иконок в темной теме */
+[data-bs-theme="dark"] a,
+[data-bs-theme="dark"] i {
+    color: #6ea8fe; /* Голубой оттенок, чтобы было видно */
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: #a0a0a0 !important;
+}
+
+/* Специфично для твоей кнопки в темном режиме */
+[data-bs-theme="dark"] .theme-toggle-btn {
+    color: #ffc107 !important; /* Желтый цвет для иконки солнца */
+    border-color: #ffc107 !important;
 }
