@@ -48,7 +48,7 @@
     <link rel="canonical" href="https://www.globaljobhunter.vip{{ request.path }}" />
     
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light sticky-top" style="background-color: #ffffff;"> <div class="container">
@@ -109,10 +109,7 @@
             <i class="bi bi-instagram"></i>
             </a>
             
-            <button id="theme-toggle" class="theme-toggle-btn me-2" aria-label="Toggle theme">
-                <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
-            </button>
-
+            
             <div id="language-switcher-container" class="nav-item dropdown language-switcher">
             <button class="btn dropdown-toggle" data-bs-toggle="dropdown">
                 <span class="fi fi-ru"></span> ru
@@ -233,40 +230,6 @@
 
     {% block scripts %}{% endblock %}
 
-    <script>
-    (function() {
-        const html = document.documentElement;
-        const btn = document.getElementById('theme-toggle');
-        const icon = document.getElementById('theme-icon');
-        
-        // Функция смены иконки
-        const setIcon = (theme) => {
-            if (theme === 'dark') {
-                icon.className = 'bi bi-sun-fill'; // Солнце
-            } else {
-                icon.className = 'bi bi-moon-stars-fill'; // Луна
-            }
-        };
-
-        // 1. Проверка сохраненной темы
-        const savedTheme = localStorage.getItem('theme') || 
-                          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        
-        html.setAttribute('data-bs-theme', savedTheme);
-        setIcon(savedTheme);
-
-        // 2. Клик по кнопке
-        if(btn) {
-            btn.addEventListener('click', () => {
-                const current = html.getAttribute('data-bs-theme');
-                const next = current === 'dark' ? 'light' : 'dark';
-                
-                html.setAttribute('data-bs-theme', next);
-                localStorage.setItem('theme', next);
-                setIcon(next);
-            });
-        }
-    })();
-</script>
+    
 </body>
 </html>
