@@ -1,9 +1,9 @@
-/* 1. КНОПКА (Мягкая, круглая) */
+/* === 1. КРУГЛАЯ МЯГКАЯ КНОПКА === */
 .theme-toggle-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1px solid rgba(128, 128, 128, 0.2);
+    width: 45px;
+    height: 45px;
+    border-radius: 50% !important;  /* ПРИНУДИТЕЛЬНО КРУГ */
+    border: none !important;        /* УБИРАЕМ РАМКИ */
     background: transparent;
     color: var(--primary-dark);
     display: flex;
@@ -11,50 +11,43 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-right: 10px;
+    margin-right: 15px;
+    box-shadow: none;               /* Убираем тени, если есть */
 }
 
+/* Эффект наведения - мягкий круг */
 .theme-toggle-btn:hover {
-    background-color: rgba(128, 128, 128, 0.2);
-    transform: scale(1.05);
+    background-color: rgba(127, 140, 141, 0.2); /* Легкий серый фон */
+    transform: scale(1.1);
 }
 
-/* 2. НАСТРОЙКИ ЦВЕТОВ */
+/* Убираем квадратную обводку при клике */
+.theme-toggle-btn:focus, 
+.theme-toggle-btn:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* === 2. ТЁМНАЯ ТЕМА (ГЛУБОКИЙ ФОН) === */
 [data-bs-theme="dark"] {
-    /* Приятный тёмно-серый фон (Anthracite) */
-    --background-color: #212529; 
-    
-    /* Карточки чуть светлее фона */
-    --white: #2c3034; 
-    
-    /* Текст белый */
-    --primary-dark: #e9ecef; 
-    
-    /* Второстепенный текст серый */
-    --secondary-gray: #adb5bd; 
-    
-    /* Границы темные */
-    --light-gray: #373b3e; 
-    
-    /* Тени для глубины */
-    --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.5);
+    --background-color: #1a1d20;    /* Глубокий темный */
+    --white: #272b30;               /* Карточки */
+    --primary-dark: #e9ecef;        /* Текст */
+    --secondary-gray: #adb5bd;
+    --light-gray: #343a40;
 }
 
-/* 3. ВАЖНОЕ ИСПРАВЛЕНИЕ: ПРИНУДИТЕЛЬНАЯ ПОКРАСКА */
-/* Без этого фон оставался белым! */
+/* === 3. ПРИНУДИТЕЛЬНАЯ ЗАЛИВКА ФОНА === */
 [data-bs-theme="dark"] body {
-    background-color: var(--background-color) !important;
-    color: var(--primary-dark) !important;
+    background-color: #1a1d20 !important; /* Красим фон страницы */
+    color: #e9ecef !important;
 }
 
-/* Принудительно красим карточки и навбар, если они были белыми */
-[data-bs-theme="dark"] .card, 
+/* Красим карточки и шапку */
+[data-bs-theme="dark"] .card,
 [data-bs-theme="dark"] .navbar,
 [data-bs-theme="dark"] .bg-white {
-    background-color: var(--white) !important;
-    color: var(--primary-dark) !important;
-}
-
-[data-bs-theme="dark"] a {
-    color: #6ea8fe; /* Делаем ссылки светло-синими, чтобы читались */
+    background-color: #272b30 !important;
+    color: #e9ecef !important;
+    border-color: #373b3e !important;
 }
