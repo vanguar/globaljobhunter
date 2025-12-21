@@ -24,48 +24,56 @@
     </div>
 </section>
 
-    <section class="cibc-promo-modern py-4">
-        <div class="container">
-            <div class="p-4 border rounded-4 bg-white shadow-sm position-relative overflow-hidden">
-                <div class="row align-items-center position-relative" style="z-index: 2;">
-                    <div class="col-lg-8">
-                        <div class="text-uppercase small fw-bold text-danger mb-2">Student Offer</div>
-                        <h3 class="fw-bold mb-3">Get $25 Bonus with CIBC Smart for Students</h3>
-                        <p class="text-muted mb-4">
-                            Open a <strong>CIBC International Student GIC</strong> to speed up your study permit via SDS. 
-                            Use the referral email below during application to claim your reward.
-                        </p>
-                        
-                        <div class="d-flex flex-wrap align-items-center gap-3">
-                            <a href="https://www.cibc.com/en/special-offers/isbo-refer-a-friend.html?utrc=E2084:1&utm_medium=Email&utm_campaign=ISBO-x-RAF-&" target="_blank" class="btn btn-dark btn-lg px-4 fw-bold">
-                                Get Started
-                            </a>
-                            <div class="d-flex align-items-center bg-light border rounded-3 p-1 ps-3">
-                                <span class="small text-muted me-2">Referral Email:</span>
-                                <code class="fw-bold text-dark me-2">tzvanguardia@gmail.com</code>
-                                <button class="btn btn-sm btn-outline-secondary border-0" onclick="copyEmail(event)">
-                                    <i class="bi bi-clipboard"></i>
-                                </button>
-                            </div>
+<section class="cibc-promo-modern py-4">
+    <div class="container">
+        <div class="p-4 border rounded-4 bg-white shadow-sm position-relative overflow-hidden">
+            <!-- Декоративный фон -->
+            <div class="position-absolute top-0 end-0 opacity-10" style="width: 300px; height: 100%; background: linear-gradient(135deg, #E31837 0%, #8B0000 100%); clip-path: polygon(60% 0, 100% 0, 100% 100%, 40% 100%);"></div>
+            
+            <div class="row align-items-center position-relative" style="z-index: 2;">
+                <div class="col-lg-8">
+                    <div class="text-uppercase small fw-bold text-danger mb-2">Student Offer</div>
+                    <h3 class="fw-bold mb-3">Получите $25 бонус с CIBC Smart для студентов</h3>
+                    <p class="text-muted mb-4">
+                        Откройте <strong>CIBC International Student GIC</strong> для ускорения получения учебной визы через SDS. 
+                        Используйте реферальный email ниже при подаче заявки, чтобы получить вознаграждение.
+                    </p>
+                    
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <a href="https://www.cibc.com/en/special-offers/isbo-refer-a-friend.html?utrc=E2084:1&utm_medium=Email&utm_campaign=ISBO-x-RAF-&" 
+                           target="_blank" 
+                           class="btn btn-dark btn-lg px-4 fw-bold">
+                            Начать оформление
+                        </a>
+                        <div class="d-flex align-items-center bg-light border rounded-3 p-1 ps-3">
+                            <span class="small text-muted me-2">Реферальный Email:</span>
+                            <code class="fw-bold text-dark me-2">tzvanguardia@gmail.com</code>
+                            <button class="btn btn-sm btn-outline-secondary border-0" onclick="copyEmail(event)">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="col-lg-4 d-none d-lg-block text-end">
-                        <img src="https://www.cibc.com/content/dam/cibc-public-assets/images/logos/cibc-logo-red.svg" alt="CIBC Logo" style="width: 150px; height: auto;">
-                    </div>
+                </div>
+                <div class="col-lg-4 d-none d-lg-block text-end">
+                    <img src="https://www.cibc.com/content/dam/cibc-public-assets/images/logos/cibc-logo-red.svg" 
+                         alt="CIBC Logo" 
+                         style="width: 150px; height: auto;">
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <script>
-    function copyEmail(event) {
-        navigator.clipboard.writeText('tzvanguardia@gmail.com');
-        const btn = event.currentTarget;
-        const icon = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check2 text-success"></i>';
-        setTimeout(() => { btn.innerHTML = icon; }, 2000);
-    }
-    </script>
+<script>
+function copyEmail(event) {
+    navigator.clipboard.writeText('tzvanguardia@gmail.com');
+    const btn = event.currentTarget;
+    const originalIcon = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check2 text-success"></i>';
+    setTimeout(() => { btn.innerHTML = originalIcon; }, 2000);
+}
+</script>
+
     <section class="hero-section">
         <div class="container">
             <h2 class="display-4 fw-bold mb-3">
@@ -236,7 +244,9 @@
 <script src="{{ url_for('static', filename='js/categories.js') }}"></script>
 
 <script>
+// Быстрый выбор профессий по категории (берёт данные из window.CATEGORY_MAP)
 function selectJobCategory(category, buttonElement) {
+    // сброс активной кнопки
     document.querySelectorAll('.quick-select-btn').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline-secondary');
@@ -244,8 +254,10 @@ function selectJobCategory(category, buttonElement) {
     buttonElement.classList.remove('btn-outline-secondary');
     buttonElement.classList.add('btn-primary');
 
+    // снять выделение со всех чекбоксов
     document.querySelectorAll('.job-checkbox').forEach(cb => cb.checked = false);
 
+    // берём список профессий из categories.js
     const baseMap = (window.CATEGORY_MAP || {});
     const jobsToSelect = baseMap[category] || [];
 
@@ -265,9 +277,12 @@ function selectJobCategory(category, buttonElement) {
 
     if (selectedCount > 0) {
         showTemporaryMessage(`Выбрано ${selectedCount} профессий в категории "${getReadableCategoryName(category)}"`, 'success');
+    } else {
+        showTemporaryMessage(`Совпадений по категории "${getReadableCategoryName(category)}" не найдено среди текущего набора`, 'warning');
     }
 }
 
+// Исправленная функция для корректной работы кнопки "Офис и управление"
 function getReadableCategoryName(category) {
     const names = {
         'transport': 'Транспорт',
@@ -285,14 +300,47 @@ function getReadableCategoryName(category) {
 }
 
 function showTemporaryMessage(message, type = 'info') {
+    // удалить предыдущие уведомления
     document.querySelectorAll('.temp-message').forEach(msg => msg.remove());
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} temp-message`;
-    messageDiv.style.cssText = `position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideInRight 0.3s ease-out; max-width: 400px; font-weight: 500;`;
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideInRight 0.3s ease-out;
+        max-width: 400px;
+        font-weight: 500;
+    `;
     const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
     messageDiv.innerHTML = `${icon} ${message}`;
+
+    if (!document.querySelector('#temp-message-styles')) {
+        const style = document.createElement('style');
+        style.id = 'temp-message-styles';
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     document.body.appendChild(messageDiv);
-    setTimeout(() => { messageDiv.remove(); }, 3000);
+
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => { messageDiv.remove(); }, 300);
+    }, 3000);
 }
 </script>
 
