@@ -24,6 +24,74 @@
     </div>
 </section>
 
+    <section class="cibc-promo-section py-3">
+        <div class="container">
+            <div class="cibc-banner position-relative overflow-hidden rounded-4 shadow-sm text-white">
+                <div class="row align-items-center p-4 p-lg-5 position-relative" style="z-index: 2;">
+                    <div class="col-lg-8">
+                        <span class="badge bg-warning text-dark mb-2 px-3 py-2 rounded-pill fw-bold">
+                            🇨🇦 Студентам в Канаде
+                        </span>
+                        <h2 class="fw-bold mb-3">Получите $25 и ускорьте студенческую визу</h2>
+                        <p class="lead mb-4" style="opacity: 0.9;">
+                            Откройте счет <strong>CIBC International Student GIC</strong>. Это самый быстрый путь к учебе в Канаде по программе SDS.
+                        </p>
+                        
+                        <div class="referral-box p-3 rounded-3 mb-4 d-inline-block" style="background: rgba(255,255,255,0.15); border: 1px dashed rgba(255,255,255,0.5);">
+                            <p class="mb-1 small text-uppercase fw-bold" style="letter-spacing: 1px; color: #ffdf7e;">⚠️ Как получить бонус $25:</p>
+                            <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center">
+                                <span class="small">Укажите этот email при регистрации:</span>
+                                <div class="input-group input-group-sm" style="max-width: 280px;">
+                                    <input type="text" class="form-control fw-bold text-dark" value="tzvanguardia@gmail.com" readonly id="refEmail">
+                                    <button class="btn btn-light" type="button" onclick="copyEmail(event)">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <a href="https://www.cibc.com/en/student/banking-products.html" target="_blank" class="btn btn-warning btn-lg fw-bold px-5 text-dark">
+                                Открыть счет <i class="bi bi-box-arrow-up-right ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4 d-none d-lg-flex justify-content-center">
+                        <div class="cibc-logo-placeholder text-center opacity-75">
+                            <i class="bi bi-bank" style="font-size: 8rem;"></i>
+                            <div class="fw-bold h1 mt-2">CIBC</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="position-absolute top-0 start-0 w-100 h-100" 
+                     style="background: linear-gradient(135deg, #4a1c40 0%, #7c2a4f 50%, #c41f3e 100%); z-index: 1;">
+                </div>
+                <div class="position-absolute rounded-circle bg-white opacity-10" style="width: 300px; height: 300px; top: -100px; right: -50px; z-index: 1;"></div>
+                <div class="position-absolute rounded-circle bg-warning opacity-10" style="width: 150px; height: 150px; bottom: -50px; left: 10%; z-index: 1;"></div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+    function copyEmail(event) {
+        var copyText = document.getElementById("refEmail");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); 
+        navigator.clipboard.writeText(copyText.value);
+        var btn = event.currentTarget;
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2"></i>';
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-light');
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-light');
+        }, 2000);
+    }
+    </script>
     <section class="hero-section">
         <div class="container">
             <h2 class="display-4 fw-bold mb-3">
