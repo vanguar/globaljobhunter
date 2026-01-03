@@ -2600,7 +2600,8 @@ function ensureStopButton() {
     stopBtn.id = 'stop-search-btn';
     stopBtn.type = 'button';
     stopBtn.className = 'btn-stop-live';
-    stopBtn.textContent = 'Остановить поиск и показать найденные вакансии';
+    const stopMsg = document.getElementById('msg-stop-search');
+    stopBtn.textContent = stopMsg ? stopMsg.innerText : 'Остановить поиск и показать найденные вакансии';
     submitBtn.insertAdjacentElement('afterend', stopBtn);
   }
   stopBtn.style.display = 'inline-flex';
@@ -2698,9 +2699,10 @@ async function startLiveSearch(e) {
       const r = await fetch(`/search/progress?id=${SEARCH_ID}`, { signal: POLL_ABORTER.signal });
       if (!r.ok) return;
       const p = await r.json();
+      const searchingMsg = document.getElementById('msg-searching');
       renderLiveButton({
         jobs_found: p.jobs_found || 0,
-        current_source: p.current_source || 'Идёт поиск',
+        current_source: p.current_source || (searchingMsg ? searchingMsg.innerText : 'Идёт поиск'),
         completed_sources: p.completed_sources || []
       });
       if (p.status === 'done' && p.redirect_url) {
