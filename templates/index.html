@@ -5,7 +5,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-    /* ВСТРОЕННЫЕ СТИЛИ (Soft UI Design) */
+    /* === MODERN SOFT UI STYLES === */
     :root {
         --primary-color: #0d6efd;
         --primary-light: rgba(13, 110, 253, 0.08);
@@ -13,6 +13,13 @@
         --hover-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         --card-bg: #ffffff;
         --bg-body: #f8fafc;
+    }
+
+    /* Поддержка темной темы (автоматически, если есть класс dark) */
+    [data-bs-theme="dark"] :root {
+        --card-bg: #1e1e1e;
+        --bg-body: #121212;
+        --primary-light: rgba(13, 110, 253, 0.2);
     }
 
     .modern-wrapper { font-family: 'Inter', sans-serif; background-color: var(--bg-body); }
@@ -26,7 +33,7 @@
         margin: 0;
     }
     
-    /* Внутренний контент */
+    /* Внутренний контент карточек */
     .card-content, .country-content, .job-content {
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         border: 2px solid transparent;
@@ -39,7 +46,7 @@
         box-shadow: var(--hover-shadow);
     }
 
-    /* АКТИВНОЕ СОСТОЯНИЕ */
+    /* АКТИВНОЕ СОСТОЯНИЕ (Выбрано) */
     .selection-card input:checked + .card-content,
     .country-card input:checked + .country-content,
     .custom-checkbox-wrapper input:checked + .job-content {
@@ -49,21 +56,22 @@
         transform: translateY(-2px);
     }
 
-    /* Цветные элементы при выборе (шаг 1) */
+    /* Цветные иконки только для шага 1 */
     .selection-card input:checked + .card-content .icon-wrapper {
         background-color: var(--primary-color) !important;
         color: white !important;
     }
 
-    /* Галочка */
+    /* Галочка в углу */
     .active-check { opacity: 0; transition: 0.2s; position: absolute; top: 12px; right: 12px; color: var(--primary-color); font-size: 1.2rem; }
     .selection-card input:checked + .card-content .active-check,
-    .country-card input:checked + .country-content .active-check { opacity: 1; }
+    .country-card input:checked + .country-content .active-check,
+    .custom-checkbox-wrapper input:checked + .job-content .active-check { opacity: 1; }
     
     /* Корректировка галочки для маленьких плиток стран */
-    .country-card .active-check { top: 5px; right: 5px; font-size: 1rem; }
+    .country-card .active-check { top: 6px; right: 6px; font-size: 1rem; }
 
-    /* Кружочки (шаг 1) */
+    /* Оформление иконок (Шаг 1) */
     .icon-wrapper {
         transition: all 0.2s ease;
         display: flex;
@@ -72,7 +80,7 @@
         font-size: 1.5rem;
     }
 
-    /* Шаги */
+    /* Элементы формы */
     .form-step-card { border: 1px solid rgba(0,0,0,0.04); }
     .step-badge {
         width: 36px; height: 36px; background: #2c3e50; color: white;
@@ -81,6 +89,7 @@
         box-shadow: 0 4px 10px rgba(44, 62, 80, 0.2);
     }
     
+    /* Кнопки и анимации */
     .hover-scale { transition: transform 0.2s; }
     .hover-scale:hover { transform: scale(1.02); }
     
@@ -92,9 +101,9 @@
 <main class="modern-wrapper pb-5">
 
     <div id="js-messages" class="d-none">
-        <span id="msg-selected" data-i18n="js_msg_selected">Выбрано профессий:</span>
-        <span id="msg-nomatch" data-i18n="js_msg_nomatch">Нет совпадений в этой категории</span>
-        <span id="msg-notfound" data-i18n="js_msg_notfound">Профессии не найдены</span>
+        <span id="msg-selected" data-i18n="js_selected">Выбрано:</span>
+        <span id="msg-nomatch" data-i18n="js_nomatch">Нет совпадений в этой категории</span>
+        <span id="msg-notfound" data-i18n="js_notfound">Профессии не найдены</span>
     </div>
 
     <section class="partners-modern-section pt-5 pb-3">
@@ -247,6 +256,7 @@
                                                 <input class="form-check-input job-checkbox d-none" type="checkbox" name="selected_jobs" value="{{ job }}" id="job-{{ outer_loop_index }}-{{ loop.index0 }}">
                                                 <label class="job-content w-100 p-3 rounded-3 d-flex align-items-center cursor-pointer h-100" for="job-{{ outer_loop_index }}-{{ loop.index0 }}">
                                                     <span class="fw-medium small">{{ job }}</span>
+                                                    <div class="active-check"><i class="bi bi-check-circle-fill"></i></div>
                                                 </label>
                                             </div>
                                         </div>
@@ -342,27 +352,30 @@
 <script src="{{ url_for('static', filename='js/categories.js') }}"></script>
 
 <script>
-// Вспомогательная функция для получения переведенного текста из DOM
+// === ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЧТЕНИЯ ПЕРЕВОДОВ ИЗ HTML ===
 function getJsMsg(id, fallback) {
     const el = document.getElementById(id);
     return el ? el.innerText : fallback;
 }
 
 function selectJobCategory(category, buttonElement) {
+    // 1. Сброс стилей кнопок
     document.querySelectorAll('.quick-select-btn').forEach(btn => {
         btn.classList.remove('active-cat');
         btn.classList.remove('btn-dark');
         btn.classList.add('btn-light');
     });
+    // 2. Активная кнопка
     buttonElement.classList.remove('btn-light');
     buttonElement.classList.add('active-cat');
 
+    // 3. Сброс чекбоксов
     document.querySelectorAll('.job-checkbox').forEach(cb => cb.checked = false);
 
     const baseMap = (window.CATEGORY_MAP || {});
     const jobsToSelect = baseMap[category] || [];
 
-    // Получаем переведенный текст "Профессии не найдены"
+    // Получаем переведенный текст ошибки
     const msgNotFound = getJsMsg('msg-notfound', 'Профессии не найдены');
 
     if (!jobsToSelect.length) {
@@ -379,7 +392,7 @@ function selectJobCategory(category, buttonElement) {
         }
     });
 
-    // Получаем переведенные тексты для успеха и неудачи
+    // Получаем переведенные тексты для результата
     const msgSelected = getJsMsg('msg-selected', 'Выбрано:');
     const msgNoMatch = getJsMsg('msg-nomatch', 'Нет совпадений');
 
@@ -390,6 +403,17 @@ function selectJobCategory(category, buttonElement) {
     }
 }
 
+// Вспомогательная функция (оставлена как есть, имена категорий лучше переводить через словарь, если нужно)
+function getReadableCategoryName(category) {
+    const names = {
+        'transport': 'Транспорт', 'restaurant': 'Общепит', 'construction': 'Стройка',
+        'care': 'Уход', 'it': 'IT', 'refugee': 'Для украинцев', 'autoservice': 'Автосервис',
+        'fuel': 'АЗС', 'oilgas': 'Нефть и газ', 'office': 'Офис и управление'
+    };
+    return names[category] || category;
+}
+
+// Функция показа уведомлений (красивая, сверху справа)
 function showTemporaryMessage(message, type = 'info') {
     document.querySelectorAll('.temp-message').forEach(msg => msg.remove());
 
