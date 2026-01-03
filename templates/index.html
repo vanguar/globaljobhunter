@@ -164,15 +164,15 @@
 
     <section class="hero-section text-center py-5">
         <div class="container py-3">
-            <h1 class="display-4 fw-bolder mb-4 text-dark">
-                Ваша новая работа — <br class="d-md-none">в любой точке <span class="text-primary highlight-animated" data-i18n="мира">мира</span>
+            <h1 class="display-4 fw-bolder mb-4 text-dark" data-i18n="Ваша новая работа — в любой точке мира">
+                Ваша новая работа — в любой точке <span class="text-primary highlight-animated">мира</span>
             </h1>
             <p class="lead text-muted mb-5 mx-auto" style="max-width: 700px;" 
-               data-i18n="Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.">
+            data-i18n="Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.">
                 Специализированный поиск вакансий для украинцев. Мы убираем сложности, чтобы вы могли сосредоточиться на главном.
             </p>
-            <a href="#search-form-section" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-lg hover-scale">
-                <i class="bi bi-search me-2"></i>Начать поиск
+            <a href="#search-form-section" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-lg" data-i18n="Начать поиск">
+                Начать поиск
             </a>
         </div>
     </section>
@@ -272,22 +272,22 @@
                             <div class="text-center mb-4">
                                 <h3 class="fw-bold">Страны поиска</h3>
                             </div>
-                            <div class="row g-2"> 
-                                {% for code, info in countries.items() %}
-                                <div class="col-6 col-sm-4 col-lg-3">
-                                    <label class="country-card w-100">
-                                        <input class="form-check-input d-none" type="checkbox" name="countries" value="{{ code }}" id="country_{{ code }}" {% if code in ['de', 'pl'] %}checked{% endif %}>
-                                        <div class="country-content p-2 rounded-3 text-center h-100 d-flex flex-column align-items-center justify-content-center">
-                                            <span class="fs-1 mb-1 d-block">
-                                                {% if code == 'de' %}🇩🇪{% elif code == 'pl' %}🇵🇱{% elif code == 'cz' %}🇨🇿{% elif code == 'gb' %}🇬🇧{% elif code == 'fr' %}🇫🇷{% elif code == 'it' %}🇮🇹{% elif code == 'es' %}🇪🇸{% elif code == 'nl' %}🇳🇱{% elif code == 'ch' %}🇨🇭{% elif code == 'be' %}🇧🇪{% elif code == 'se' %}🇸🇪{% elif code == 'no' %}🇳🇴{% elif code == 'us' %}🇺🇸{% elif code == 'ca' %}🇨🇦{% else %}🌍{% endif %}
-                                            </span>
-                                            <span class="fw-medium small text-muted" style="font-size: 0.85rem;">{{ info.name }}</span>
-                                            <div class="active-check"><i class="bi bi-check-circle-fill"></i></div>
-                                        </div>
-                                    </label>
-                                </div>
-                                {% endfor %}
+                            <div class="row g-2">
+                            {% for code, info in countries.items() %}
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <label class="country-card">
+                                    <input class="form-check-input d-none" type="checkbox" name="countries" value="{{ code }}" id="country_{{ code }}" {% if code in ['de', 'pl'] %}checked{% endif %}>
+                                    <div class="country-content p-2 rounded-3 text-center d-flex flex-column align-items-center border">
+                                        <span class="fs-2 mb-1">
+                                            {% if code == 'de' %}🇩🇪{% elif code == 'pl' %}🇵🇱{% elif code == 'cz' %}🇨🇿{% elif code == 'gb' %}🇬🇧{% elif code == 'fr' %}🇫🇷{% elif code == 'it' %}🇮🇹{% elif code == 'es' %}🇪🇸{% elif code == 'nl' %}🇳🇱{% elif code == 'ch' %}🇨🇭{% elif code == 'be' %}🇧🇪{% elif code == 'se' %}🇸🇪{% elif code == 'no' %}🇳🇴{% elif code == 'us' %}🇺🇸{% elif code == 'ca' %}🇨🇦{% else %}🌍{% endif %}
+                                        </span>
+                                        <span class="small fw-medium text-muted">{{ info.name }}</span>
+                                        <div class="active-check" style="position: absolute; top: 5px; right: 5px; color: #0d6efd; opacity: 0;"><i class="bi bi-check-circle-fill"></i></div>
+                                    </div>
+                                </label>
                             </div>
+                            {% endfor %}
+                        </div>
                         </div>
 
                         <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-sm">
