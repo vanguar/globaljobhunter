@@ -1282,3 +1282,140 @@ body #pager-subscribe-btn .nudge-text {
 @media (prefers-reduced-motion: reduce) {
   body #pager-subscribe-btn::before { animation: none !important; }
 }
+
+/* === MODERN REDESIGN STYLES === */
+
+:root {
+    --primary-color: #0d6efd;
+    --primary-light: rgba(13, 110, 253, 0.1);
+    --border-radius-lg: 1.5rem; /* 24px */
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #f8f9fa; /* Светло-серый фон для контраста с белыми картами */
+    color: #2c3e50;
+}
+
+/* Общие утилиты */
+.shadow-soft {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0,0,0,0.02) !important;
+}
+
+.shadow-inset {
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.transition-all {
+    transition: all 0.25s ease-in-out;
+}
+
+.btn-glow:hover {
+    box-shadow: 0 0 20px rgba(13, 110, 253, 0.4) !important;
+    transform: translateY(-2px);
+}
+
+/* Стилизация шагов */
+.step-indicator {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
+    z-index: 10;
+}
+
+/* Карточки выбора статуса (Step 1) */
+.selection-card input:checked + .card-content {
+    background-color: #fff;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 4px var(--primary-light);
+    transform: translateY(-3px);
+}
+
+.selection-card input:checked + .card-content .icon-wrapper {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+.selection-card .check-mark {
+    opacity: 0;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    transition: opacity 0.2s;
+}
+
+.selection-card input:checked + .card-content .check-mark {
+    opacity: 1;
+}
+
+/* Чекбоксы профессий (Step 2) */
+.job-checkbox:checked + label {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.job-checkbox:checked + label .custom-check-box {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.custom-check-box {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    display: inline-block;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.job-checkbox:checked + label .custom-check-box::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 12px;
+    top: -2px;
+    left: 2px;
+}
+
+/* Страны (Step 3) */
+.country-card input:checked + .country-content {
+    background-color: #fff;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+}
+
+.country-card .country-content:hover {
+    background-color: #f8f9fa;
+}
+
+/* Поле поиска (Step 4) */
+.form-control:focus {
+    box-shadow: 0 0 0 4px var(--primary-light);
+    border-color: var(--primary-color);
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .hero-section h1 { font-size: 2.5rem; }
+    .form-step-card { padding: 1.5rem !important; }
+}
