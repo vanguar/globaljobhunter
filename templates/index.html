@@ -2,60 +2,109 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/partners.css') }}">
-
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<main class="modern-wrapper">
+<style>
+    /* ВСТРОЕННЫЕ СТИЛИ ДЛЯ НОВОГО ДИЗАЙНА (чтобы ничего не потерялось) */
+    :root {
+        --primary-color: #0d6efd;
+        --primary-light: rgba(13, 110, 253, 0.08);
+        --hover-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        --soft-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .modern-wrapper { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    
+    /* Карточки (Inputs как плитки) */
+    .selection-card, .country-card, .job-card-label {
+        cursor: pointer;
+        display: block;
+        position: relative;
+        height: 100%;
+    }
+    
+    .card-content, .country-content, .job-content {
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        background: white;
+        box-shadow: var(--soft-shadow);
+    }
+
+    /* Состояние :checked через CSS (Логика не меняется, меняется вид) */
+    .selection-card input:checked + .card-content,
+    .country-card input:checked + .country-content,
+    .custom-checkbox-wrapper input:checked + .job-content {
+        border-color: var(--primary-color);
+        background-color: #fff;
+        box-shadow: 0 0 0 4px var(--primary-light);
+        transform: translateY(-2px);
+    }
+
+    .selection-card input:checked + .card-content .icon-wrapper {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+    }
+
+    .active-check { opacity: 0; transition: 0.2s; position: absolute; top: 10px; right: 10px; color: var(--primary-color); font-size: 1.2rem; }
+    .selection-card input:checked + .card-content .active-check,
+    .country-card input:checked + .country-content .active-check { opacity: 1; }
+
+    /* Общие улучшения */
+    .form-step-card { border: 1px solid rgba(0,0,0,0.04); }
+    .step-badge {
+        width: 36px; height: 36px; background: #2c3e50; color: white;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-weight: bold; margin: 0 auto 1rem auto;
+    }
+    
+    /* Кнопки категорий */
+    .quick-select-btn { transition: all 0.2s; }
+    .quick-select-btn.active-cat {
+        background-color: #2c3e50 !important; color: white !important; border-color: #2c3e50 !important;
+    }
+
+    /* Анимации */
+    .hover-scale:hover { transform: scale(1.02); }
+</style>
+
+<main class="modern-wrapper pb-5">
+
     <section class="partners-modern-section pt-5 pb-3">
         <div class="container">
-            <h6 class="trusted-heading text-center text-muted mb-4 small text-uppercase ls-1">Нам доверяют данные</h6>
+            <h6 class="text-center text-muted mb-4 small text-uppercase" style="letter-spacing: 1px; font-weight: 600;" data-i18n="trusted_heading">
+                Нам доверяют данные
+            </h6>
             <div class="partners-grid opacity-75 hover-opacity-100 transition-all">
-                <div class="partner-card">
-                    <div class="partner-logo remotive-new">Remotive</div>
-                </div>
-                <div class="partner-card">
-                    <div class="partner-logo adzuna">Adzuna</div>
-                </div>
-                <div class="partner-card">
-                    <div class="partner-logo jobicy">jobicy</div>
-                </div>
-                <div class="partner-card">
-                    <div class="partner-logo careerjet">career<span>jet</span></div>
-                </div>
+                <div class="partner-card"><div class="partner-logo remotive-new">Remotive</div></div>
+                <div class="partner-card"><div class="partner-logo adzuna">Adzuna</div></div>
+                <div class="partner-card"><div class="partner-logo jobicy">jobicy</div></div>
+                <div class="partner-card"><div class="partner-logo careerjet">career<span>jet</span></div></div>
             </div>
         </div>
     </section>
 
     <section class="cibc-promo-modern py-4">
         <div class="container">
-            <div class="p-4 p-lg-5 border-0 rounded-5 bg-white shadow-soft position-relative overflow-hidden">
-                <div class="position-absolute top-0 end-0 opacity-10" style="width: 300px; height: 100%; background: linear-gradient(135deg, #FF4757 0%, #E31837 100%); clip-path: polygon(60% 0, 100% 0, 100% 100%, 40% 100%);"></div>
-                
+            <div class="p-4 p-lg-5 border-0 rounded-5 bg-white shadow-sm position-relative overflow-hidden">
+                <div class="position-absolute top-0 end-0 opacity-10" style="width: 300px; height: 100%; background: linear-gradient(135deg, #FF4757 0%, #E31837 100%); pointer-events: none;"></div>
                 <div class="row align-items-center position-relative" style="z-index: 2;">
                     <div class="col-lg-8">
                         <div class="badge bg-danger-subtle text-danger mb-3 px-3 py-2 rounded-pill fw-bold">STUDENT OFFER</div>
-                        <h3 class="fw-bold mb-3 display-6">Get $25 Bonus with CIBC Smart</h3>
-                        <p class="text-muted mb-4 fs-5" style="max-width: 600px;">
+                        <h3 class="fw-bold mb-3">Get $25 Bonus with CIBC Smart</h3>
+                        <p class="text-muted mb-4" style="max-width: 600px;">
                             Open a <strong>CIBC International Student GIC</strong> to speed up your study permit via SDS.
                         </p>
-                        
                         <div class="d-flex flex-wrap align-items-center gap-3">
-                            <a href="https://www.cibc.com/en/special-offers/isbo-refer-a-friend.html?utrc=E2084:1&utm_medium=Email&utm_campaign=ISBO-x-RAF-&" 
-                               target="_blank" 
-                               class="btn btn-dark rounded-pill px-4 py-2 fw-bold shadow-sm">
-                                Get Started
-                            </a>
-                            <div class="d-flex align-items-center bg-light border border-light rounded-pill p-1 ps-3 shadow-inset">
+                            <a href="https://www.cibc.com/en/special-offers/isbo-refer-a-friend.html?utrc=E2084:1&utm_medium=Email&utm_campaign=ISBO-x-RAF-&" target="_blank" class="btn btn-dark rounded-pill px-4 py-2 fw-bold shadow-sm hover-scale">Get Started</a>
+                            <div class="d-flex align-items-center bg-light border border-light rounded-pill p-1 ps-3">
                                 <span class="small text-muted me-2">Code:</span>
                                 <code class="fw-bold text-dark me-2">tzvanguardia@gmail.com</code>
-                                <button class="btn btn-sm btn-white rounded-circle shadow-sm" onclick="copyEmail(event)" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-clipboard"></i>
-                                </button>
+                                <button class="btn btn-sm btn-white rounded-circle shadow-sm" onclick="copyEmail(event)"><i class="bi bi-clipboard"></i></button>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-4 d-none d-lg-block text-end opacity-25">
-                         <div class="cibc-logo-text" style="font-size: 80px; font-weight: 900; color: #8B0000; font-family: sans-serif;">CIBC</div>
+                         <div style="font-size: 80px; font-weight: 900; color: #8B0000;">CIBC</div>
                     </div>
                 </div>
             </div>
@@ -74,99 +123,97 @@
 
     <section class="hero-section text-center py-5">
         <div class="container py-3">
-            <h1 class="display-4 fw-bolder mb-4 text-dark" style="letter-spacing: -1px;">
-                Ваша новая работа — <br class="d-md-none">в любой точке <span class="text-primary position-relative d-inline-block">мира
-                <svg class="position-absolute w-100" style="bottom: -5px; left: 0; height: 8px; opacity: 0.3;" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 5 Q 50 10 100 5" stroke="#0d6efd" stroke-width="3" fill="none"/></svg>
-                </span>
+            <h1 class="display-4 fw-bolder mb-4 text-dark" data-i18n="hero_title">
+                Ваша новая работа — <br class="d-md-none">в любой точке <span class="text-primary">мира</span>
             </h1>
-            <p class="lead text-muted mb-5 mx-auto" style="max-width: 700px; line-height: 1.6;">
+            <p class="lead text-muted mb-5 mx-auto" style="max-width: 700px;" data-i18n="hero_subtitle">
                 Специализированный поиск для украинцев. Мы убрали всё лишнее, чтобы вы нашли вакансии, о которых мечтаете.
             </p>
-            <a href="#search-form-section" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-lg btn-glow">
+            <a href="#search-form-section" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-lg hover-scale" data-i18n="hero_button">
                 <i class="bi bi-search me-2"></i>Начать поиск
             </a>
         </div>
     </section>
 
-    <section id="search-form-section" class="pb-5 bg-light-subtle">
+    <section id="search-form-section" class="pb-5">
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-lg-9 col-xl-8">
-                    <form id="job-search-form" novalidate class="d-flex flex-col gap-4">
+                    
+                    <form id="job-search-form" novalidate class="d-flex flex-column gap-4">
                         
-                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-soft mb-4 position-relative overflow-hidden">
-                            <div class="step-indicator">1</div>
-                            <div class="text-center mb-5">
-                                <h3 class="fw-bold mb-2">Ваш статус</h3>
-                                <p class="text-muted">Это поможет подобрать релевантные программы</p>
+                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-sm">
+                            <div class="step-badge">1</div>
+                            <div class="text-center mb-4">
+                                <h3 class="fw-bold mb-2" data-i18n="step1_title">Ваш статус</h3>
+                                <p class="text-muted" data-i18n="step1_desc">Это поможет подобрать релевантные программы</p>
                             </div>
                             
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="selection-card h-100 cursor-pointer">
+                                    <label class="selection-card">
                                         <input class="form-check-input d-none" type="radio" name="is_refugee" value="true" id="refugee_yes" required>
-                                        <div class="card-content p-4 border rounded-4 h-100 transition-all text-center">
+                                        <div class="card-content p-4 rounded-4 text-center h-100">
                                             <div class="icon-wrapper mb-3 text-primary bg-primary-subtle rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
                                                 <i class="bi bi-passport fs-3"></i>
                                             </div>
-                                            <strong class="d-block fs-5 mb-2">Украинский беженец</strong>
-                                            <span class="text-muted small">Параграф 24, временная защита</span>
-                                            <div class="check-mark"><i class="bi bi-check-circle-fill"></i></div>
+                                            <strong class="d-block fs-5 mb-2" data-i18n="status_refugee_title">Украинский беженец</strong>
+                                            <span class="text-muted small" data-i18n="status_refugee_desc">Параграф 24, временная защита</span>
+                                            <div class="active-check"><i class="bi bi-check-circle-fill"></i></div>
                                         </div>
                                     </label>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="selection-card h-100 cursor-pointer">
+                                    <label class="selection-card">
                                         <input class="form-check-input d-none" type="radio" name="is_refugee" value="false" id="refugee_no" required>
-                                        <div class="card-content p-4 border rounded-4 h-100 transition-all text-center">
+                                        <div class="card-content p-4 rounded-4 text-center h-100">
                                             <div class="icon-wrapper mb-3 text-secondary bg-secondary-subtle rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
                                                 <i class="bi bi-briefcase fs-3"></i>
                                             </div>
-                                            <strong class="d-block fs-5 mb-2">Обычный поиск</strong>
-                                            <span class="text-muted small">Рабочая виза, ВНЖ, гражданство</span>
-                                            <div class="check-mark"><i class="bi bi-check-circle-fill"></i></div>
+                                            <strong class="d-block fs-5 mb-2" data-i18n="status_other_title">Обычный поиск</strong>
+                                            <span class="text-muted small" data-i18n="status_other_desc">Рабочая виза, ВНЖ, гражданство</span>
+                                            <div class="active-check"><i class="bi bi-check-circle-fill"></i></div>
                                         </div>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-soft mb-4 position-relative">
-                            <div class="step-indicator">2</div>
+                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-sm">
+                            <div class="step-badge">2</div>
                             <div class="text-center mb-4">
-                                <h3 class="fw-bold mb-2">Кем вы хотите работать?</h3>
+                                <h3 class="fw-bold mb-2" data-i18n="step2_title">Кем вы хотите работать?</h3>
                             </div>
 
                             <div class="mb-5 text-center">
-                                <p class="text-muted small text-uppercase fw-bold ls-1 mb-3">Быстрые фильтры</p>
+                                <p class="text-muted small text-uppercase fw-bold mb-3" data-i18n="quick_filters">Быстрые фильтры</p>
                                 <div id="quick-select-buttons" class="d-flex flex-wrap justify-content-center gap-2">
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('transport', this)">🚗 Транспорт</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('restaurant', this)">🍽️ Общепит</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('construction', this)">🏗️ Стройка</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('care', this)">👥 Уход</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('it', this)">💻 IT</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('office', this)">👔 Офис</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('refugee', this)">🇺🇦 Для наших</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('autoservice', this)">🛠 Авто</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('fuel', this)">⛽ АЗС</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('oilgas', this)">🛢 Нефть</button>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill border-0 bg-light px-3 py-2 quick-select-btn transition-all" onclick="selectJobCategory('other', this)">✨ Другое</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('transport', this)" data-i18n="cat_transport">🚗 Транспорт</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('restaurant', this)" data-i18n="cat_food">🍽️ Общепит</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('construction', this)" data-i18n="cat_construct">🏗️ Стройка</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('care', this)" data-i18n="cat_care">👥 Уход</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('it', this)" data-i18n="cat_it">💻 IT</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('office', this)" data-i18n="cat_office">👔 Офис</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('refugee', this)" data-i18n="cat_ua">🇺🇦 Для наших</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('autoservice', this)" data-i18n="cat_auto">🛠 Авто</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('fuel', this)" data-i18n="cat_azs">⛽ АЗС</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('oilgas', this)" data-i18n="cat_oil">🛢 Нефть</button>
+                                    <button type="button" class="btn btn-light rounded-pill px-3 py-2 quick-select-btn border" onclick="selectJobCategory('other', this)" data-i18n="cat_other">✨ Другое</button>
                                 </div>
                             </div>
 
                             <div class="professions-grid">
                                 {% for category, jobs in job_categories.items() %}
                                 <div class="mb-4" data-category="{{ category }}">
-                                    <h6 class="fw-bold text-primary mb-3 ps-2 border-start border-4 border-primary">{{ category }}</h6>
+                                    <h6 class="fw-bold text-primary mb-3 ps-3 border-start border-4 border-primary category-title">{{ category }}</h6>
                                     <div class="row g-2">
                                         {% set outer_loop_index = loop.index0 %}
                                         {% for job in jobs %}
                                         <div class="col-md-6 col-lg-4">
-                                            <div class="form-check custom-checkbox-tile">
-                                                <input class="form-check-input job-checkbox" type="checkbox" name="selected_jobs" value="{{ job }}" id="job-{{ outer_loop_index }}-{{ loop.index0 }}">
-                                                <label class="form-check-label w-100 p-2 rounded transition-all d-flex align-items-center cursor-pointer" for="job-{{ outer_loop_index }}-{{ loop.index0 }}">
-                                                    <span class="custom-check-box me-2"></span>
-                                                    {{ job }}
+                                            <div class="custom-checkbox-wrapper position-relative h-100">
+                                                <input class="form-check-input job-checkbox d-none" type="checkbox" name="selected_jobs" value="{{ job }}" id="job-{{ outer_loop_index }}-{{ loop.index0 }}">
+                                                <label class="job-content w-100 p-3 rounded-3 d-flex align-items-center cursor-pointer h-100" for="job-{{ outer_loop_index }}-{{ loop.index0 }}">
+                                                    <span class="fw-medium small">{{ job }}</span>
                                                 </label>
                                             </div>
                                         </div>
@@ -177,21 +224,22 @@
                             </div>
                         </div>
 
-                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-soft mb-4 position-relative">
-                            <div class="step-indicator">3</div>
+                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-sm">
+                            <div class="step-badge">3</div>
                             <div class="text-center mb-4">
-                                <h3 class="fw-bold">Где искать?</h3>
+                                <h3 class="fw-bold" data-i18n="step3_title">Где искать?</h3>
                             </div>
                             <div class="row g-3">
                                 {% for code, info in countries.items() %}
                                 <div class="col-6 col-md-4">
-                                    <label class="country-card h-100 cursor-pointer w-100">
+                                    <label class="country-card w-100">
                                         <input class="form-check-input d-none" type="checkbox" name="countries" value="{{ code }}" id="country_{{ code }}" {% if code in ['de', 'pl'] %}checked{% endif %}>
-                                        <div class="country-content p-3 border rounded-4 text-center h-100 transition-all d-flex flex-column align-items-center justify-content-center">
+                                        <div class="country-content p-3 rounded-4 text-center h-100 d-flex flex-column align-items-center justify-content-center">
                                             <span class="fs-1 mb-2 d-block">
                                                 {% if code == 'de' %}🇩🇪{% elif code == 'pl' %}🇵🇱{% elif code == 'cz' %}🇨🇿{% elif code == 'gb' %}🇬🇧{% elif code == 'fr' %}🇫🇷{% elif code == 'it' %}🇮🇹{% elif code == 'es' %}🇪🇸{% elif code == 'nl' %}🇳🇱{% elif code == 'ch' %}🇨🇭{% elif code == 'be' %}🇧🇪{% elif code == 'se' %}🇸🇪{% elif code == 'no' %}🇳🇴{% elif code == 'us' %}🇺🇸{% elif code == 'ca' %}🇨🇦{% else %}🌍{% endif %}
                                             </span>
-                                            <span class="fw-medium">{{ info.name }}</span>
+                                            <span class="fw-bold small">{{ info.name }}</span>
+                                            <div class="active-check"><i class="bi bi-check-circle-fill"></i></div>
                                         </div>
                                     </label>
                                 </div>
@@ -199,48 +247,48 @@
                             </div>
                         </div>
 
-                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-soft mb-4 position-relative">
-                            <div class="step-indicator">4</div>
+                        <div class="form-step-card bg-white p-4 p-md-5 rounded-5 shadow-sm">
+                            <div class="step-badge">4</div>
                             <div class="text-center mb-4">
-                                <h3 class="fw-bold">Город (не обязательно)</h3>
+                                <h3 class="fw-bold" data-i18n="step4_title">Город (не обязательно)</h3>
                             </div>
                             <div class="position-relative">
                                 <i class="bi bi-geo-alt position-absolute text-muted fs-4" style="left: 20px; top: 50%; transform: translateY(-50%);"></i>
-                                <input type="text" class="form-control form-control-lg border-2 rounded-pill ps-5 py-3 shadow-inset" name="city" data-i18n="attr=placeholder" placeholder="Например: Berlin, Варшава..." style="font-size: 1.1rem;">
+                                <input type="text" class="form-control form-control-lg border-2 rounded-pill ps-5 py-3 shadow-inset" name="city" data-i18n="attr=placeholder,step4_placeholder" placeholder="Например: Berlin, Варшава..." style="font-size: 1.1rem;">
                             </div>
                             
                             <div class="mt-4 d-flex gap-3 align-items-start text-muted bg-light p-3 rounded-4">
                                 <i class="bi bi-lightbulb-fill text-warning fs-5 flex-shrink-0"></i>
-                                <div class="small">
+                                <div class="small" data-i18n="step4_tip">
                                     <strong>Совет:</strong> Оставьте пустым для поиска по всей стране. Английские названия (Berlin) работают лучше всего.
                                 </div>
                             </div>
                         </div>
                         
                         <div class="text-center mt-3 mb-5">
-                            <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 py-4 fs-4 fw-bold shadow-lg btn-glow w-100 w-md-auto transition-transform">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 py-4 fs-4 fw-bold shadow-lg hover-scale w-100 w-md-auto" data-i18n="btn_search">
                                 🚀 Найти работу
                             </button>
 
-                            <div id="loading-message" class="mt-4" style="display: none; height: 0; opacity: 0; transition: all 0.5s ease;">
+                            <div id="loading-message" class="mt-4" style="display: none; opacity: 0; transition: all 0.5s ease;">
                                 <div class="p-3 bg-white rounded-4 shadow-sm d-inline-block border">
                                     <div class="spinner-border text-primary me-2" role="status"></div>
-                                    <span class="text-dark fw-medium">Сканируем базы вакансий...</span>
+                                    <span class="text-dark fw-medium" data-i18n="msg_scanning">Сканируем базы вакансий...</span>
                                 </div>
                             </div>
 
                             <div class="mt-5 pt-4 border-top">
                                 <div class="row justify-content-center">
                                     <div class="col-md-8 col-lg-6">
-                                        <h6 class="fw-bold mb-3">📬 Новые вакансии на почту</h6>
+                                        <h6 class="fw-bold mb-3" data-i18n="subscribe_title">📬 Новые вакансии на почту</h6>
                                         <div class="input-group shadow-sm rounded-pill overflow-hidden border">
-                                            <input type="email" class="form-control border-0 ps-4" id="subscribe-email" placeholder="Ваш email">
-                                            <button class="btn btn-dark px-4" type="button" onclick="subscribeToEmails()">
+                                            <input type="email" class="form-control border-0 ps-4" id="subscribe-email" placeholder="Ваш email" data-i18n="attr=placeholder,subscribe_placeholder">
+                                            <button class="btn btn-dark px-4" type="button" onclick="subscribeToEmails()" data-i18n="btn_subscribe">
                                                 Подписаться
                                             </button>
                                         </div>
                                         <div class="mt-2">
-                                            <a href="javascript:void(0)" onclick="showManageSubscriptionInfo(); return false;" class="text-muted small text-decoration-none hover-underline">Управление подпиской</a>
+                                            <a href="javascript:void(0)" onclick="showManageSubscriptionInfo(); return false;" class="text-muted small text-decoration-none" data-i18n="link_manage_sub">Управление подпиской</a>
                                         </div>
                                     </div>
                                 </div>
@@ -255,24 +303,26 @@
 
 <script src="{{ url_for('static', filename='js/categories.js') }}"></script>
 <script>
-// Сохраняем вашу оригинальную логику скриптов один в один
+// Вспомогательная функция для обновления визуала кнопок
 function selectJobCategory(category, buttonElement) {
+    // Сброс стилей кнопок
     document.querySelectorAll('.quick-select-btn').forEach(btn => {
-        // Меняем классы под новый стиль (btn-dark вместо btn-primary)
-        btn.classList.remove('btn-dark', 'text-white', 'shadow-sm');
-        btn.classList.add('btn-outline-secondary', 'bg-light');
+        btn.classList.remove('active-cat');
+        btn.classList.remove('btn-dark');
+        btn.classList.add('btn-light');
     });
     // Активная кнопка
-    buttonElement.classList.remove('btn-outline-secondary', 'bg-light');
-    buttonElement.classList.add('btn-dark', 'text-white', 'shadow-sm');
+    buttonElement.classList.remove('btn-light');
+    buttonElement.classList.add('active-cat');
 
+    // Логика выбора чекбоксов
     document.querySelectorAll('.job-checkbox').forEach(cb => cb.checked = false);
 
     const baseMap = (window.CATEGORY_MAP || {});
     const jobsToSelect = baseMap[category] || [];
 
     if (!jobsToSelect.length) {
-        showTemporaryMessage(`Профессии для "${getReadableCategoryName(category)}" не найдены`, 'warning');
+        showTemporaryMessage(`Профессии для категории "${category}" не найдены (или не загружены)`, 'warning');
         return;
     }
 
@@ -285,19 +335,10 @@ function selectJobCategory(category, buttonElement) {
     });
 
     if (selectedCount > 0) {
-        showTemporaryMessage(`Выбрано ${selectedCount} профессий в категории "${getReadableCategoryName(category)}"`, 'success');
+        showTemporaryMessage(`Выбрано ${selectedCount} профессий`, 'success');
     } else {
-        showTemporaryMessage(`Нет совпадений по "${getReadableCategoryName(category)}"`, 'warning');
+        showTemporaryMessage(`Нет совпадений`, 'warning');
     }
-}
-
-function getReadableCategoryName(category) {
-    const names = {
-        'transport': 'Транспорт', 'restaurant': 'Общепит', 'construction': 'Стройка',
-        'care': 'Уход', 'it': 'IT', 'refugee': 'Для украинцев', 'autoservice': 'Автосервис',
-        'fuel': 'АЗС', 'oilgas': 'Нефть и газ', 'office': 'Офис и управление'
-    };
-    return names[category] || category;
 }
 
 function showTemporaryMessage(message, type = 'info') {
